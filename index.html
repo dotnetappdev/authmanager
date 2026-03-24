@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DotNetAuthManager — Keycloak-style identity management for ASP.NET Core</title>
+<meta name="description" content="Drop-in Keycloak-style identity management UI for .NET 8, 9 and 10. CRUD users, roles, claims, JWT and OAuth — accessible at /authmanager."/>
+<link rel="stylesheet" href="assets/css/site.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<!-- ===== NAV ===== -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      DotNetAuthManager
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="#packages">Packages</a>
+      <a href="https://github.com/dotnetappdev/authmanager" class="nav-github" target="_blank">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">✦ .NET 8 · 9 · 10 · MIT License</div>
+    <h1 class="hero-title">Identity management<br/><span class="gradient-text">the way Aspire does it</span></h1>
+    <p class="hero-sub">
+      Drop a NuGet package in. Call two methods. Navigate to <code>/authmanager</code>.<br/>
+      Full Keycloak-style CRUD for users, roles, claims, JWT &amp; OAuth — built on ASP.NET Identity.
+    </p>
+    <div class="hero-cta">
+      <a href="#quickstart" class="btn-primary">Get Started →</a>
+      <a href="https://github.com/dotnetappdev/authmanager" class="btn-ghost" target="_blank">
+        View on GitHub
+      </a>
+    </div>
+
+    <!-- Code preview -->
+    <div class="hero-code">
+      <div class="code-bar">
+        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+        <span class="code-filename">Program.cs</span>
+      </div>
+      <pre class="code-body"><span class="kw">builder</span>.Services.<span class="fn">AddAuthManagerWithSqlServer</span>&lt;<span class="ty">ApplicationUser</span>&gt;(
+    connectionString: <span class="str">"..."</span>,
+    authManager: options =&gt; {
+        options.RoutePrefix = <span class="str">"authmanager"</span>;
+        options.DefaultTheme = AuthManagerTheme.<span class="ty">Dark</span>;
+        options.AdminRoles = [<span class="str">"Admin"</span>];
+    }
+);
+
+<span class="cmt">// Navigate to /authmanager</span>
+<span class="kw">app</span>.<span class="fn">MapAuthManager</span>();</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FEATURES ===== -->
+<section class="section" id="features">
+  <div class="section-inner">
+    <h2 class="section-title">Everything you need</h2>
+    <p class="section-sub">A complete ASP.NET Identity management UI in one NuGet package.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon blue">👥</div>
+        <h3>User Management</h3>
+        <p>Full CRUD with MudBlazor DataGrid. Lock/unlock, password reset, 2FA toggle, and bulk operations.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon purple">⭐</div>
+        <h3>Roles &amp; Claims</h3>
+        <p>Create and assign roles with claims. Fine-grained permission management with a visual editor.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon cyan">🔑</div>
+        <h3>JWT Configuration</h3>
+        <p>Configure issuer, audience, expiry, algorithms. Generate test tokens from the UI.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon green">🔗</div>
+        <h3>OAuth Providers</h3>
+        <p>Configure Google, Microsoft, Apple, GitHub, and custom OIDC providers. Enable/disable per provider.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon orange">📋</div>
+        <h3>Serilog Log Viewer</h3>
+        <p>Real-time structured log aggregation with filtering by level, source context, and search.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon teal">📜</div>
+        <h3>Audit Log</h3>
+        <p>Every change made through the UI is recorded — who, what, when, from where.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon indigo">🌙</div>
+        <h3>BookIt Dark Theme</h3>
+        <p>Professional light &amp; dark themes using CSS custom properties. Follows OS preference by default.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon rose">🔧</div>
+        <h3>Source Generator</h3>
+        <p>No Identity setup? The Roslyn source generator scaffolds ApplicationUser, DbContext, and wiring hints.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== QUICK START ===== -->
+<section class="section section-dark" id="quickstart">
+  <div class="section-inner">
+    <h2 class="section-title">Quick Start</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Install the package</h3>
+          <div class="code-inline">
+            <pre>dotnet add package DotNetAuthManager
+<span class="cmt"># or for specific database:</span>
+dotnet add package DotNetAuthManager.Storage.SqlServer
+dotnet add package DotNetAuthManager.Storage.PostgreSQL
+dotnet add package DotNetAuthManager.Storage.MySql</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Configure in Program.cs</h3>
+          <div class="code-inline">
+            <pre><span class="cmt">// SQL Server (also available: PostgreSQL, MySQL)</span>
+builder.Services.<span class="fn">AddAuthManagerWithSqlServer</span>&lt;<span class="ty">ApplicationUser</span>&gt;(
+    connectionString: builder.Configuration.<span class="fn">GetConnectionString</span>(<span class="str">"Default"</span>)!,
+    authManager: options => {
+        options.RoutePrefix   = <span class="str">"authmanager"</span>;
+        options.Title         = <span class="str">"My App"</span>;
+        options.DefaultTheme  = AuthManagerTheme.<span class="ty">Dark</span>;
+        options.AdminRoles    = [<span class="str">"Admin"</span>];
+    }
+);
+
+var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.<span class="fn">MapAuthManager</span>();</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Open the dashboard</h3>
+          <p>Navigate to <strong>https://your-app/authmanager</strong> and sign in with an Admin account.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PACKAGES ===== -->
+<section class="section" id="packages">
+  <div class="section-inner">
+    <h2 class="section-title">NuGet Packages</h2>
+    <div class="packages-grid">
+      <div class="package-card">
+        <div class="pkg-name">DotNetAuthManager</div>
+        <div class="pkg-desc">Core package. Bring your own DbContext &amp; Identity setup.</div>
+        <div class="pkg-badge">Main</div>
+      </div>
+      <div class="package-card">
+        <div class="pkg-name">DotNetAuthManager.Storage.SqlServer</div>
+        <div class="pkg-desc">SQL Server + EF Core + Identity, all in one method call.</div>
+        <div class="pkg-badge">Storage</div>
+      </div>
+      <div class="package-card">
+        <div class="pkg-name">DotNetAuthManager.Storage.PostgreSQL</div>
+        <div class="pkg-desc">PostgreSQL via Npgsql EF Core provider.</div>
+        <div class="pkg-badge">Storage</div>
+      </div>
+      <div class="package-card">
+        <div class="pkg-name">DotNetAuthManager.Storage.MySql</div>
+        <div class="pkg-desc">MySQL / MariaDB via Pomelo EF Core provider.</div>
+        <div class="pkg-badge">Storage</div>
+      </div>
+      <div class="package-card">
+        <div class="pkg-name">DotNetAuthManager.SourceGenerator</div>
+        <div class="pkg-desc">Scaffolds Identity boilerplate if not already present.</div>
+        <div class="pkg-badge">Tooling</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      DotNetAuthManager
+    </div>
+    <p class="footer-text">MIT License · Built for .NET 8, 9, and 10</p>
+    <a href="https://github.com/dotnetappdev/authmanager" class="footer-link" target="_blank">GitHub ↗</a>
+  </div>
+</footer>
+
+</body>
+</html>
