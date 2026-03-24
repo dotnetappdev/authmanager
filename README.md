@@ -118,19 +118,19 @@ Change the password immediately, then set `options.SeedSuperAdmin = false`.
 
 ## How provider detection works
 
-The package reads your connection string and sniffs the format:
+The package **scans every entry** in `ConnectionStrings` and picks the first one it recognises. You never need to specify a name or a provider — it just works.
 
-| Pattern in connection string | Detected provider |
-|------------------------------|-------------------|
+| Pattern in any connection string | Detected provider |
+|----------------------------------|-------------------|
 | `Server=.;Database=…;Trusted_Connection=True` | SQL Server |
 | `Host=localhost;Username=…` | PostgreSQL |
 | `server=localhost;uid=…` | MySQL/MariaDB |
 | `Data Source=app.db` | SQLite |
 
-Override detection explicitly if needed:
+Multiple connection strings? Set the provider in one line and it picks the matching one:
 
 ```csharp
-options.DbProvider = AuthManagerDbProvider.PostgreSQL;
+options.DbProvider = AuthManagerDbProvider.PostgreSQL;  // picks the PostgreSQL string
 ```
 
 ## Using Your Own DbContext

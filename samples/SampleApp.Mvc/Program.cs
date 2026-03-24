@@ -17,41 +17,49 @@ builder.Host.UseSerilog();
 builder.Services.AddControllersWithViews();
 
 // ----------------------------------------------------------------
-//  DotNetAuthManager — reads connection string from appsettings.json
-//  and auto-detects the provider (SQL Server / PostgreSQL / MySQL / SQLite).
+//  DotNetAuthManager
 //
-//  appsettings.json:
+//  Scans ALL connection strings in appsettings.json and picks the right one.
+//  Provider (SQL Server / PostgreSQL / MySQL / SQLite) is auto-detected.
+//
+//  appsettings.json (any name works — the package finds it automatically):
 //  {
 //    "ConnectionStrings": {
-//      "Default": "Server=.;Database=SampleMvc;Trusted_Connection=True;"
+//      "Default": "Data Source=sample-mvc.db"          ← SQLite detected
+//      // "Default": "Server=.;Database=SampleMvc;Trusted_Connection=True;" ← SQL Server
+//      // "Default": "Host=localhost;Database=myapp;Username=app;Password=x" ← PostgreSQL
 //    }
 //  }
+//
+//  Override provider detection in one line (optional):
+//    options.DbProvider = AuthManagerDbProvider.SqlServer;
 // ----------------------------------------------------------------
 builder.Services.AddAuthManager<ApplicationUser>(
     builder.Configuration,
     options =>
     {
-        options.RoutePrefix    = "authmanager";
-        options.Title          = "Sample MVC — Auth Manager";
-        options.DefaultTheme   = AuthManagerTheme.Dark;
+        options.RoutePrefix  = "authmanager";
+        options.Title        = "Sample MVC — Auth Manager";
+        options.DefaultTheme = AuthManagerTheme.Dark;
 
-        // Only users in the SuperAdmin role can access the management UI.
-        // All other authenticated users are denied.
+        // Optional: uncomment to override auto-detection
+        // options.DbProvider = AuthManagerDbProvider.SqlServer;
+
+        // Only SuperAdmin role can access the management UI.
         options.SuperAdminRole = "SuperAdmin";
 
-        // Seed a default SuperAdmin user and role on first startup.
-        // ⚠️  Remove SeedSuperAdmin = true once you have logged in and changed the password.
+        // Seed default SuperAdmin on first run.
+        // ⚠️  Set SeedSuperAdmin = false once you've logged in and changed the password.
         options.SeedSuperAdmin         = true;
         options.SeedSuperAdminEmail    = "superadmin@example.com";
         options.SeedSuperAdminPassword = "SuperAdmin@123456!";
 
-        // JWT settings
         options.Jwt = new JwtOptions
         {
             Issuer   = "https://localhost:5001",
             Audience = "https://localhost:5001/api",
             AccessTokenExpiryMinutes = 60,
-            EnableRefreshTokens = true
+            EnableRefreshTokens      = true
         };
     },
     identity =>

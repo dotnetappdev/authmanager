@@ -64,15 +64,23 @@ public sealed class AuthManagerOptions
     public int DefaultPageSize { get; set; } = 25;
 
     /// <summary>
-    /// The name of the connection string to read from IConfiguration.
-    /// Reads from ConnectionStrings:{ConnectionStringName}.
-    /// Defaults to "Default".
+    /// Fallback connection string name used when scanning all ConnectionStrings entries
+    /// finds nothing recognisable. Defaults to "Default".
+    ///
+    /// In most cases you do not need to set this — the package scans every entry in
+    /// ConnectionStrings and picks the first one it recognises automatically.
     /// </summary>
     public string ConnectionStringName { get; set; } = "Default";
 
     /// <summary>
-    /// Explicit database provider override. When null (default), the provider is
-    /// auto-detected from the connection string format.
+    /// One-line provider override. Leave null to auto-detect from the connection string format.
+    ///
+    ///   options.DbProvider = AuthManagerDbProvider.SqlServer;    // SQL Server
+    ///   options.DbProvider = AuthManagerDbProvider.PostgreSQL;   // PostgreSQL
+    ///   options.DbProvider = AuthManagerDbProvider.MySql;        // MySQL / MariaDB
+    ///   options.DbProvider = AuthManagerDbProvider.Sqlite;       // SQLite
+    ///
+    /// When set, the package scans ConnectionStrings for the first entry matching that provider.
     /// </summary>
     public AuthManagerDbProvider? DbProvider { get; set; }
 

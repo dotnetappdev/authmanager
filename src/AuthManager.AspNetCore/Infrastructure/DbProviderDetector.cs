@@ -1,15 +1,18 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace AuthManager.AspNetCore.Infrastructure;
 
 /// <summary>
-/// Sniffs a connection string to determine which database provider is being used,
+/// Sniffs connection strings to determine which database provider is being used,
 /// then configures a <see cref="DbContextOptionsBuilder"/> by calling the appropriate
 /// Use{Provider}() extension method via reflection.
 ///
-/// This removes the need for separate AddAuthManagerWithSqlServer / AddAuthManagerWithPostgreSQL
-/// entry points — the single AddAuthManager(IConfiguration) overload handles everything.
+/// Scanning strategy (in order):
+///   1. Scan all ConnectionStrings in IConfiguration, pick the first recognisable one.
+///   2. If options.DbProvider is set, pick the first string that matches that provider.
+///   3. Fall back to the named key (options.ConnectionStringName) if no match is found via scan.
 /// </summary>
 public static class DbProviderDetector
 {
@@ -85,6 +88,69 @@ public static class DbProviderDetector
 
         return DetectedProvider.Unknown;
     }
+
+    /// <summary>
+    /// Scans all connection strings in IConfiguration and returns the first one that matches
+    /// the requested provider (or the first recognisable one when provider is Unknown).
+    ///
+    /// Resolution order:
+    ///   1. Iterate ConnectionStrings in config order.
+    ///   2. For each value, run Detect().
+    ///   3. Return the first entry that satisfies: detected == wantedProvider (or any non-Unknown when wanted == Unknown).
+    ///   4. If nothing matched, fall back to the named key (fallbackKey) — useful when the format is
+    ///      non-standard but the developer knows which string to use.
+    /// </summary>
+    /// <param name="config">IConfiguration from the host.</param>
+    /// <param name="wantedProvider">Unknown = auto-detect; anything else = match that provider.</param>
+    /// <param name="fallbackKey">Fallback connection string name (e.g. "Default").</param>
+    /// <returns>Resolved (connectionString, provider) pair.</returns>
+    /// <exception cref="InvalidOperationException">No matching connection string found.</exception>
+    public static (string ConnectionString, DetectedProvider Provider) Resolve(
+        IConfiguration config,
+        DetectedProvider wantedProvider = DetectedProvider.Unknown,
+        string fallbackKey = "Default")
+    {
+        var section = config.GetSection("ConnectionStrings");
+        var candidates = section.GetChildren()
+            .Select(c => c.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v!)
+            .ToList();
+
+        // Try every connection string value
+        foreach (var cs in candidates)
+        {
+            var detected = Detect(cs);
+            if (wantedProvider == DetectedProvider.Unknown && detected != DetectedProvider.Unknown)
+                return (cs, detected);
+            if (wantedProvider != DetectedProvider.Unknown && detected == wantedProvider)
+                return (cs, wantedProvider);
+        }
+
+        // Fallback: named key (format may be non-standard but developer knows which one to use)
+        var fallback = config.GetConnectionString(fallbackKey);
+        if (!string.IsNullOrWhiteSpace(fallback))
+        {
+            var detected = Detect(fallback!);
+            var provider = wantedProvider != DetectedProvider.Unknown ? wantedProvider : detected;
+            if (provider != DetectedProvider.Unknown)
+                return (fallback!, provider);
+        }
+
+        // Build a helpful error showing what was found
+        var found = candidates.Count > 0
+            ? $"Found {candidates.Count} connection string(s) but none were recognisable: {string.Join(", ", candidates.Select(c => $"\"{Truncate(c, 40)}\""))}"
+            : "No connection strings found under ConnectionStrings in configuration.";
+
+        throw new InvalidOperationException(
+            $"DotNetAuthManager: could not resolve a connection string. {found} " +
+            (wantedProvider != DetectedProvider.Unknown
+                ? $"Ensure your {wantedProvider} connection string is present in appsettings.json, or remove options.DbProvider to auto-detect."
+                : "Add a ConnectionStrings section to appsettings.json, or set options.DbProvider explicitly."));
+    }
+
+    private static string Truncate(string s, int max) =>
+        s.Length <= max ? s : s[..max] + "…";
 
     /// <summary>
     /// Configures the DbContextOptionsBuilder for the given detected provider.
