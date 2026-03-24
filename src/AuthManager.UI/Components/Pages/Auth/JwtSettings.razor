@@ -1,0 +1,218 @@
+@page "/authmanager/jwt"
+@rendermode InteractiveServer
+@inject IJwtConfigService JwtService
+
+<PageTitle>JWT Settings — Auth Manager</PageTitle>
+
+<div class="am-page-header">
+    <div>
+        <h1 class="am-page-title">JWT Configuration</h1>
+        <p class="am-page-subtitle">Manage JSON Web Token settings for API authentication</p>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <Spinner />
+}
+else if (_config != null)
+{
+    <div class="am-form-layout">
+        <div class="am-form-main">
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Token Settings</h2></div>
+                <div class="am-card-body">
+                    <div class="am-form-grid">
+                        <div class="am-form-group">
+                            <label class="am-label">Issuer</label>
+                            <input class="am-input" @bind="_config.Issuer" placeholder="https://your-api.com" />
+                            <span class="am-input-hint">The authority that issues the token (iss claim)</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Audience</label>
+                            <input class="am-input" @bind="_config.Audience" placeholder="https://your-api.com/api" />
+                            <span class="am-input-hint">The intended recipient of the token (aud claim)</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Algorithm</label>
+                            <select class="am-select" @bind="_config.Algorithm">
+                                <option value="HS256">HS256 (HMAC-SHA256)</option>
+                                <option value="HS384">HS384 (HMAC-SHA384)</option>
+                                <option value="HS512">HS512 (HMAC-SHA512)</option>
+                                <option value="RS256">RS256 (RSA-SHA256)</option>
+                            </select>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Access Token Expiry (minutes)</label>
+                            <input class="am-input" type="number" @bind="_config.AccessTokenExpiryMinutes" min="1" max="1440" />
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Refresh Token Expiry (days)</label>
+                            <input class="am-input" type="number" @bind="_config.RefreshTokenExpiryDays" min="1" max="365" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Validation Options</h2></div>
+                <div class="am-card-body">
+                    <div class="am-toggle-list">
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Enable Refresh Tokens</div>
+                                <div class="am-toggle-desc">Allow clients to request new access tokens without re-authentication</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_config.EnableRefreshTokens" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Validate Issuer</div>
+                                <div class="am-toggle-desc">Verify the iss claim matches the configured issuer</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_config.ValidateIssuer" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Validate Audience</div>
+                                <div class="am-toggle-desc">Verify the aud claim matches the configured audience</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_config.ValidateAudience" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Validate Lifetime</div>
+                                <div class="am-toggle-desc">Reject expired tokens</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_config.ValidateLifetime" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Require HTTPS Metadata</div>
+                                <div class="am-toggle-desc">Require HTTPS for the metadata endpoint</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_config.RequireHttpsMetadata" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="am-card">
+                <div class="am-card-header">
+                    <h2 class="am-card-title">Test Token Generator</h2>
+                </div>
+                <div class="am-card-body">
+                    <p class="am-text-muted">Generate a test JWT for debugging. Never use test tokens in production.</p>
+                    <div class="am-form-group">
+                        <label class="am-label">User ID</label>
+                        <div class="am-input-group">
+                            <input class="am-input" @bind="_testUserId" placeholder="Enter user ID or sub claim..." />
+                            <button class="am-btn am-btn-primary" @onclick="GenerateToken" disabled="@string.IsNullOrEmpty(_testUserId)">Generate</button>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(_testToken))
+                    {
+                        <div class="am-token-output">
+                            <div class="am-token-label">Generated Token:</div>
+                            <div class="am-token-value">
+                                <code>@_testToken</code>
+                                <button class="am-btn am-btn-sm am-btn-ghost" @onclick="CopyToken" title="Copy">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="am-form-aside">
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Signing Key</h2></div>
+                <div class="am-card-body">
+                    <div class="am-key-display">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                        </svg>
+                        <div>
+                            <div class="am-key-preview">@_config.SigningKeyPreview</div>
+                            <div class="am-key-algo">Algorithm: @_config.Algorithm</div>
+                        </div>
+                    </div>
+                    <p class="am-text-muted am-mt-2">Configure signing keys via environment variables or appsettings.json for security.</p>
+                </div>
+            </div>
+
+            <div class="am-card">
+                <div class="am-card-body am-actions-card">
+                    @if (_errors.Length > 0)
+                    {
+                        <div class="am-alert am-alert-error">@string.Join(", ", _errors)</div>
+                    }
+                    <button class="am-btn am-btn-primary am-btn-full" @onclick="Save" disabled="@_saving">
+                        @if (_saving) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
+                        Save Configuration
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private JwtConfigInfo? _config;
+    private bool _loading = true;
+    private bool _saving;
+    private string[] _errors = [];
+    private string _testUserId = "";
+    private string _testToken = "";
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _config = await JwtService.GetConfigAsync();
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _errors = [];
+        var (success, errors) = await JwtService.UpdateConfigAsync(_config!);
+        if (success)
+            ToastService.Instance.Success("JWT configuration saved.");
+        else
+            _errors = errors;
+        _saving = false;
+    }
+
+    private async Task GenerateToken()
+    {
+        _testToken = await JwtService.GenerateTestTokenAsync(_testUserId);
+    }
+
+    private async Task CopyToken()
+    {
+        await JS.InvokeVoidAsync("authManager.copyToClipboard", _testToken);
+        ToastService.Instance.Success("Token copied to clipboard.");
+    }
+}

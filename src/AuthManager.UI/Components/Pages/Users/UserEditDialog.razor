@@ -1,0 +1,228 @@
+@inject IUserManagementService UserService
+@inject IRoleManagementService RoleService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudTabs Elevation="0" Rounded="false" Class="am-dialog-tabs">
+                <!-- Basic Info Tab -->
+                <MudTabPanel Text="Account" Icon="@Icons.Material.Filled.Person">
+                    <MudStack Spacing="3" Class="pt-4">
+                        <MudTextField @bind-Value="_userName" Label="Username" Required="true"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AlternateEmail" />
+                        <MudTextField @bind-Value="_email" Label="Email" Required="true"
+                                      InputType="InputType.Email" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email" />
+                        @if (IsCreate)
+                        {
+                            <MudTextField @bind-Value="_password" Label="Password" Required="true"
+                                          InputType="@(_showPw ? InputType.Text : InputType.Password)"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Adornment="Adornment.End"
+                                          AdornmentIcon="@(_showPw ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                          OnAdornmentClick="@(() => _showPw = !_showPw)" />
+                        }
+                        <MudTextField @bind-Value="_phone" Label="Phone Number"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Phone" />
+                        <MudDivider Class="my-1" />
+                        <MudStack Spacing="2">
+                            <MudSwitch @bind-Value="_emailConfirmed" Color="Color.Primary" Label="Email Confirmed" />
+                            @if (!IsCreate)
+                            {
+                                <MudSwitch @bind-Value="_twoFactor" Color="Color.Primary" Label="Two-Factor Authentication" />
+                                <MudSwitch @bind-Value="_lockoutEnabled" Color="Color.Primary" Label="Lockout Enabled" />
+                            }
+                        </MudStack>
+                    </MudStack>
+                </MudTabPanel>
+
+                <!-- Roles Tab -->
+                <MudTabPanel Text="Roles" Icon="@Icons.Material.Filled.Stars">
+                    <MudStack Spacing="1" Class="pt-4">
+                        @if (_allRoles.Count == 0)
+                        {
+                            <MudAlert Severity="Severity.Info">
+                                No roles defined. <MudLink Href="/authmanager/roles">Create roles first</MudLink>.
+                            </MudAlert>
+                        }
+                        @foreach (var role in _allRoles)
+                        {
+                            <MudCheckBox T="bool"
+                                         Value="@_selectedRoles.Contains(role.Name)"
+                                         ValueChanged="@(v => ToggleRole(role.Name, v))"
+                                         Label="@role.Name"
+                                         Color="Color.Primary" />
+                        }
+                    </MudStack>
+                </MudTabPanel>
+
+                <!-- Claims Tab -->
+                <MudTabPanel Text="Claims" Icon="@Icons.Material.Filled.Badge">
+                    <MudStack Spacing="2" Class="pt-4">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="@(() => _claims.Add(new ClaimDto()))">
+                            Add Claim
+                        </MudButton>
+                        @foreach (var (claim, i) in _claims.Select((c, i) => (c, i)))
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudTextField @bind-Value="claim.Type" Label="Type" Placeholder="permission"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-1" />
+                                <MudTextField @bind-Value="claim.Value" Label="Value" Placeholder="read:users"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-1" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                               Size="Size.Small" OnClick="@(() => _claims.RemoveAt(i))" />
+                            </MudStack>
+                        }
+                        @if (_claims.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">No claims assigned.</MudText>
+                        }
+                    </MudStack>
+                </MudTabPanel>
+            </MudTabs>
+
+            @if (_errors.Length > 0)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">
+                    @foreach (var err in _errors) { <div>@err</div> }
+                </MudAlert>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="Save" Disabled="_saving">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            @(IsCreate ? "Create User" : "Save Changes")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string? UserId { get; set; }
+
+    private bool IsCreate => string.IsNullOrEmpty(UserId);
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showPw;
+
+    private string _userName = "";
+    private string _email = "";
+    private string _password = "";
+    private string? _phone;
+    private bool _emailConfirmed;
+    private bool _twoFactor;
+    private bool _lockoutEnabled = true;
+
+    private List<RoleDto> _allRoles = [];
+    private HashSet<string> _selectedRoles = [];
+    private List<ClaimDto> _claims = [];
+    private string[] _errors = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allRoles = await RoleService.GetRolesAsync();
+
+        if (!IsCreate)
+        {
+            var user = await UserService.GetUserByIdAsync(UserId!);
+            if (user != null)
+            {
+                _userName = user.UserName;
+                _email = user.Email;
+                _phone = user.PhoneNumber;
+                _emailConfirmed = user.EmailConfirmed;
+                _twoFactor = user.TwoFactorEnabled;
+                _lockoutEnabled = user.LockoutEnabled;
+                _selectedRoles = [.. user.Roles];
+                _claims = user.Claims.ToList();
+            }
+        }
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _errors = [];
+        try
+        {
+            bool success;
+            string[] errors;
+
+            if (IsCreate)
+            {
+                (success, errors) = await UserService.CreateUserAsync(new CreateUserDto
+                {
+                    UserName = _userName,
+                    Email = _email,
+                    Password = _password,
+                    PhoneNumber = _phone,
+                    EmailConfirmed = _emailConfirmed,
+                    Roles = [.. _selectedRoles],
+                    Claims = _claims
+                });
+            }
+            else
+            {
+                (success, errors) = await UserService.UpdateUserAsync(new UpdateUserDto
+                {
+                    Id = UserId!,
+                    UserName = _userName,
+                    Email = _email,
+                    PhoneNumber = _phone,
+                    EmailConfirmed = _emailConfirmed,
+                    TwoFactorEnabled = _twoFactor,
+                    LockoutEnabled = _lockoutEnabled
+                });
+
+                if (success)
+                {
+                    // Sync roles
+                    var user = await UserService.GetUserByIdAsync(UserId!);
+                    if (user != null)
+                    {
+                        foreach (var role in _allRoles)
+                        {
+                            var had = user.Roles.Contains(role.Name);
+                            var has = _selectedRoles.Contains(role.Name);
+                            if (had && !has) await UserService.RemoveRoleAsync(UserId!, role.Name);
+                            else if (!had && has) await UserService.AssignRoleAsync(UserId!, role.Name);
+                        }
+                    }
+                }
+            }
+
+            if (success)
+            {
+                Snackbar.Add(IsCreate ? "User created." : "User updated.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                _errors = errors;
+            }
+        }
+        finally { _saving = false; }
+    }
+
+    private void ToggleRole(string name, bool selected)
+    {
+        if (selected) _selectedRoles.Add(name);
+        else _selectedRoles.Remove(name);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

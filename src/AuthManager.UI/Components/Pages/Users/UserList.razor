@@ -1,0 +1,276 @@
+@page "/authmanager/users"
+@rendermode InteractiveServer
+@inject IUserManagementService UserService
+@inject IRoleManagementService RoleService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Users — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Users</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Manage user accounts and permissions</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenCreateDialog">
+        New User
+    </MudButton>
+</MudStack>
+
+<MudCard Elevation="0" Class="am-card-border">
+    <MudCardContent Class="pa-0">
+        <MudDataGrid T="UserDto"
+                     ServerData="LoadServerData"
+                     @ref="_grid"
+                     Dense="true"
+                     Hover="true"
+                     Striped="false"
+                     Bordered="false"
+                     RowsPerPage="25"
+                     QuickFilter="@QuickFilter"
+                     SortMode="SortMode.Single"
+                     Class="am-data-grid">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_searchText" Placeholder="Search users..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium" Immediate="true" DebounceInterval="400"
+                              Class="mt-0" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudSpacer />
+                <MudSelect T="string" @bind-Value="_roleFilter" Label="Role" AnchorOrigin="Origin.BottomCenter"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Dense="true"
+                           Style="min-width:160px">
+                    @foreach (var role in _roles)
+                    {
+                        <MudSelectItem Value="@role.Name">@role.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" @bind-Value="_statusFilter" Label="Status" AnchorOrigin="Origin.BottomCenter"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Dense="true"
+                           Style="min-width:140px" Class="ml-2">
+                    <MudSelectItem Value="@("active")">Active</MudSelectItem>
+                    <MudSelectItem Value="@("locked")">Locked</MudSelectItem>
+                    <MudSelectItem Value="@("unverified")">Unverified</MudSelectItem>
+                </MudSelect>
+            </ToolBarContent>
+
+            <Columns>
+                <TemplateColumn T="UserDto" Title="User" SortBy="x => x.UserName">
+                    <CellTemplate>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small" Class="am-avatar-initial">
+                                @GetInitials(context.Item.UserName)
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.body2" Class="font-weight-medium">@context.Item.UserName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Item.Id[..8]…</MudText>
+                            </div>
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <PropertyColumn T="UserDto" TProperty="string" Property="x => x.Email" Title="Email">
+                    <CellTemplate>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.body2">@context.Item.Email</MudText>
+                            @if (!context.Item.EmailConfirmed)
+                            {
+                                <MudTooltip Text="Email not confirmed">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" />
+                                </MudTooltip>
+                            }
+                        </MudStack>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <TemplateColumn T="UserDto" Title="Roles">
+                    <CellTemplate>
+                        @foreach (var role in context.Item.Roles)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="mr-1">@role</MudChip>
+                        }
+                        @if (!context.Item.Roles.Any())
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">No roles</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="UserDto" Title="Status">
+                    <CellTemplate>
+                        @if (context.Item.IsLockedOut)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.Lock">Locked</MudChip>
+                        }
+                        else if (!context.Item.EmailConfirmed)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Warning">Unverified</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Active</MudChip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="UserDto" Title="2FA">
+                    <CellTemplate>
+                        <MudIcon Icon="@(context.Item.TwoFactorEnabled ? Icons.Material.Filled.VerifiedUser : Icons.Material.Filled.GppMaybe)"
+                                 Color="@(context.Item.TwoFactorEnabled ? Color.Success : Color.Default)"
+                                 Size="Size.Small" />
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="UserDto" Title="Actions" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           Color="Color.Primary" Variant="Variant.Text"
+                                           Title="Edit"
+                                           OnClick="@(() => OpenEditDialog(context.Item))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Password" Size="Size.Small"
+                                           Color="Color.Warning" Variant="Variant.Text"
+                                           Title="Reset Password"
+                                           OnClick="@(() => OpenPasswordDialog(context.Item))" />
+                            @if (context.Item.IsLockedOut)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.LockOpen" Size="Size.Small"
+                                               Color="Color.Success" Variant="Variant.Text"
+                                               Title="Unlock"
+                                               OnClick="@(() => UnlockUser(context.Item))" />
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Lock" Size="Size.Small"
+                                               Color="Color.Default" Variant="Variant.Text"
+                                               Title="Lock"
+                                               OnClick="@(() => LockUser(context.Item))" />
+                            }
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           Color="Color.Error" Variant="Variant.Text"
+                                           Title="Delete"
+                                           OnClick="@(() => DeleteUser(context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+
+            <PagerContent>
+                <MudDataGridPager T="UserDto" />
+            </PagerContent>
+
+            <NoRecordsContent>
+                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                    <MudIcon Icon="@Icons.Material.Filled.PeopleOutline" Size="Size.Large" Color="Color.Secondary" />
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">No users found</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @(string.IsNullOrEmpty(_searchText) ? "Create the first user to get started." : "Try adjusting your search.")
+                    </MudText>
+                </MudStack>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private MudDataGrid<UserDto> _grid = default!;
+    private List<RoleDto> _roles = [];
+    private string _searchText = "";
+    private string _roleFilter = "";
+    private string _statusFilter = "";
+
+    private Func<UserDto, bool> QuickFilter => x =>
+        string.IsNullOrWhiteSpace(_searchText)
+        || x.UserName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+        || x.Email.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _roles = await RoleService.GetRolesAsync();
+    }
+
+    private async Task<GridData<UserDto>> LoadServerData(GridState<UserDto> state)
+    {
+        var filter = new UserFilter
+        {
+            SearchTerm = _searchText,
+            Role = _roleFilter,
+            IsLockedOut = _statusFilter == "locked" ? true : (bool?)null,
+            EmailConfirmed = _statusFilter == "unverified" ? false : (bool?)null,
+            Page = state.Page + 1,
+            PageSize = state.PageSize,
+            SortBy = state.SortDefinitions.FirstOrDefault()?.SortBy ?? "UserName",
+            SortDescending = state.SortDefinitions.FirstOrDefault()?.Descending ?? false
+        };
+
+        var result = await UserService.GetUsersAsync(filter);
+        return new GridData<UserDto> { Items = result.Items, TotalItems = result.TotalCount };
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<UserEditDialog>("Create User",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await _grid.ReloadServerData();
+    }
+
+    private async Task OpenEditDialog(UserDto user)
+    {
+        var parameters = new DialogParameters<UserEditDialog> { { x => x.UserId, user.Id } };
+        var dialog = await DialogService.ShowAsync<UserEditDialog>($"Edit: {user.UserName}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await _grid.ReloadServerData();
+    }
+
+    private async Task OpenPasswordDialog(UserDto user)
+    {
+        var parameters = new DialogParameters<PasswordResetDialog>
+        {
+            { x => x.UserId, user.Id },
+            { x => x.UserName, user.UserName }
+        };
+        await DialogService.ShowAsync<PasswordResetDialog>($"Reset Password — {user.UserName}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+    }
+
+    private async Task LockUser(UserDto user)
+    {
+        await UserService.LockUserAsync(user.Id);
+        Snackbar.Add($"{user.UserName} locked.", Severity.Success);
+        await _grid.ReloadServerData();
+    }
+
+    private async Task UnlockUser(UserDto user)
+    {
+        await UserService.UnlockUserAsync(user.Id);
+        Snackbar.Add($"{user.UserName} unlocked.", Severity.Success);
+        await _grid.ReloadServerData();
+    }
+
+    private async Task DeleteUser(UserDto user)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete User",
+            $"Delete \"{user.UserName}\"? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (success, errors) = await UserService.DeleteUserAsync(user.Id);
+        if (success)
+        {
+            Snackbar.Add($"{user.UserName} deleted.", Severity.Success);
+            await _grid.ReloadServerData();
+        }
+        else
+        {
+            Snackbar.Add(string.Join(", ", errors), Severity.Error);
+        }
+    }
+
+    private static string GetInitials(string name) =>
+        string.IsNullOrEmpty(name) ? "?" :
+        name.Length >= 2 ? name[..2].ToUpper() : name.ToUpper();
+}

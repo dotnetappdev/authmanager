@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <Authors>DotNetAuthManager Contributors</Authors>
+    <Company>DotNetAuthManager</Company>
+    <Product>DotNetAuthManager</Product>
+    <Copyright>Copyright © 2024-2026 DotNetAuthManager Contributors</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/dotnetappdev/authmanager</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dotnetappdev/authmanager</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <PackageTags>authentication;identity;aspnetcore;blazor;admin;management;jwt;oauth;keycloak</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,270 @@
+@page "/authmanager/logs"
+@rendermode InteractiveServer
+@inject ILogAggregationService LogService
+@implements IAsyncDisposable
+
+<PageTitle>Log Viewer — Auth Manager</PageTitle>
+
+<div class="am-page-header">
+    <div>
+        <h1 class="am-page-title">Log Viewer</h1>
+        <p class="am-page-subtitle">Real-time application log aggregation via Serilog</p>
+    </div>
+    <div class="am-page-actions">
+        <button class="am-btn am-btn-ghost @(_liveMode ? "am-btn-active" : "")" @onclick="ToggleLive">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"
+                 class="@(_liveMode ? "am-spin" : "")">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-.08-9.65"/>
+            </svg>
+            @(_liveMode ? "Live (On)" : "Live (Off)")
+        </button>
+        <button class="am-btn am-btn-ghost" @onclick="Refresh">
+            Refresh
+        </button>
+        <button class="am-btn am-btn-danger" @onclick="ClearLogs">
+            Clear All
+        </button>
+    </div>
+</div>
+
+<div class="am-card">
+    <div class="am-card-toolbar am-log-toolbar">
+        <div class="am-search-box">
+            <svg class="am-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input class="am-search-input" type="search" placeholder="Search log messages..."
+                   @bind="_filter.SearchTerm" @bind:event="oninput" @oninput="OnFilterChanged" />
+        </div>
+        <div class="am-filter-group">
+            <select class="am-select" @bind="_filter.MinLevel" @bind:after="LoadLogs">
+                <option value="">All Levels</option>
+                <option value="0">Verbose+</option>
+                <option value="1">Debug+</option>
+                <option value="2">Info+</option>
+                <option value="3">Warning+</option>
+                <option value="4">Error+</option>
+                <option value="5">Fatal</option>
+            </select>
+            <select class="am-select" @bind="_filter.SourceContext" @bind:after="LoadLogs">
+                <option value="">All Sources</option>
+                @foreach (var ctx in _sourceContexts)
+                {
+                    <option value="@ctx">@ctx</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="am-log-container" id="am-log-container">
+        @if (_loading)
+        {
+            <div class="am-log-loading"><Spinner /></div>
+        }
+        else if (_result?.Items.Count == 0)
+        {
+            <div class="am-empty-state am-empty-state-sm">
+                <p>No log entries @(string.IsNullOrEmpty(_filter.SearchTerm) ? "yet. Logs from Serilog will appear here." : "matching your filters.")</p>
+            </div>
+        }
+        else
+        {
+            <table class="am-log-table">
+                <thead>
+                    <tr>
+                        <th class="am-col-time">Time</th>
+                        <th class="am-col-level">Level</th>
+                        <th class="am-col-source">Source</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in _result!.Items)
+                    {
+                        <tr class="am-log-row am-log-@log.Level.ToString().ToLower()" @onclick="@(() => ExpandLog(log))">
+                            <td class="am-col-time">
+                                <span title="@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")">
+                                    @log.Timestamp.ToString("HH:mm:ss.fff")
+                                </span>
+                            </td>
+                            <td class="am-col-level">
+                                <span class="am-log-level am-log-level-@log.Level.ToString().ToLower()">
+                                    @log.Level.ToString()[..4]
+                                </span>
+                            </td>
+                            <td class="am-col-source">
+                                <span class="am-log-source" title="@log.SourceContext">
+                                    @ShortSource(log.SourceContext)
+                                </span>
+                            </td>
+                            <td class="am-log-message">
+                                <div class="am-log-msg-text">@log.RenderedMessage</div>
+                                @if (!string.IsNullOrEmpty(log.Exception))
+                                {
+                                    <svg class="am-log-exception-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" title="Has exception">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <line x1="12" y1="8" x2="12" y2="12"/>
+                                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                    </svg>
+                                }
+                            </td>
+                        </tr>
+                        @if (_expandedLog == log)
+                        {
+                            <tr class="am-log-detail">
+                                <td colspan="4">
+                                    <div class="am-log-detail-content">
+                                        <div class="am-log-detail-section">
+                                            <strong>Full Message</strong>
+                                            <pre>@log.RenderedMessage</pre>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(log.Exception))
+                                        {
+                                            <div class="am-log-detail-section am-log-exception">
+                                                <strong>Exception</strong>
+                                                <pre>@log.Exception</pre>
+                                            </div>
+                                        }
+                                        @if (log.Properties.Count > 0)
+                                        {
+                                            <div class="am-log-detail-section">
+                                                <strong>Properties</strong>
+                                                <div class="am-log-props">
+                                                    @foreach (var (key, val) in log.Properties)
+                                                    {
+                                                        <div class="am-log-prop">
+                                                            <span class="am-log-prop-key">@key</span>
+                                                            <span class="am-log-prop-val">@val</span>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+
+            @if (_result.TotalPages > 1)
+            {
+                <div class="am-pagination">
+                    <span class="am-pagination-info">@_result.TotalCount total entries</span>
+                    <div class="am-pagination-controls">
+                        <button class="am-btn am-btn-sm am-btn-ghost" @onclick="PrevPage" disabled="@(!_result.HasPreviousPage)">← Prev</button>
+                        <button class="am-btn am-btn-sm am-btn-ghost" @onclick="NextPage" disabled="@(!_result.HasNextPage)">Next →</button>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private LogFilter _filter = new();
+    private PagedResult<LogEntry>? _result;
+    private List<string> _sourceContexts = [];
+    private bool _loading = true;
+    private bool _liveMode = true;
+    private LogEntry? _expandedLog;
+    private CancellationTokenSource? _liveCts;
+    private System.Threading.Timer? _debounceTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSourceContexts();
+        await LoadLogs();
+        if (_liveMode) StartLiveUpdates();
+    }
+
+    private async Task LoadLogs()
+    {
+        _loading = true;
+        _result = await LogService.GetLogsAsync(_filter);
+        _loading = false;
+    }
+
+    private async Task LoadSourceContexts()
+    {
+        _sourceContexts = await LogService.GetSourceContextsAsync();
+    }
+
+    private void OnFilterChanged(ChangeEventArgs e)
+    {
+        _filter.SearchTerm = e.Value?.ToString();
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Threading.Timer(_ => InvokeAsync(LoadLogs), null, 500, System.Threading.Timeout.Infinite);
+    }
+
+    private void ToggleLive()
+    {
+        _liveMode = !_liveMode;
+        if (_liveMode) StartLiveUpdates();
+        else
+        {
+            _liveCts?.Cancel();
+            _liveCts = null;
+        }
+    }
+
+    private void StartLiveUpdates()
+    {
+        _liveCts = new CancellationTokenSource();
+        _ = LiveUpdateLoop(_liveCts.Token);
+    }
+
+    private async Task LiveUpdateLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(2000, ct);
+                await InvokeAsync(async () =>
+                {
+                    await LoadLogs();
+                    StateHasChanged();
+                });
+            }
+            catch (OperationCanceledException) { break; }
+        }
+    }
+
+    private async Task Refresh()
+    {
+        await LoadSourceContexts();
+        await LoadLogs();
+    }
+
+    private async Task ClearLogs()
+    {
+        await LogService.ClearLogsAsync();
+        _result = PagedResult<LogEntry>.Empty(_filter.PageSize);
+        ToastService.Instance.Success("Logs cleared.");
+    }
+
+    private void ExpandLog(LogEntry log)
+    {
+        _expandedLog = _expandedLog == log ? null : log;
+    }
+
+    private async Task PrevPage() { _filter.Page--; await LoadLogs(); }
+    private async Task NextPage() { _filter.Page++; await LoadLogs(); }
+
+    private static string ShortSource(string? source)
+    {
+        if (string.IsNullOrEmpty(source)) return "—";
+        var parts = source.Split('.');
+        return parts.Length > 2 ? $"...{parts[^1]}" : source;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _liveCts?.Cancel();
+        _debounceTimer?.Dispose();
+        await ValueTask.CompletedTask;
+    }
+}

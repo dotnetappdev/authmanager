@@ -1,0 +1,148 @@
+@page "/authmanager/roles"
+@rendermode InteractiveServer
+@inject IRoleManagementService RoleService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Roles — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Roles</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Manage roles and their associated claims</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialog">
+        New Role
+    </MudButton>
+</MudStack>
+
+<MudCard Elevation="0" Class="am-card-border">
+    <MudCardContent Class="pa-0">
+        <MudDataGrid T="RoleDto"
+                     Items="_roles"
+                     @ref="_grid"
+                     Dense="true"
+                     Hover="true"
+                     SortMode="SortMode.Single"
+                     Class="am-data-grid"
+                     Loading="_loading">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_searchText" Placeholder="Search roles..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </ToolBarContent>
+
+            <Columns>
+                <TemplateColumn T="RoleDto" Title="Role" SortBy="x => x.Name">
+                    <CellTemplate>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="Color.Secondary" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" />
+                            </MudAvatar>
+                            <MudText Typo="Typo.body2" Class="font-weight-medium">@context.Item.Name</MudText>
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="RoleDto" Title="Claims">
+                    <CellTemplate>
+                        @foreach (var claim in context.Item.Claims.Take(4))
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="mr-1 mb-1">
+                                @claim.Type: @claim.Value
+                            </MudChip>
+                        }
+                        @if (context.Item.Claims.Count > 4)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">+@(context.Item.Claims.Count - 4) more</MudChip>
+                        }
+                        @if (!context.Item.Claims.Any())
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">No claims</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <PropertyColumn T="RoleDto" TProperty="int" Property="x => x.UserCount" Title="Users" />
+
+                <TemplateColumn T="RoleDto" Title="Actions" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           Color="Color.Primary" Variant="Variant.Text"
+                                           OnClick="@(() => OpenEditDialog(context.Item))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           Color="Color.Error" Variant="Variant.Text"
+                                           OnClick="@(() => DeleteRole(context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+
+            <NoRecordsContent>
+                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                    <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Large" Color="Color.Secondary" />
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">No roles defined</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenCreateDialog">
+                        Create First Role
+                    </MudButton>
+                </MudStack>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private MudDataGrid<RoleDto> _grid = default!;
+    private List<RoleDto> _roles = [];
+    private bool _loading = true;
+    private string _searchText = "";
+
+    protected override async Task OnInitializedAsync() => await LoadRoles();
+
+    private async Task LoadRoles()
+    {
+        _loading = true;
+        _roles = await RoleService.GetRolesAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<RoleEditDialog>("Create Role",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadRoles();
+    }
+
+    private async Task OpenEditDialog(RoleDto role)
+    {
+        var parameters = new DialogParameters<RoleEditDialog> { { x => x.RoleId, role.Id } };
+        var dialog = await DialogService.ShowAsync<RoleEditDialog>($"Edit: {role.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadRoles();
+    }
+
+    private async Task DeleteRole(RoleDto role)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Role",
+            $"Delete \"{role.Name}\"? Users with this role will lose it.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (success, errors) = await RoleService.DeleteRoleAsync(role.Id);
+        if (success)
+        {
+            Snackbar.Add($"Role \"{role.Name}\" deleted.", Severity.Success);
+            await LoadRoles();
+        }
+        else
+        {
+            Snackbar.Add(string.Join(", ", errors), Severity.Error);
+        }
+    }
+}

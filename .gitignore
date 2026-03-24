@@ -1,0 +1,33 @@
+## .NET
+bin/
+obj/
+*.user
+.vs/
+*.suo
+*.nupkg
+*.snupkg
+*.db
+*.db-shm
+*.db-wal
+
+## NuGet
+.nuget/
+packages/
+*.lock.json
+
+## Rider
+.idea/
+
+## VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Secrets
+appsettings.*.json
+!appsettings.Development.json
+secrets.json

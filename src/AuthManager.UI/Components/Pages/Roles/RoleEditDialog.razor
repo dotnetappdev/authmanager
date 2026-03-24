@@ -1,0 +1,122 @@
+@inject IRoleManagementService RoleService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudStack Spacing="3" Class="pt-2">
+                <MudTextField @bind-Value="_name" Label="Role Name" Required="true"
+                              Variant="Variant.Outlined"
+                              HelperText="Use PascalCase, e.g. Admin, ContentEditor"
+                              Disabled="@(!IsCreate)"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Stars" />
+
+                <MudTextField @bind-Value="_description" Label="Description (optional)"
+                              Variant="Variant.Outlined" Lines="2"
+                              HelperText="Describe what this role grants access to" />
+
+                <MudDivider />
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.subtitle2">Claims</MudText>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="@(() => _claims.Add(new ClaimDto()))">
+                        Add Claim
+                    </MudButton>
+                </MudStack>
+
+                @if (_claims.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        No claims. Claims on roles are automatically applied to all users in this role.
+                    </MudText>
+                }
+
+                @foreach (var (claim, i) in _claims.Select((c, i) => (c, i)))
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudTextField @bind-Value="claim.Type" Label="Type" Placeholder="permission"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-1" />
+                        <MudTextField @bind-Value="claim.Value" Label="Value" Placeholder="read:reports"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-1" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                       Size="Size.Small" OnClick="@(() => _claims.RemoveAt(i))" />
+                    </MudStack>
+                }
+
+                @if (_errors.Length > 0)
+                {
+                    <MudAlert Severity="Severity.Error">
+                        @foreach (var err in _errors) { <div>@err</div> }
+                    </MudAlert>
+                }
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="_saving">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            @(IsCreate ? "Create Role" : "Save Changes")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string? RoleId { get; set; }
+
+    private bool IsCreate => string.IsNullOrEmpty(RoleId);
+    private bool _loading = true;
+    private bool _saving;
+    private string _name = "";
+    private string? _description;
+    private List<ClaimDto> _claims = [];
+    private string[] _errors = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!IsCreate)
+        {
+            var role = await RoleService.GetRoleByIdAsync(RoleId!);
+            if (role != null)
+            {
+                _name = role.Name;
+                _description = role.Description;
+                _claims = role.Claims.ToList();
+            }
+        }
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _errors = [];
+        try
+        {
+            bool success;
+            string[] errors;
+            if (IsCreate)
+                (success, errors) = await RoleService.CreateRoleAsync(new CreateRoleDto { Name = _name, Description = _description, Claims = _claims });
+            else
+                (success, errors) = await RoleService.UpdateRoleAsync(new UpdateRoleDto { Id = RoleId!, Name = _name, Description = _description });
+
+            if (success)
+            {
+                Snackbar.Add(IsCreate ? $"Role \"{_name}\" created." : "Role updated.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else { _errors = errors; }
+        }
+        finally { _saving = false; }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

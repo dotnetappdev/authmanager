@@ -1,0 +1,56 @@
+@inherits LayoutComponentBase
+@inject IJSRuntime JS
+@inject IOptions<AuthManagerOptions> Options
+@implements IAsyncDisposable
+
+<MudThemeProvider @ref="_themeProvider" Theme="_theme" @bind-IsDarkMode="_isDark" />
+<MudPopoverProvider />
+<MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.Medium" />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <NavMenu IsDark="_isDark" OnThemeToggle="ToggleTheme" />
+
+    <MudMainContent Class="am-main-content">
+        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="am-container">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private MudThemeProvider _themeProvider = default!;
+    private bool _isDark;
+    private MudTheme _theme = AuthManagerThemeProvider.Build();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var savedTheme = await JS.InvokeAsync<string?>("authManager.getTheme");
+
+            if (savedTheme == "dark")
+                _isDark = true;
+            else if (savedTheme == "light")
+                _isDark = false;
+            else
+            {
+                var defaultTheme = Options.Value.DefaultTheme;
+                if (defaultTheme == AuthManagerTheme.Dark)
+                    _isDark = true;
+                else if (defaultTheme == AuthManagerTheme.System)
+                    _isDark = await JS.InvokeAsync<bool>("authManager.prefersDarkMode");
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        _isDark = !_isDark;
+        await JS.InvokeVoidAsync("authManager.setTheme", _isDark ? "dark" : "light");
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync() => await ValueTask.CompletedTask;
+}

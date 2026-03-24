@@ -1,0 +1,80 @@
+@using System.Timers
+
+<div class="am-toast @_levelClass @(_visible ? "am-toast-visible" : "")" role="alert">
+    <div class="am-toast-icon">
+        @switch (Level)
+        {
+            case ToastLevel.Success:
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                break;
+            case ToastLevel.Error:
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                break;
+            case ToastLevel.Warning:
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                break;
+            default:
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                break;
+        }
+    </div>
+    <div class="am-toast-content">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="am-toast-title">@Title</div>
+        }
+        <div class="am-toast-message">@Message</div>
+    </div>
+    <button class="am-toast-close" @onclick="Dismiss">×</button>
+</div>
+
+@code {
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public ToastLevel Level { get; set; } = ToastLevel.Info;
+    [Parameter] public int DurationMs { get; set; } = 4000;
+    [Parameter] public EventCallback OnDismiss { get; set; }
+
+    private bool _visible;
+    private string _levelClass => Level switch
+    {
+        ToastLevel.Success => "am-toast-success",
+        ToastLevel.Error => "am-toast-error",
+        ToastLevel.Warning => "am-toast-warning",
+        _ => "am-toast-info"
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _visible = true;
+            StateHasChanged();
+            await Task.Delay(DurationMs);
+            await Dismiss();
+        }
+    }
+
+    private async Task Dismiss()
+    {
+        _visible = false;
+        StateHasChanged();
+        await Task.Delay(300); // CSS transition
+        await OnDismiss.InvokeAsync();
+    }
+}
