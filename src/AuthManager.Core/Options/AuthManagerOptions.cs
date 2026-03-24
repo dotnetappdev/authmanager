@@ -64,27 +64,6 @@ public sealed class AuthManagerOptions
     public int DefaultPageSize { get; set; } = 25;
 
     /// <summary>
-    /// Fallback connection string name used when scanning all ConnectionStrings entries
-    /// finds nothing recognisable. Defaults to "Default".
-    ///
-    /// In most cases you do not need to set this — the package scans every entry in
-    /// ConnectionStrings and picks the first one it recognises automatically.
-    /// </summary>
-    public string ConnectionStringName { get; set; } = "Default";
-
-    /// <summary>
-    /// One-line provider override. Leave null to auto-detect from the connection string format.
-    ///
-    ///   options.DbProvider = AuthManagerDbProvider.SqlServer;    // SQL Server
-    ///   options.DbProvider = AuthManagerDbProvider.PostgreSQL;   // PostgreSQL
-    ///   options.DbProvider = AuthManagerDbProvider.MySql;        // MySQL / MariaDB
-    ///   options.DbProvider = AuthManagerDbProvider.Sqlite;       // SQLite
-    ///
-    /// When set, the package scans ConnectionStrings for the first entry matching that provider.
-    /// </summary>
-    public AuthManagerDbProvider? DbProvider { get; set; }
-
-    /// <summary>
     /// When true, ensures the SuperAdmin role exists and creates a default SuperAdmin user
     /// on startup if neither exists yet. A warning is logged when this runs.
     /// Defaults to false — opt-in only.
@@ -109,18 +88,6 @@ public sealed class AuthManagerOptions
     /// Defaults to "SuperAdmin".
     /// </summary>
     public string SuperAdminRole { get; set; } = "SuperAdmin";
-}
-
-/// <summary>
-/// Database provider selection for DotNetAuthManager.
-/// When not set, the provider is automatically detected from the connection string.
-/// </summary>
-public enum AuthManagerDbProvider
-{
-    SqlServer,
-    PostgreSQL,
-    MySql,
-    Sqlite
 }
 
 /// <summary>

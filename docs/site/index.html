@@ -22,6 +22,7 @@
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#quickstart">Quick Start</a>
+      <a href="#nuget">NuGet</a>
       <a href="#packages">Packages</a>
       <a href="https://github.com/dotnetappdev/authmanager" class="nav-github" target="_blank">GitHub ↗</a>
     </div>
@@ -34,8 +35,8 @@
     <div class="hero-badge">✦ .NET 8 · 9 · 10 · MIT License</div>
     <h1 class="hero-title">Identity management<br/><span class="gradient-text">the way Aspire does it</span></h1>
     <p class="hero-sub">
-      Drop a NuGet package in. Call two methods. Navigate to <code>/authmanager</code>.<br/>
-      Full Keycloak-style CRUD for users, roles, claims, JWT &amp; OAuth — built on ASP.NET Identity.
+      Drop a NuGet package in. Use your existing DbContext. Call two methods.<br/>
+      Full Keycloak-style CRUD for users, roles, claims, JWT &amp; OAuth — at <code>/authmanager</code>.
     </p>
     <div class="hero-cta">
       <a href="#quickstart" class="btn-primary">Get Started →</a>
@@ -50,17 +51,20 @@
         <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
         <span class="code-filename">Program.cs</span>
       </div>
-      <pre class="code-body"><span class="kw">builder</span>.Services.<span class="fn">AddAuthManagerWithSqlServer</span>&lt;<span class="ty">ApplicationUser</span>&gt;(
-    connectionString: <span class="str">"..."</span>,
-    authManager: options =&gt; {
-        options.RoutePrefix = <span class="str">"authmanager"</span>;
-        options.DefaultTheme = AuthManagerTheme.<span class="ty">Dark</span>;
-        options.AdminRoles = [<span class="str">"Admin"</span>];
-    }
-);
+      <pre class="code-body"><span class="cmt">// Your existing Identity setup — unchanged</span>
+<span class="kw">builder</span>.Services.<span class="fn">AddDbContext</span>&lt;<span class="ty">AppDbContext</span>&gt;(o =&gt; o.<span class="fn">UseSqlite</span>(<span class="str">"..."</span>));
+<span class="kw">builder</span>.Services.<span class="fn">AddIdentity</span>&lt;<span class="ty">ApplicationUser</span>, <span class="ty">IdentityRole</span>&gt;()
+    .<span class="fn">AddEntityFrameworkStores</span>&lt;<span class="ty">AppDbContext</span>&gt;();
 
-<span class="cmt">// Navigate to /authmanager</span>
-<span class="kw">app</span>.<span class="fn">MapAuthManager</span>();</pre>
+<span class="cmt">// AuthManager lays on top — no DB config needed</span>
+<span class="kw">builder</span>.Services.<span class="fn">AddAuthManager</span>&lt;<span class="ty">ApplicationUser</span>&gt;(options =&gt; {
+    options.RoutePrefix  = <span class="str">"authmanager"</span>;
+    options.DefaultTheme = AuthManagerTheme.<span class="ty">Dark</span>;
+});
+
+<span class="kw">var</span> app = <span class="kw">builder</span>.<span class="fn">Build</span>();
+<span class="kw">await</span> app.<span class="fn">CreateDefaultSuperUserAsync</span>&lt;<span class="ty">ApplicationUser</span>&gt;();
+app.<span class="fn">MapAuthManager</span>();   <span class="cmt">// → /authmanager</span></pre>
     </div>
   </div>
 </section>
@@ -120,18 +124,15 @@
 <section class="section section-dark" id="quickstart">
   <div class="section-inner">
     <h2 class="section-title">Quick Start</h2>
+    <p class="section-sub">AuthManager works with your existing DbContext — no separate setup needed.</p>
 
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
         <div class="step-content">
-          <h3>Install the package</h3>
+          <h3>Install</h3>
           <div class="code-inline">
-            <pre>dotnet add package DotNetAuthManager
-<span class="cmt"># or for specific database:</span>
-dotnet add package DotNetAuthManager.Storage.SqlServer
-dotnet add package DotNetAuthManager.Storage.PostgreSQL
-dotnet add package DotNetAuthManager.Storage.MySql</pre>
+            <pre>dotnet add package DotNetAuthManager</pre>
           </div>
         </div>
       </div>
@@ -139,23 +140,15 @@ dotnet add package DotNetAuthManager.Storage.MySql</pre>
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-content">
-          <h3>Configure in Program.cs</h3>
+          <h3>Keep your existing DbContext &amp; Identity</h3>
           <div class="code-inline">
-            <pre><span class="cmt">// SQL Server (also available: PostgreSQL, MySQL)</span>
-builder.Services.<span class="fn">AddAuthManagerWithSqlServer</span>&lt;<span class="ty">ApplicationUser</span>&gt;(
-    connectionString: builder.Configuration.<span class="fn">GetConnectionString</span>(<span class="str">"Default"</span>)!,
-    authManager: options => {
-        options.RoutePrefix   = <span class="str">"authmanager"</span>;
-        options.Title         = <span class="str">"My App"</span>;
-        options.DefaultTheme  = AuthManagerTheme.<span class="ty">Dark</span>;
-        options.AdminRoles    = [<span class="str">"Admin"</span>];
-    }
-);
+            <pre><span class="cmt">// Unchanged — any provider (SQL Server, PostgreSQL, MySQL, SQLite…)</span>
+<span class="kw">builder</span>.Services.<span class="fn">AddDbContext</span>&lt;<span class="ty">AppDbContext</span>&gt;(o =&gt;
+    o.<span class="fn">UseSqlite</span>(<span class="kw">builder</span>.Configuration.<span class="fn">GetConnectionString</span>(<span class="str">"Default"</span>)!));
 
-var app = builder.Build();
-app.UseAuthentication();
-app.UseAuthorization();
-app.<span class="fn">MapAuthManager</span>();</pre>
+<span class="kw">builder</span>.Services.<span class="fn">AddIdentity</span>&lt;<span class="ty">ApplicationUser</span>, <span class="ty">IdentityRole</span>&gt;()
+    .<span class="fn">AddEntityFrameworkStores</span>&lt;<span class="ty">AppDbContext</span>&gt;()
+    .<span class="fn">AddDefaultTokenProviders</span>();</pre>
           </div>
         </div>
       </div>
@@ -163,8 +156,109 @@ app.<span class="fn">MapAuthManager</span>();</pre>
       <div class="step">
         <div class="step-num">3</div>
         <div class="step-content">
-          <h3>Open the dashboard</h3>
-          <p>Navigate to <strong>https://your-app/authmanager</strong> and sign in with an Admin account.</p>
+          <h3>Add AuthManager &amp; seed the admin</h3>
+          <div class="code-inline">
+            <pre><span class="kw">builder</span>.Services.<span class="fn">AddAuthManager</span>&lt;<span class="ty">ApplicationUser</span>&gt;(options =&gt; {
+    options.RoutePrefix   = <span class="str">"authmanager"</span>;
+    options.DefaultTheme  = AuthManagerTheme.<span class="ty">Dark</span>;
+    options.SuperAdminRole = <span class="str">"SuperAdmin"</span>;
+});
+
+<span class="kw">var</span> app = <span class="kw">builder</span>.<span class="fn">Build</span>();
+
+<span class="cmt">// Creates the SuperAdmin role + user on first run. Idempotent.</span>
+<span class="kw">await</span> app.<span class="fn">CreateDefaultSuperUserAsync</span>&lt;<span class="ty">ApplicationUser</span>&gt;(
+    email:    <span class="str">"superadmin@example.com"</span>,
+    password: <span class="str">"SuperAdmin@123456!"</span>
+);
+
+app.<span class="fn">UseAuthentication</span>();
+app.<span class="fn">UseAuthorization</span>();
+app.<span class="fn">MapAuthManager</span>();
+app.<span class="fn">Run</span>();</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h3>Open the dashboard &amp; change your password</h3>
+          <p>Navigate to <strong>https://your-app/authmanager</strong> and sign in with the seeded SuperAdmin account. Change the password immediately.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== NUGET ===== -->
+<section class="section" id="nuget">
+  <div class="section-inner">
+    <h2 class="section-title">Publishing to NuGet</h2>
+    <p class="section-sub">Pack locally, test, then push to NuGet.org or GitHub Packages.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Build &amp; pack</h3>
+          <div class="code-inline">
+            <pre><span class="cmt"># Build Release</span>
+dotnet build -c Release
+
+<span class="cmt"># Pack all projects — output lands in ./nupkg/</span>
+dotnet pack src/AuthManager.Core/AuthManager.Core.csproj             -c Release -o ./nupkg
+dotnet pack src/AuthManager.UI/AuthManager.UI.csproj                 -c Release -o ./nupkg
+dotnet pack src/AuthManager.AspNetCore/AuthManager.AspNetCore.csproj -c Release -o ./nupkg</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Test locally</h3>
+          <div class="code-inline">
+            <pre><span class="cmt"># Register the local folder as a NuGet source</span>
+dotnet nuget add source ./nupkg --name local-authmanager
+
+<span class="cmt"># Install in any test project</span>
+dotnet add package DotNetAuthManager --source local-authmanager
+
+<span class="cmt"># Remove when done</span>
+dotnet nuget remove source local-authmanager</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Push to NuGet.org</h3>
+          <div class="code-inline">
+            <pre>dotnet nuget push ./nupkg/DotNetAuthManager.*.nupkg \
+  --api-key $NUGET_API_KEY \
+  --source https://api.nuget.org/v3/index.json \
+  --skip-duplicate</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h3>Or push to GitHub Packages</h3>
+          <div class="code-inline">
+            <pre>dotnet nuget add source \
+  --username YOUR_GITHUB_USERNAME \
+  --password $GITHUB_TOKEN \
+  --store-password-in-clear-text \
+  --name github \
+  "https://nuget.pkg.github.com/dotnetappdev/index.json"
+
+dotnet nuget push ./nupkg/DotNetAuthManager.*.nupkg \
+  --source github --skip-duplicate</pre>
+          </div>
         </div>
       </div>
     </div>
@@ -172,33 +266,19 @@ app.<span class="fn">MapAuthManager</span>();</pre>
 </section>
 
 <!-- ===== PACKAGES ===== -->
-<section class="section" id="packages">
+<section class="section section-dark" id="packages">
   <div class="section-inner">
     <h2 class="section-title">NuGet Packages</h2>
+    <p class="section-sub">One package covers everything. The source generator is optional.</p>
     <div class="packages-grid">
-      <div class="package-card">
+      <div class="package-card package-main">
         <div class="pkg-name">DotNetAuthManager</div>
-        <div class="pkg-desc">Core package. Bring your own DbContext &amp; Identity setup.</div>
-        <div class="pkg-badge">Main</div>
-      </div>
-      <div class="package-card">
-        <div class="pkg-name">DotNetAuthManager.Storage.SqlServer</div>
-        <div class="pkg-desc">SQL Server + EF Core + Identity, all in one method call.</div>
-        <div class="pkg-badge">Storage</div>
-      </div>
-      <div class="package-card">
-        <div class="pkg-name">DotNetAuthManager.Storage.PostgreSQL</div>
-        <div class="pkg-desc">PostgreSQL via Npgsql EF Core provider.</div>
-        <div class="pkg-badge">Storage</div>
-      </div>
-      <div class="package-card">
-        <div class="pkg-name">DotNetAuthManager.Storage.MySql</div>
-        <div class="pkg-desc">MySQL / MariaDB via Pomelo EF Core provider.</div>
-        <div class="pkg-badge">Storage</div>
+        <div class="pkg-desc">The full package — UI, services, seeder, DI extensions. Works with any DbContext you already have.</div>
+        <div class="pkg-badge pkg-badge-main">Core</div>
       </div>
       <div class="package-card">
         <div class="pkg-name">DotNetAuthManager.SourceGenerator</div>
-        <div class="pkg-desc">Scaffolds Identity boilerplate if not already present.</div>
+        <div class="pkg-desc">Roslyn generator — scaffolds <code>ApplicationUser</code>, <code>AppDbContext</code>, and wiring hints if you have no Identity setup yet.</div>
         <div class="pkg-badge">Tooling</div>
       </div>
     </div>

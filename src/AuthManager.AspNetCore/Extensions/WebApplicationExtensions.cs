@@ -1,9 +1,12 @@
+using AuthManager.AspNetCore.Seeding;
 using AuthManager.Core.Options;
 using AuthManager.UI.Components;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AuthManager.AspNetCore.Extensions;
@@ -68,6 +71,61 @@ public static class WebApplicationExtensions
 
         return app;
     }
+
+    /// <summary>
+    /// Creates the SuperAdmin role and default SuperAdmin user right now, explicitly.
+    ///
+    /// Use this instead of (or alongside) <c>options.SeedSuperAdmin = true</c> when you
+    /// want startup to block until the admin account exists — for example in migrations,
+    /// integration tests, or Docker first-run scripts.
+    ///
+    /// Idempotent — safe to call multiple times.
+    /// </summary>
+    /// <param name="app">The built <see cref="WebApplication"/>.</param>
+    /// <param name="email">Overrides <see cref="AuthManagerOptions.SeedSuperAdminEmail"/>.</param>
+    /// <param name="password">Overrides <see cref="AuthManagerOptions.SeedSuperAdminPassword"/>.</param>
+    /// <param name="roleName">Overrides <see cref="AuthManagerOptions.SuperAdminRole"/>.</param>
+    /// <example>
+    /// var app = builder.Build();
+    ///
+    /// await app.CreateDefaultSuperUserAsync&lt;ApplicationUser&gt;();
+    ///
+    /// app.MapAuthManager();
+    /// app.Run();
+    /// </example>
+    public static async Task CreateDefaultSuperUserAsync<TUser, TRole>(
+        this WebApplication app,
+        string? email    = null,
+        string? password = null,
+        string? roleName = null)
+        where TUser : IdentityUser, new()
+        where TRole : IdentityRole, new()
+    {
+        using var scope = app.Services.CreateScope();
+        var sp          = scope.ServiceProvider;
+        var opts        = sp.GetRequiredService<IOptions<AuthManagerOptions>>().Value;
+        var logger      = sp.GetRequiredService<ILogger<WebApplication>>();
+        var userManager = sp.GetRequiredService<UserManager<TUser>>();
+        var roleManager = sp.GetRequiredService<RoleManager<TRole>>();
+
+        await DefaultSuperUserHelper.EnsureAsync(
+            userManager, roleManager, logger,
+            roleName ?? opts.SuperAdminRole,
+            email    ?? opts.SeedSuperAdminEmail,
+            password ?? opts.SeedSuperAdminPassword,
+            opts.RoutePrefix);
+    }
+
+    /// <summary>
+    /// Convenience overload — uses <c>IdentityRole</c> as the role type.
+    /// </summary>
+    public static Task CreateDefaultSuperUserAsync<TUser>(
+        this WebApplication app,
+        string? email    = null,
+        string? password = null,
+        string? roleName = null)
+        where TUser : IdentityUser, new()
+        => app.CreateDefaultSuperUserAsync<TUser, IdentityRole>(email, password, roleName);
 
     private static void MapApiEndpoints(RouteGroupBuilder api, AuthManagerOptions options)
     {
