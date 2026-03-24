@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>DotNetAuthManager — Keycloak-style identity management for ASP.NET Core</title>
-<meta name="description" content="Drop-in Keycloak-style identity management UI for .NET 8, 9 and 10. CRUD users, roles, claims, JWT and OAuth — accessible at /authmanager."/>
+<meta name="description" content="Drop-in Keycloak-style identity management UI for .NET 8, 9 and 10. CRUD users, roles, claims, JWT, OAuth, sessions, password policy, and required actions — accessible at /authmanager."/>
 <link rel="stylesheet" href="assets/css/site.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -36,7 +36,8 @@
     <h1 class="hero-title">Identity management<br/><span class="gradient-text">the way Aspire does it</span></h1>
     <p class="hero-sub">
       Drop a NuGet package in. Use your existing DbContext. Call two methods.<br/>
-      Full Keycloak-style CRUD for users, roles, claims, JWT &amp; OAuth — at <code>/authmanager</code>.
+      Full Keycloak-style admin UI — users, roles, sessions, password policy, required actions,
+      JWT, OAuth, webhooks, and audit log — all at <code>/authmanager</code>.
     </p>
     <div class="hero-cta">
       <a href="#quickstart" class="btn-primary">Get Started →</a>
@@ -105,6 +106,31 @@ app.<span class="fn">MapAuthManager</span>();   <span class="cmt">// → /authma
         <div class="feature-icon teal">📜</div>
         <h3>Audit Log</h3>
         <p>Every change made through the UI is recorded — who, what, when, from where.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon red">🔒</div>
+        <h3>Security Settings</h3>
+        <p>Password Policy UI (length, complexity, history, expiry) and Brute Force Detection (max attempts, lockout duration, session limits) — like Keycloak's realm security tabs.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon amber">🖥️</div>
+        <h3>Active Sessions</h3>
+        <p>View all live user sessions with IP, device, and timestamps. Revoke individual sessions, all sessions per user, or everything at once.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon lime">✅</div>
+        <h3>Required Actions</h3>
+        <p>Assign Keycloak-style required actions to users: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms — enforced on next sign-in.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon sky">📦</div>
+        <h3>Bulk Import / Export</h3>
+        <p>Import users from CSV or JSON. Export any role-filtered user set. Compatible with Keycloak partial export format.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon violet">🔔</div>
+        <h3>Webhooks</h3>
+        <p>Fire signed HTTP POST events to your own endpoints on any auth action — user created, locked out, password reset, 2FA toggled, and more.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon indigo">🌙</div>

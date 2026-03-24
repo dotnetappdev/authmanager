@@ -17,10 +17,15 @@ A **Keycloak-style** ASP.NET Identity management UI for .NET — inspired by how
 | **Users** | Full CRUD via MudBlazor DataGrid · Lock/unlock · Password reset · 2FA toggle · Role assignment · Claims editor |
 | **Roles** | Create / edit / delete · Assign claims to roles |
 | **Claims** | User and role claims management with type reference |
+| **Required Actions** | Keycloak-style per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
+| **Security Settings** | Password Policy UI (length, complexity, history, expiry) · Brute Force Detection (max attempts, lockout duration) · Registration Policy |
+| **Active Sessions** | View all tracked sessions · Revoke individual, per-user, or all sessions at once |
 | **JWT** | Configure issuer, audience, expiry, algorithm · Test token generator |
 | **OAuth** | Google, Microsoft, Apple, GitHub, custom OIDC providers |
 | **Logs** | Real-time Serilog viewer with filtering, search, live mode |
 | **Audit** | Every change recorded — who, what, when, from where |
+| **Import / Export** | Bulk CSV and JSON user import/export |
+| **Webhooks** | Signed HTTP POST events to external endpoints on auth actions |
 | **Themes** | BookIt dark palette + clean light palette · OS preference auto-detect |
 | **Source Gen** | Scaffolds ApplicationUser, DbContext & wiring if Identity is missing |
 
@@ -142,6 +147,60 @@ builder.Host.UseSerilog();
 
 ---
 
+## Session Tracking
+
+AuthManager ships an `ISessionService` (in-memory by default). Call `TrackSessionAsync` from your login endpoint to make sessions appear in the **Active Sessions** UI:
+
+```csharp
+// In your login action / minimal API handler
+var session = new SessionInfo
+{
+    SessionId       = Guid.NewGuid().ToString(),
+    UserId          = user.Id,
+    UserName        = user.UserName!,
+    CreatedAt       = DateTimeOffset.UtcNow,
+    LastActiveAt    = DateTimeOffset.UtcNow,
+    IpAddress       = HttpContext.Connection.RemoteIpAddress?.ToString(),
+    UserAgent       = Request.Headers.UserAgent,
+    DeviceDescription = "Chrome on Windows",  // parse yourself or use a UA library
+};
+await sessionService.TrackSessionAsync(session);
+```
+
+For distributed deployments, replace the in-memory store:
+
+```csharp
+// Register BEFORE or AFTER AddAuthManager() — TryAddSingleton is used internally
+services.AddSingleton<ISessionService, RedisSessionService>();
+```
+
+## Required Actions
+
+Assign actions users must complete on their **next sign-in** — works like Keycloak's Required User Actions:
+
+```csharp
+// Force a user to set up TOTP on next login
+await userManagementService.AddRequiredActionAsync(userId, "ConfigureTOTP");
+
+// Or via the UI: Users → Edit User → Required Actions panel
+```
+
+Available action strings: `UpdatePassword`, `VerifyEmail`, `ConfigureTOTP`, `UpdateProfile`, `AcceptTerms`.
+
+Actions are stored as `required_action` claims in ASP.NET Identity. Check them in your auth pipeline:
+
+```csharp
+var requiredActions = user.Claims
+    .Where(c => c.Type == "required_action")
+    .Select(c => c.Value)
+    .ToList();
+
+if (requiredActions.Contains("UpdatePassword"))
+    return RedirectToAction("ForcePasswordChange");
+```
+
+---
+
 ## Source Generator (no Identity yet?)
 
 Add to your `.csproj`:
@@ -181,6 +240,37 @@ options.DefaultPageSize       = 25;
 options.SeedSuperAdmin         = true;                  // ⚠️  disable after first login
 options.SeedSuperAdminEmail    = "superadmin@example.com";
 options.SeedSuperAdminPassword = "SuperAdmin@123456!";
+
+// Password Policy — applied to ASP.NET Identity PasswordOptions at startup
+options.PasswordPolicy.MinimumLength          = 8;
+options.PasswordPolicy.MaximumLength          = 128;
+options.PasswordPolicy.RequireUppercase       = true;
+options.PasswordPolicy.RequireLowercase       = true;
+options.PasswordPolicy.RequireDigit           = true;
+options.PasswordPolicy.RequireNonAlphanumeric = true;
+options.PasswordPolicy.PasswordHistoryCount   = 5;   // reject last 5 passwords
+options.PasswordPolicy.PasswordExpiryDays     = 90;  // 0 = never
+options.PasswordPolicy.DenyUsernameInPassword = true;
+
+// Security / Lockout Policy — applied to ASP.NET Identity LockoutOptions at startup
+options.SecurityPolicy.EnableBruteForceDetection = true;
+options.SecurityPolicy.MaxFailedLoginAttempts     = 5;
+options.SecurityPolicy.LockoutDuration            = TimeSpan.FromMinutes(15);
+options.SecurityPolicy.MaxConcurrentSessions      = 0;     // 0 = unlimited
+options.SecurityPolicy.InvalidateSessionsOnPasswordChange = true;
+options.SecurityPolicy.AllowSelfRegistration      = true;
+options.SecurityPolicy.RequireEmailVerificationOnRegistration = false;
+
+// Webhooks — fire-and-forget signed HTTP POSTs on auth events
+options.Webhooks.Enabled = true;
+options.Webhooks.Endpoints.Add(new WebhookEndpoint
+{
+    Name   = "My Endpoint",
+    Url    = "https://example.com/webhook",
+    Secret = "your-hmac-secret",
+    Events = [WebhookEventNames.UserCreated, WebhookEventNames.UserLockout]
+    // Events = [WebhookEventNames.All]  — subscribe to everything
+});
 
 options.Jwt.Issuer                   = "https://api.example.com";
 options.Jwt.Audience                 = "https://api.example.com";
