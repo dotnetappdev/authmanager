@@ -62,6 +62,32 @@ public sealed class AuthManagerOptions
     /// Maximum number of users to show per page.
     /// </summary>
     public int DefaultPageSize { get; set; } = 25;
+
+    /// <summary>
+    /// When true, ensures the SuperAdmin role exists and creates a default SuperAdmin user
+    /// on startup if neither exists yet. A warning is logged when this runs.
+    /// Defaults to false — opt-in only.
+    /// </summary>
+    public bool SeedSuperAdmin { get; set; } = false;
+
+    /// <summary>
+    /// Email for the seeded SuperAdmin account. Defaults to "superadmin@localhost".
+    /// Ignored unless SeedSuperAdmin = true.
+    /// </summary>
+    public string SeedSuperAdminEmail { get; set; } = "superadmin@localhost";
+
+    /// <summary>
+    /// Initial password for the seeded SuperAdmin account. Defaults to a strong placeholder.
+    /// Change this immediately after first login. Ignored unless SeedSuperAdmin = true.
+    /// </summary>
+    public string SeedSuperAdminPassword { get; set; } = "SuperAdmin@123456!";
+
+    /// <summary>
+    /// The role name that grants access to the AuthManager UI.
+    /// Any user without this role will be denied — even authenticated users.
+    /// Defaults to "SuperAdmin".
+    /// </summary>
+    public string SuperAdminRole { get; set; } = "SuperAdmin";
 }
 
 /// <summary>

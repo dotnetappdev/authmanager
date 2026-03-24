@@ -93,6 +93,10 @@ body {
 .pkg-desc { font-size: 0.875rem; color: var(--c-text2); flex: 1; }
 .pkg-badge { align-self: flex-start; background: rgba(167,139,250,.12); border: 1px solid rgba(167,139,250,.3); color: var(--c-primary); border-radius: 4px; font-size: 0.7rem; padding: 2px 8px; font-weight: 600; }
 
+/* Package card — main highlight */
+.package-main { border-color: var(--c-primary) !important; }
+.pkg-badge-main { background: rgba(34,211,238,.12); border-color: rgba(34,211,238,.3); color: var(--c-cyan); }
+
 /* Footer */
 .footer { border-top: 1px solid var(--c-border); padding: 40px 24px; text-align: center; }
 .footer-inner { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }

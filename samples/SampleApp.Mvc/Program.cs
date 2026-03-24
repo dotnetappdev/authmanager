@@ -1,85 +1,64 @@
 using AuthManager.AspNetCore.Extensions;
 using AuthManager.Core.Options;
-using AuthManager.Storage.SqlServer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
-using SampleApp.Mvc.Data;
 
-// --------------------------------------------------------
-// Bootstrap Serilog (logs flow to AuthManager log viewer)
-// --------------------------------------------------------
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    // The AuthManager sink is added after the app is built (see below)
     .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
-// --------------------------------------------------------
-// MVC + Views
-// --------------------------------------------------------
 builder.Services.AddControllersWithViews();
 
-// --------------------------------------------------------
-// AuthManager — SQL Server + ASP.NET Identity
-// --------------------------------------------------------
-builder.Services.AddAuthManagerWithSqlServer<ApplicationUser>(
-    connectionString: builder.Configuration.GetConnectionString("Default")
-                      ?? "Data Source=authmanager-sample.db",          // SQLite fallback for demo
-    authManager: options =>
+// ── 1. Your own DbContext (any provider you like) ────────────────────────
+builder.Services.AddDbContext<AppDbContext>(o =>
+    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
+
+// ── 2. Your own Identity setup ───────────────────────────────────────────
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(o =>
+{
+    o.Password.RequireDigit             = true;
+    o.Password.RequiredLength           = 8;
+    o.Password.RequireUppercase         = true;
+    o.Lockout.MaxFailedAccessAttempts   = 5;
+    o.Lockout.DefaultLockoutTimeSpan    = TimeSpan.FromMinutes(15);
+    o.User.RequireUniqueEmail           = true;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+
+// ── 3. AuthManager — just lays on top, no DB config needed ───────────────
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    options.RoutePrefix    = "authmanager";
+    options.Title          = "Sample MVC — Auth Manager";
+    options.DefaultTheme   = AuthManagerTheme.Dark;
+    options.SuperAdminRole = "SuperAdmin";
+
+    // Seed a default SuperAdmin on first run.
+    // ⚠️  Set SeedSuperAdmin = false after first login + password change.
+    options.SeedSuperAdmin         = true;
+    options.SeedSuperAdminEmail    = "superadmin@example.com";
+    options.SeedSuperAdminPassword = "SuperAdmin@123456!";
+
+    options.Jwt = new JwtOptions
     {
-        options.RoutePrefix = "authmanager";
-        options.Title = "My App — Auth Manager";
-        options.DefaultTheme = AuthManagerTheme.Dark;
-        options.AdminRoles = ["Admin"];
-        options.Jwt = new JwtOptions
-        {
-            Issuer = "https://localhost:5001",
-            Audience = "https://localhost:5001/api",
-            AccessTokenExpiryMinutes = 60,
-            EnableRefreshTokens = true
-        };
-        options.OAuth = new OAuthOptions
-        {
-            Google = new GoogleOAuthOptions
-            {
-                Enabled = false,
-                ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "",
-                ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? ""
-            },
-            Microsoft = new MicrosoftOAuthOptions
-            {
-                Enabled = false,
-                ClientId = builder.Configuration["Authentication:Microsoft:ClientId"] ?? ""
-            }
-        };
-    },
-    identity: options =>
-    {
-        // Password requirements
-        options.Password.RequireDigit = true;
-        options.Password.RequiredLength = 8;
-        options.Password.RequireUppercase = true;
-        options.Password.RequireNonAlphanumeric = false;
-        // Lockout
-        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-        options.Lockout.MaxFailedAccessAttempts = 5;
-        // User
-        options.User.RequireUniqueEmail = true;
-    }
-);
+        Issuer                   = "https://localhost:5001",
+        Audience                 = "https://localhost:5001/api",
+        AccessTokenExpiryMinutes = 60,
+        EnableRefreshTokens      = true
+    };
+});
 
 var app = builder.Build();
 
-// --------------------------------------------------------
-// Middleware pipeline
-// --------------------------------------------------------
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -92,46 +71,9 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --------------------------------------------------------
-// AuthManager — maps /authmanager and sets up Blazor hub
-// --------------------------------------------------------
+// ── 4. Maps /authmanager — SuperAdmin role required ──────────────────────
 app.MapAuthManager();
 
-// MVC routes
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
-
-// Seed admin user on startup
-await SeedAdminUser(app);
+app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
-
-// --------------------------------------------------------
-// Seed helper
-// --------------------------------------------------------
-static async Task SeedAdminUser(WebApplication app)
-{
-    using var scope = app.Services.CreateScope();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-
-    // Ensure Admin role exists
-    if (!await roleManager.RoleExistsAsync("Admin"))
-        await roleManager.CreateAsync(new IdentityRole("Admin"));
-
-    // Seed admin user
-    const string adminEmail = "admin@example.com";
-    if (await userManager.FindByEmailAsync(adminEmail) is null)
-    {
-        var admin = new ApplicationUser
-        {
-            UserName = "admin",
-            Email = adminEmail,
-            EmailConfirmed = true
-        };
-        var result = await userManager.CreateAsync(admin, "Admin@123456!");
-        if (result.Succeeded)
-            await userManager.AddToRoleAsync(admin, "Admin");
-    }
-}

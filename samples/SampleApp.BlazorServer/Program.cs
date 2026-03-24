@@ -1,11 +1,7 @@
-// ============================================================
-//  DotNetAuthManager — Blazor Server Sample
-//  The auth manager coexists with your own Blazor app
-// ============================================================
 using AuthManager.AspNetCore.Extensions;
 using AuthManager.Core.Options;
-using AuthManager.Storage.SqlServer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
@@ -21,24 +17,32 @@ Log.Logger = new LoggerConfiguration()
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
-// ---- Your own Blazor app ----
+// ── 1. Host app's own Blazor setup ───────────────────────────────────────
 builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
-
-// MudBlazor for your own app (AuthManager also uses MudBlazor)
 builder.Services.AddMudServices();
 
-// ---- AuthManager ----
-// Note: AddAuthManager() is idempotent with AddRazorComponents() above
-builder.Services.AddAuthManagerWithSqlServer<IdentityUser>(
-    connectionString: "Data Source=authmanager-blazor.db",
-    authManager: options =>
-    {
-        options.RoutePrefix = "authmanager";
-        options.Title = "Blazor App — Auth Manager";
-        options.DefaultTheme = AuthManagerTheme.Dark;
-    }
-);
+// ── 2. Your own DbContext ────────────────────────────────────────────────
+builder.Services.AddDbContext<AppDbContext>(o =>
+    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
+
+// ── 3. Your own Identity ─────────────────────────────────────────────────
+builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+// ── 4. AuthManager on top — no DbContext config needed ───────────────────
+// AddRazorComponents() above is idempotent — AuthManager won't double-register it.
+builder.Services.AddAuthManager<IdentityUser>(options =>
+{
+    options.RoutePrefix    = "authmanager";
+    options.Title          = "Blazor App — Auth Manager";
+    options.DefaultTheme   = AuthManagerTheme.Dark;
+    options.SuperAdminRole = "SuperAdmin";
+    options.SeedSuperAdmin         = true;
+    options.SeedSuperAdminEmail    = "superadmin@example.com";
+    options.SeedSuperAdminPassword = "SuperAdmin@123456!";
+});
 
 var app = builder.Build();
 
@@ -47,11 +51,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-// ---- AuthManager first ----
 app.MapAuthManager();
 
-// ---- Your Blazor app ----
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
 
 app.Run();
+
+// ── Shared app DbContext ─────────────────────────────────────────────────
+public class AppDbContext : IdentityDbContext<IdentityUser>
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+}

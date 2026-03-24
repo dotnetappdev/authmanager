@@ -29,18 +29,17 @@ A **Keycloak-style** ASP.NET Identity management UI for .NET — inspired by how
 ## Architecture
 
 ```
-DotNetAuthManager (main)
+DotNetAuthManager  ← one package, that's it
 ├── AuthManager.Core          — Models, DTOs, service interfaces
 ├── AuthManager.UI            — Blazor Server RCL (MudBlazor)
-└── AuthManager.AspNetCore    — DI extensions, middleware, services
+└── AuthManager.AspNetCore    — DI extensions, services, SuperAdmin seeder
 
-Storage (pick one):
-├── DotNetAuthManager.Storage.SqlServer    — SQL Server via EF Core
-├── DotNetAuthManager.Storage.PostgreSQL   — PostgreSQL via Npgsql
-└── DotNetAuthManager.Storage.MySql        — MySQL/MariaDB via Pomelo
+AuthManager does not own your database.
+It uses the UserManager<TUser> and RoleManager<TRole> already in your container.
+Bring your own DbContext + Identity — any provider, any schema.
 
-Tooling:
-└── DotNetAuthManager.SourceGenerator — Roslyn scaffolding
+Tooling (optional):
+└── DotNetAuthManager.SourceGenerator — Roslyn scaffolding if you have no Identity yet
 ```
 
 ---
@@ -50,85 +49,88 @@ Tooling:
 ### 1. Install
 
 ```bash
-# All-in-one with SQL Server
-dotnet add package DotNetAuthManager.Storage.SqlServer
-
-# Or for PostgreSQL
-dotnet add package DotNetAuthManager.Storage.PostgreSQL
-
-# Or MySQL
-dotnet add package DotNetAuthManager.Storage.MySql
+dotnet add package DotNetAuthManager
 ```
 
-### 2. Program.cs
+### 2. Set up your DbContext and Identity as normal
+
+AuthManager does not touch your database. Set it up however you like:
 
 ```csharp
-using AuthManager.Core.Options;
-using AuthManager.Storage.SqlServer;  // or .PostgreSQL / .MySql
+// Any provider — SQL Server, PostgreSQL, MySQL, SQLite, whatever you already use
+builder.Services.AddDbContext<AppDbContext>(o =>
+    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
 
-// ── Services ──────────────────────────────────────────────
-builder.Services.AddAuthManagerWithSqlServer<ApplicationUser>(
-    connectionString: builder.Configuration.GetConnectionString("Default")!,
-    authManager: options =>
-    {
-        options.RoutePrefix  = "authmanager";      // → /authmanager
-        options.Title        = "My App";
-        options.DefaultTheme = AuthManagerTheme.Dark;
-        options.AdminRoles   = ["Admin"];           // who can access the UI
-    },
-    identity: options =>
-    {
-        options.Password.RequiredLength  = 8;
-        options.Lockout.MaxFailedAccessAttempts = 5;
-        options.User.RequireUniqueEmail  = true;
-    }
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(o =>
+{
+    o.Password.RequiredLength        = 8;
+    o.Lockout.MaxFailedAccessAttempts = 5;
+    o.User.RequireUniqueEmail        = true;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+```
+
+### 3. Add AuthManager on top
+
+```csharp
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    options.RoutePrefix    = "authmanager";
+    options.DefaultTheme   = AuthManagerTheme.Dark;
+    options.SuperAdminRole = "SuperAdmin";   // only this role can enter the UI
+});
+```
+
+### 4. Create the default SuperAdmin and run
+
+**Option A — explicit call (recommended):**
+
+```csharp
+var app = builder.Build();
+
+// Creates the SuperAdmin role + user on first run. Idempotent — safe to leave in.
+await app.CreateDefaultSuperUserAsync<ApplicationUser>(
+    email:    "superadmin@example.com",
+    password: "SuperAdmin@123456!"
 );
 
-// ── Pipeline ──────────────────────────────────────────────
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapAuthManager();   // → /authmanager
+app.Run();
+```
+
+**Option B — automatic via hosted service:**
+
+```csharp
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    options.RoutePrefix    = "authmanager";
+    options.SuperAdminRole = "SuperAdmin";
+
+    // Seed on startup. ⚠️ Set false after first login + password change.
+    options.SeedSuperAdmin         = true;
+    options.SeedSuperAdminEmail    = "superadmin@example.com";
+    options.SeedSuperAdminPassword = "SuperAdmin@123456!";
+});
+
 var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapAuthManager();           // that's it — /authmanager is live
-```
-
-### 3. Open the dashboard
-
-Navigate to **`https://localhost:5001/authmanager`** and sign in.
-
----
-
-## Using Your Own DbContext
-
-If you already have Identity set up:
-
-```csharp
-// Just register AuthManager on top of your existing setup
-builder.Services.AddAuthManager<ApplicationUser, ApplicationRole>(options =>
-{
-    options.RoutePrefix = "authmanager";
-});
-
 app.MapAuthManager();
+app.Run();
 ```
 
----
+### 5. Open the dashboard
 
-## PostgreSQL
-
-```csharp
-builder.Services.AddAuthManagerWithPostgreSQL<ApplicationUser>(
-    connectionString: "Host=localhost;Database=myapp;Username=postgres;Password=secret",
-    authManager: options => { options.RoutePrefix = "authmanager"; }
-);
-```
+Navigate to **`https://localhost:5001/authmanager`**, sign in, change the password.
 
 ---
 
 ## Serilog Integration
 
 ```csharp
-using Serilog;
-
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .WriteTo.Console()
@@ -168,27 +170,32 @@ The generator creates:
 ## Configuration Reference
 
 ```csharp
-options.RoutePrefix          = "authmanager";   // URL path
-options.Title                = "Auth Manager";  // sidebar title
-options.DefaultTheme         = AuthManagerTheme.Dark; // Light | Dark | System
-options.RequireAuthentication = true;           // false = open (dev only!)
-options.AdminRoles           = ["Admin"];       // roles with UI access
-options.DefaultPageSize      = 25;
+options.RoutePrefix           = "authmanager";          // URL path
+options.Title                 = "Auth Manager";         // sidebar title
+options.DefaultTheme          = AuthManagerTheme.Dark;  // Light | Dark | System
+options.RequireAuthentication = true;                   // false = open (dev only!)
+options.SuperAdminRole        = "SuperAdmin";           // ONLY this role can access the UI
+options.DefaultPageSize       = 25;
 
-options.Jwt.Issuer                  = "https://api.example.com";
-options.Jwt.Audience                = "https://api.example.com";
+// SuperAdmin seeding (Option B — hosted service)
+options.SeedSuperAdmin         = true;                  // ⚠️  disable after first login
+options.SeedSuperAdminEmail    = "superadmin@example.com";
+options.SeedSuperAdminPassword = "SuperAdmin@123456!";
+
+options.Jwt.Issuer                   = "https://api.example.com";
+options.Jwt.Audience                 = "https://api.example.com";
 options.Jwt.AccessTokenExpiryMinutes = 60;
-options.Jwt.EnableRefreshTokens     = true;
+options.Jwt.EnableRefreshTokens      = true;
 
-options.OAuth.Google.Enabled        = true;
-options.OAuth.Google.ClientId       = "...";
-options.OAuth.Google.ClientSecret   = "...";
+options.OAuth.Google.Enabled         = true;
+options.OAuth.Google.ClientId        = "...";
+options.OAuth.Google.ClientSecret    = "...";
 
-options.OAuth.Microsoft.Enabled     = true;
-options.OAuth.Microsoft.TenantId    = "common";
+options.OAuth.Microsoft.Enabled      = true;
+options.OAuth.Microsoft.TenantId     = "common";
 
-options.LogViewer.MaxLogEntries     = 10_000;
-options.LogViewer.LiveUpdateIntervalMs = 2000;
+options.LogViewer.MaxLogEntries         = 10_000;
+options.LogViewer.LiveUpdateIntervalMs  = 2000;
 ```
 
 ---
@@ -209,17 +216,82 @@ dotnet run
 
 ---
 
+## Publishing to NuGet
+
+### Pack locally
+
+```bash
+# 1. Build Release
+dotnet build -c Release
+
+# 2. Pack — output goes to ./nupkg/
+dotnet pack src/AuthManager.Core/AuthManager.Core.csproj               -c Release -o ./nupkg
+dotnet pack src/AuthManager.UI/AuthManager.UI.csproj                   -c Release -o ./nupkg
+dotnet pack src/AuthManager.AspNetCore/AuthManager.AspNetCore.csproj   -c Release -o ./nupkg
+dotnet pack src/AuthManager.SourceGenerator/AuthManager.SourceGenerator.csproj -c Release -o ./nupkg
+```
+
+### Test locally before pushing
+
+```bash
+# Add the local folder as a NuGet source
+dotnet nuget add source ./nupkg --name local-authmanager
+
+# Install in a test project
+dotnet add package DotNetAuthManager --source local-authmanager
+
+# Remove when done
+dotnet nuget remove source local-authmanager
+```
+
+### Push to NuGet.org
+
+```bash
+# Set your API key (get one at https://www.nuget.org/account/apikeys)
+export NUGET_API_KEY=your-key-here
+
+dotnet nuget push ./nupkg/DotNetAuthManager.*.nupkg \
+  --api-key $NUGET_API_KEY \
+  --source https://api.nuget.org/v3/index.json \
+  --skip-duplicate
+```
+
+### Push to GitHub Packages
+
+```bash
+dotnet nuget add source \
+  --username YOUR_GITHUB_USERNAME \
+  --password $GITHUB_TOKEN \
+  --store-password-in-clear-text \
+  --name github \
+  "https://nuget.pkg.github.com/dotnetappdev/index.json"
+
+dotnet nuget push ./nupkg/DotNetAuthManager.*.nupkg \
+  --source github \
+  --skip-duplicate
+```
+
+### Version bump
+
+Edit `Directory.Build.props` (or each `.csproj`) before packing:
+
+```xml
+<PropertyGroup>
+  <Version>1.2.0</Version>
+  <PackageReleaseNotes>What changed in this release.</PackageReleaseNotes>
+</PropertyGroup>
+```
+
+---
+
 ## Project Structure
 
 ```
 src/
   AuthManager.Core/           Models, DTOs, service interfaces
   AuthManager.UI/             Blazor RCL (MudBlazor) — pages & layout
-  AuthManager.AspNetCore/     DI extensions, service implementations
-  AuthManager.Storage.SqlServer/
-  AuthManager.Storage.PostgreSQL/
-  AuthManager.Storage.MySql/
-  AuthManager.SourceGenerator/
+  AuthManager.AspNetCore/     DI extensions, service implementations, seeder
+  AuthManager.SourceGenerator/ Roslyn scaffolding (optional)
 samples/
   SampleApp.Mvc/
   SampleApp.MinimalApi/

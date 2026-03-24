@@ -12,6 +12,5 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\AuthManager.AspNetCore\AuthManager.AspNetCore.csproj" />
-    <ProjectReference Include="..\..\src\AuthManager.Storage.SqlServer\AuthManager.Storage.SqlServer.csproj" />
   </ItemGroup>
 </Project>
