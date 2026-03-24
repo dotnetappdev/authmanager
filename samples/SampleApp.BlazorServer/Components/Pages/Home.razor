@@ -1,0 +1,16 @@
+@page "/"
+@using MudBlazor
+
+<PageTitle>Home</PageTitle>
+
+<MudStack AlignItems="AlignItems.Center" Class="mt-8">
+    <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Large" Color="Color.Primary" Style="font-size:64px" />
+    <MudText Typo="Typo.h4">Blazor Server Sample</MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary">
+        This Blazor Server app has DotNetAuthManager embedded at <code>/authmanager</code>.
+    </MudText>
+    <MudButton Href="/authmanager" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+               StartIcon="@Icons.Material.Filled.OpenInBrowser">
+        Open Auth Manager
+    </MudButton>
+</MudStack>

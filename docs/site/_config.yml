@@ -1,0 +1,5 @@
+title: DotNetAuthManager
+description: Keycloak-style identity management for ASP.NET Core
+url: https://dotnetappdev.github.io
+baseurl: /authmanager
+theme: null

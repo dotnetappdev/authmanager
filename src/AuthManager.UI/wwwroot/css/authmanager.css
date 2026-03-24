@@ -1,0 +1,338 @@
+/* =========================================================
+   DotNetAuthManager — Main Stylesheet
+   BookIt dark palette + clean light palette
+   ========================================================= */
+
+/* ---- Google Inter font ---- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ---- CSS Custom Properties ---- */
+:root {
+  /* Light palette */
+  --am-bg:            #F8FAFC;
+  --am-surface:       #FFFFFF;
+  --am-surface-2:     #F1F5F9;
+  --am-border:        #E2E8F0;
+  --am-text:          #0F172A;
+  --am-text-2:        #475569;
+  --am-text-3:        #94A3B8;
+  --am-primary:       #6D28D9;
+  --am-primary-light: #EDE9FE;
+  --am-secondary:     #0891B2;
+  --am-success:       #059669;
+  --am-warning:       #D97706;
+  --am-error:         #DC2626;
+  --am-sidebar-bg:    #1E1B4B;
+  --am-sidebar-text:  #E0E7FF;
+  --am-radius:        8px;
+  --am-radius-lg:     12px;
+  --am-shadow:        0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --am-shadow-md:     0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+
+  /* Sidebar width */
+  --am-sidebar-width: 260px;
+  --am-content-padding: 32px;
+}
+
+/* ---- BookIt Dark Theme ---- */
+.mud-theme-dark {
+  --am-bg:            #0B0F1A;
+  --am-surface:       #161B2E;
+  --am-surface-2:     #1E293B;
+  --am-border:        #1E293B;
+  --am-text:          #F1F5F9;
+  --am-text-2:        #94A3B8;
+  --am-text-3:        #475569;
+  --am-primary:       #A78BFA;
+  --am-primary-light: #1E1040;
+  --am-secondary:     #22D3EE;
+  --am-success:       #34D399;
+  --am-warning:       #FBBF24;
+  --am-error:         #F87171;
+  --am-sidebar-bg:    #0D1117;
+  --am-sidebar-text:  #E2E8F0;
+  --am-shadow:        0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --am-shadow-md:     0 4px 16px rgba(0,0,0,0.5);
+}
+
+/* ---- Base ---- */
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--am-bg);
+  color: var(--am-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- MudBlazor Overrides for AuthManager ---- */
+.mud-drawer {
+  background-color: var(--am-sidebar-bg) !important;
+  border-right: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+.mud-nav-link, .mud-nav-link .mud-icon-root {
+  color: #94A3B8 !important;
+}
+
+.mud-nav-link:hover {
+  background-color: rgba(167, 139, 250, 0.1) !important;
+  color: var(--am-sidebar-text) !important;
+}
+
+.mud-nav-link.active {
+  background-color: rgba(167, 139, 250, 0.15) !important;
+  color: #A78BFA !important;
+  border-right: 3px solid #A78BFA;
+}
+
+.mud-nav-link.active .mud-icon-root {
+  color: #A78BFA !important;
+}
+
+/* Light mode sidebar link colours */
+:not(.mud-theme-dark) .mud-nav-link        { color: #C7D2FE !important; }
+:not(.mud-theme-dark) .mud-nav-link:hover  { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
+:not(.mud-theme-dark) .mud-nav-link.active { color: #fff !important; border-right-color: #fff; }
+
+/* ---- Sidebar Brand ---- */
+.am-sidebar-brand {
+  padding: 20px 16px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+.am-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.am-brand-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #F1F5F9;
+  letter-spacing: -0.01em;
+}
+
+.am-brand-version {
+  font-size: 0.7rem;
+  color: #64748B;
+  font-weight: 400;
+}
+
+/* ---- Nav Section Labels ---- */
+.am-nav-section-label {
+  display: block;
+  padding: 16px 16px 6px !important;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #475569 !important;
+}
+
+/* ---- Sidebar Footer ---- */
+.am-sidebar-footer {
+  margin-top: auto;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* ---- Main Content ---- */
+.am-main-content {
+  padding: var(--am-content-padding) !important;
+}
+
+.am-container {
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+
+/* ---- Cards ---- */
+.am-card-border {
+  border: 1px solid var(--am-border) !important;
+  background: var(--am-surface) !important;
+  border-radius: var(--am-radius-lg) !important;
+}
+
+/* ---- Data Grid ---- */
+.am-data-grid .mud-table-toolbar {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--am-border);
+  gap: 12px;
+}
+
+.am-data-grid .mud-table-head .mud-table-cell {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--am-text-2);
+  background: var(--am-surface-2);
+  padding: 10px 16px;
+}
+
+.mud-theme-dark .am-data-grid .mud-table-head .mud-table-cell {
+  background: rgba(255,255,255,0.03);
+}
+
+.am-data-grid .mud-table-body .mud-table-row:hover {
+  background-color: var(--am-primary-light) !important;
+}
+
+/* ---- Stat Cards ---- */
+.am-stat-card {
+  border: 1px solid var(--am-border) !important;
+  background: var(--am-surface) !important;
+  border-radius: var(--am-radius-lg) !important;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.am-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--am-shadow-md) !important;
+}
+
+.am-stat-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.am-stat-value {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.am-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.am-stat-blue   { background: rgba(99,102,241,0.12); color: #6366F1; }
+.am-stat-green  { background: rgba(5,150,105,0.12);  color: #059669; }
+.am-stat-red    { background: rgba(220,38,38,0.12);  color: #DC2626; }
+.am-stat-yellow { background: rgba(217,119,6,0.12);  color: #D97706; }
+.am-stat-purple { background: rgba(109,40,217,0.12); color: #7C3AED; }
+.am-stat-teal   { background: rgba(8,145,178,0.12);  color: #0891B2; }
+
+.mud-theme-dark .am-stat-blue   { background: rgba(167,139,250,0.12); color: #A78BFA; }
+.mud-theme-dark .am-stat-green  { background: rgba(52,211,153,0.12);  color: #34D399; }
+.mud-theme-dark .am-stat-red    { background: rgba(248,113,113,0.12); color: #F87171; }
+.mud-theme-dark .am-stat-yellow { background: rgba(251,191,36,0.12);  color: #FBBF24; }
+.mud-theme-dark .am-stat-purple { background: rgba(167,139,250,0.12); color: #A78BFA; }
+.mud-theme-dark .am-stat-teal   { background: rgba(34,211,238,0.12);  color: #22D3EE; }
+
+/* ---- Log Viewer ---- */
+.am-log-verbose     { opacity: 0.6; }
+.am-log-debug       { color: var(--am-text-2); }
+.am-log-information { }
+.am-log-warning     { background: rgba(251,191,36,0.05) !important; }
+.am-log-error       { background: rgba(248,113,113,0.08) !important; }
+.am-log-fatal       { background: rgba(248,113,113,0.15) !important; font-weight: 600; }
+
+.am-log-level-chip {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.am-log-source {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.72rem;
+  color: var(--am-text-3);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.am-log-detail pre {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--am-surface-2);
+  border: 1px solid var(--am-border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 0;
+}
+
+.am-exception-pre {
+  color: var(--am-error);
+}
+
+/* ---- OAuth Provider Cards ---- */
+.am-provider-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--am-surface-2);
+  flex-shrink: 0;
+}
+
+.am-provider-logo svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ---- Audit Action Chips ---- */
+.am-audit-action-danger  { }
+.am-audit-action-success { }
+.am-audit-action-warning { }
+
+/* ---- Dialog Tabs ---- */
+.am-dialog-tabs .mud-tabs-toolbar {
+  background: transparent !important;
+}
+
+/* ---- Token preview ---- */
+.am-token-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  word-break: break-all;
+  background: var(--am-surface-2);
+  border: 1px solid var(--am-border);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--am-text-2);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .am-main-content {
+    padding: 16px !important;
+  }
+}
+
+/* ---- Avatar Initials ---- */
+.am-avatar-initial {
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+}
+
+/* ---- Utility ---- */
+.font-weight-medium { font-weight: 500; }
+.flex-1 { flex: 1; }
+.justify-start { justify-content: flex-start !important; }
+
+/* ---- Scrollbar (WebKit) ---- */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--am-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--am-text-3); }

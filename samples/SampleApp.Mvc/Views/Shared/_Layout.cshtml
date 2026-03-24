@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — SampleApp</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+</head>
+<body>
+    <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">SampleApp</a>
+            <a class="btn btn-sm btn-outline-primary ms-auto" href="/authmanager">Auth Manager</a>
+        </div>
+    </nav>
+    <div class="container mt-4">@RenderBody()</div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+@inject NavigationManager Nav
+@inject IOptions<AuthManagerOptions> Options
+
+<MudDrawer Open="true" Elevation="0" Variant="DrawerVariant.Persistent" ClipMode="DrawerClipMode.Always"
+           Class="am-sidebar">
+    <MudDrawerHeader Class="am-sidebar-brand" LinkToIndex="false">
+        <div class="am-brand">
+            <div class="am-brand-icon">
+                <MudIcon Icon="@Icons.Material.Filled.Shield" Color="Color.Primary" Size="Size.Large" />
+            </div>
+            <div class="am-brand-text">
+                <div class="am-brand-name">@Options.Value.Title</div>
+                <div class="am-brand-version">v1.0.0</div>
+            </div>
+        </div>
+    </MudDrawerHeader>
+
+    <MudNavMenu Class="am-nav">
+        <MudText Typo="Typo.overline" Class="am-nav-section-label">Overview</MudText>
+        <MudNavLink Href="@Prefix()" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+            Dashboard
+        </MudNavLink>
+
+        <MudText Typo="Typo.overline" Class="am-nav-section-label">Identity</MudText>
+        <MudNavLink Href="@Prefix("users")" Icon="@Icons.Material.Filled.People">
+            Users
+        </MudNavLink>
+        <MudNavLink Href="@Prefix("roles")" Icon="@Icons.Material.Filled.Stars">
+            Roles
+        </MudNavLink>
+        <MudNavLink Href="@Prefix("claims")" Icon="@Icons.Material.Filled.Badge">
+            Claims
+        </MudNavLink>
+
+        <MudText Typo="Typo.overline" Class="am-nav-section-label">Authentication</MudText>
+        <MudNavLink Href="@Prefix("jwt")" Icon="@Icons.Material.Filled.Lock">
+            JWT Settings
+        </MudNavLink>
+        <MudNavLink Href="@Prefix("oauth")" Icon="@Icons.Material.Filled.Share">
+            OAuth Providers
+        </MudNavLink>
+
+        <MudText Typo="Typo.overline" Class="am-nav-section-label">Observability</MudText>
+        <MudNavLink Href="@Prefix("logs")" Icon="@Icons.Material.Filled.List">
+            Log Viewer
+        </MudNavLink>
+        <MudNavLink Href="@Prefix("audit")" Icon="@Icons.Material.Filled.History">
+            Audit Log
+        </MudNavLink>
+    </MudNavMenu>
+
+    <div class="am-sidebar-footer">
+        <MudTooltip Text="@(IsDark ? "Switch to Light Mode" : "Switch to Dark Mode")">
+            <MudIconButton Icon="@(IsDark ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           Color="Color.Inherit" OnClick="OnThemeToggle" />
+        </MudTooltip>
+    </div>
+</MudDrawer>
+
+@code {
+    [Parameter] public bool IsDark { get; set; }
+    [Parameter] public EventCallback OnThemeToggle { get; set; }
+
+    private string Prefix(string? path = null)
+    {
+        var p = Options.Value.RoutePrefix.Trim('/');
+        return string.IsNullOrEmpty(path) ? $"/{p}" : $"/{p}/{path}";
+    }
+}

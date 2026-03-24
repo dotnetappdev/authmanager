@@ -1,0 +1,38 @@
+@implements IDisposable
+
+<div class="am-toast-container">
+    @foreach (var toast in _toasts)
+    {
+        <Toast Message="@toast.Message"
+               Title="@toast.Title"
+               Level="@toast.Level"
+               DurationMs="@toast.DurationMs"
+               OnDismiss="@(() => RemoveToast(toast))" />
+    }
+</div>
+
+@code {
+    private readonly List<ToastItem> _toasts = [];
+
+    protected override void OnInitialized()
+    {
+        ToastService.Instance.OnToast += ShowToast;
+    }
+
+    private void ShowToast(ToastItem toast)
+    {
+        _toasts.Add(toast);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RemoveToast(ToastItem toast)
+    {
+        _toasts.Remove(toast);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        ToastService.Instance.OnToast -= ShowToast;
+    }
+}

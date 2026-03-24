@@ -1,0 +1,38 @@
+@using AuthManager.UI.Components.Shared
+
+<Modal @ref="_modal" Title="@Title" Size="Modal.ModalSize.Small">
+    <ChildContent>
+        <p class="am-confirm-message">@Message</p>
+    </ChildContent>
+    <FooterContent>
+        <div class="am-modal-actions">
+            <button class="am-btn am-btn-ghost" @onclick="Cancel">Cancel</button>
+            <button class="am-btn @ConfirmButtonClass" @onclick="Confirm">@ConfirmText</button>
+        </div>
+    </FooterContent>
+</Modal>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Confirm";
+    [Parameter] public string Message { get; set; } = "Are you sure?";
+    [Parameter] public string ConfirmText { get; set; } = "Confirm";
+    [Parameter] public string ConfirmButtonClass { get; set; } = "am-btn-danger";
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Modal _modal = default!;
+
+    public void Show() => _modal.Open();
+
+    private async Task Confirm()
+    {
+        _modal.Close();
+        await OnConfirm.InvokeAsync();
+    }
+
+    private async Task Cancel()
+    {
+        _modal.Close();
+        await OnCancel.InvokeAsync();
+    }
+}

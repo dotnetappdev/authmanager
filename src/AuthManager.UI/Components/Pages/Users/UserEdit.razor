@@ -1,0 +1,316 @@
+@page "/authmanager/users/create"
+@page "/authmanager/users/{UserId}"
+@rendermode InteractiveServer
+@inject IUserManagementService UserService
+@inject IRoleManagementService RoleService
+@inject NavigationManager Nav
+
+<PageTitle>@(IsCreate ? "Create User" : "Edit User") — Auth Manager</PageTitle>
+
+<div class="am-page-header">
+    <div>
+        <a href="/authmanager/users" class="am-breadcrumb">← Back to Users</a>
+        <h1 class="am-page-title">@(IsCreate ? "Create New User" : $"Edit: {_user?.UserName}")</h1>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <Spinner Text="Loading..." />
+}
+else
+{
+    <div class="am-form-layout">
+        <div class="am-form-main">
+            <!-- Basic Info -->
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Basic Information</h2></div>
+                <div class="am-card-body">
+                    <div class="am-form-grid">
+                        <div class="am-form-group">
+                            <label class="am-label">Username <span class="am-required">*</span></label>
+                            <input class="am-input" type="text" @bind="_form.UserName" placeholder="username" />
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Email <span class="am-required">*</span></label>
+                            <input class="am-input" type="email" @bind="_form.Email" placeholder="user@example.com" />
+                        </div>
+                        @if (IsCreate)
+                        {
+                            <div class="am-form-group">
+                                <label class="am-label">Password <span class="am-required">*</span></label>
+                                <input class="am-input" type="password" @bind="_form.Password" placeholder="••••••••" />
+                            </div>
+                        }
+                        <div class="am-form-group">
+                            <label class="am-label">Phone Number</label>
+                            <input class="am-input" type="tel" @bind="_form.PhoneNumber" placeholder="+1 (555) 000-0000" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Account Settings</h2></div>
+                <div class="am-card-body">
+                    <div class="am-toggle-list">
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Email Confirmed</div>
+                                <div class="am-toggle-desc">Mark email as verified without sending confirmation</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_form.EmailConfirmed" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        @if (!IsCreate)
+                        {
+                            <div class="am-toggle-item">
+                                <div class="am-toggle-info">
+                                    <div class="am-toggle-label">Two-Factor Authentication</div>
+                                    <div class="am-toggle-desc">Require 2FA for this user</div>
+                                </div>
+                                <label class="am-switch">
+                                    <input type="checkbox" @bind="_updateForm.TwoFactorEnabled" />
+                                    <span class="am-switch-slider"></span>
+                                </label>
+                            </div>
+                            <div class="am-toggle-item">
+                                <div class="am-toggle-info">
+                                    <div class="am-toggle-label">Lockout Enabled</div>
+                                    <div class="am-toggle-desc">Allow this account to be locked after failed attempts</div>
+                                </div>
+                                <label class="am-switch">
+                                    <input type="checkbox" @bind="_updateForm.LockoutEnabled" />
+                                    <span class="am-switch-slider"></span>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Password Reset (edit mode only) -->
+            @if (!IsCreate)
+            {
+                <div class="am-card">
+                    <div class="am-card-header"><h2 class="am-card-title">Reset Password</h2></div>
+                    <div class="am-card-body">
+                        <div class="am-form-group">
+                            <label class="am-label">New Password</label>
+                            <input class="am-input" type="password" @bind="_newPassword" placeholder="Enter new password" />
+                        </div>
+                        <button class="am-btn am-btn-warning" @onclick="ResetPassword" disabled="@string.IsNullOrEmpty(_newPassword)">
+                            Reset Password
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- Claims -->
+            <div class="am-card">
+                <div class="am-card-header">
+                    <h2 class="am-card-title">Claims</h2>
+                    <button class="am-btn am-btn-sm am-btn-ghost" @onclick="AddClaimRow">+ Add Claim</button>
+                </div>
+                <div class="am-card-body">
+                    @if (_claims.Count == 0)
+                    {
+                        <p class="am-text-muted">No claims assigned. Click "Add Claim" to add one.</p>
+                    }
+                    @foreach (var (claim, index) in _claims.Select((c, i) => (c, i)))
+                    {
+                        <div class="am-claim-row">
+                            <input class="am-input" placeholder="Type (e.g. permission)" @bind="claim.Type" />
+                            <input class="am-input" placeholder="Value" @bind="claim.Value" />
+                            <button class="am-btn am-btn-sm am-btn-danger am-btn-icon" @onclick="@(() => RemoveClaim(index))">×</button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="am-form-aside">
+            <!-- Roles -->
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Roles</h2></div>
+                <div class="am-card-body">
+                    @if (_allRoles.Count == 0)
+                    {
+                        <p class="am-text-muted">No roles defined. <a href="/authmanager/roles/create">Create a role</a>.</p>
+                    }
+                    @foreach (var role in _allRoles)
+                    {
+                        <label class="am-checkbox-item">
+                            <input type="checkbox"
+                                   checked="@_selectedRoles.Contains(role.Name)"
+                                   @onchange="@(e => ToggleRole(role.Name, (bool)e.Value!))" />
+                            <span class="am-checkbox-label">@role.Name</span>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Actions</h2></div>
+                <div class="am-card-body am-actions-card">
+                    @if (_errors.Length > 0)
+                    {
+                        <div class="am-alert am-alert-error">
+                            @foreach (var err in _errors)
+                            {
+                                <div>@err</div>
+                            }
+                        </div>
+                    }
+                    <button class="am-btn am-btn-primary am-btn-full" @onclick="Save" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <Spinner Size="Spinner.SpinnerSize.Small" />
+                        }
+                        @(IsCreate ? "Create User" : "Save Changes")
+                    </button>
+                    <a href="/authmanager/users" class="am-btn am-btn-ghost am-btn-full">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? UserId { get; set; }
+
+    private bool IsCreate => string.IsNullOrEmpty(UserId);
+    private bool _loading = true;
+    private bool _saving;
+    private UserDto? _user;
+    private CreateUserDto _form = new();
+    private UpdateUserDto _updateForm = new();
+    private List<ClaimDto> _claims = [];
+    private List<RoleDto> _allRoles = [];
+    private HashSet<string> _selectedRoles = [];
+    private string[] _errors = [];
+    private string _newPassword = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allRoles = await RoleService.GetRolesAsync();
+
+        if (!IsCreate)
+        {
+            _user = await UserService.GetUserByIdAsync(UserId!);
+            if (_user != null)
+            {
+                _updateForm = new UpdateUserDto
+                {
+                    Id = _user.Id,
+                    UserName = _user.UserName,
+                    Email = _user.Email,
+                    PhoneNumber = _user.PhoneNumber,
+                    EmailConfirmed = _user.EmailConfirmed,
+                    TwoFactorEnabled = _user.TwoFactorEnabled,
+                    LockoutEnabled = _user.LockoutEnabled,
+                    LockoutEnd = _user.LockoutEnd
+                };
+                _form = new CreateUserDto
+                {
+                    UserName = _user.UserName,
+                    Email = _user.Email,
+                    PhoneNumber = _user.PhoneNumber,
+                    EmailConfirmed = _user.EmailConfirmed
+                };
+                _selectedRoles = [.. _user.Roles];
+                _claims = _user.Claims.ToList();
+            }
+        }
+
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _errors = [];
+
+        try
+        {
+            bool success;
+            string[] errors;
+
+            if (IsCreate)
+            {
+                _form.Roles = [.. _selectedRoles];
+                _form.Claims = _claims;
+                (success, errors) = await UserService.CreateUserAsync(_form);
+                if (success)
+                {
+                    ToastService.Instance.Success($"User \"{_form.UserName}\" created successfully.");
+                    Nav.NavigateTo("/authmanager/users");
+                }
+            }
+            else
+            {
+                _updateForm.UserName = _form.UserName;
+                _updateForm.Email = _form.Email;
+                _updateForm.PhoneNumber = _form.PhoneNumber;
+                _updateForm.EmailConfirmed = _form.EmailConfirmed;
+                (success, errors) = await UserService.UpdateUserAsync(_updateForm);
+
+                if (success)
+                {
+                    // Sync roles
+                    foreach (var role in _allRoles)
+                    {
+                        var hadRole = _user!.Roles.Contains(role.Name);
+                        var hasRole = _selectedRoles.Contains(role.Name);
+                        if (hadRole && !hasRole)
+                            await UserService.RemoveRoleAsync(UserId!, role.Name);
+                        else if (!hadRole && hasRole)
+                            await UserService.AssignRoleAsync(UserId!, role.Name);
+                    }
+
+                    ToastService.Instance.Success("User updated successfully.");
+                    Nav.NavigateTo("/authmanager/users");
+                }
+            }
+
+            if (!success)
+                _errors = errors;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task ResetPassword()
+    {
+        var (success, errors) = await UserService.ResetPasswordAsync(new ResetPasswordDto
+        {
+            UserId = UserId!,
+            NewPassword = _newPassword
+        });
+
+        if (success)
+        {
+            ToastService.Instance.Success("Password reset successfully.");
+            _newPassword = "";
+        }
+        else
+        {
+            _errors = errors;
+        }
+    }
+
+    private void ToggleRole(string roleName, bool selected)
+    {
+        if (selected) _selectedRoles.Add(roleName);
+        else _selectedRoles.Remove(roleName);
+    }
+
+    private void AddClaimRow() => _claims.Add(new ClaimDto());
+    private void RemoveClaim(int index) => _claims.RemoveAt(index);
+}

@@ -1,0 +1,195 @@
+@page "/authmanager"
+@page "/authmanager/"
+@rendermode InteractiveServer
+@inject IUserManagementService UserService
+@inject IOptions<AuthManagerOptions> Options
+
+<PageTitle>Dashboard — @Options.Value.Title</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Dashboard</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">
+    Overview of your identity system
+</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (_stats != null)
+{
+    <!-- Stats Cards -->
+    <MudGrid Spacing="3" Class="mb-6">
+        <MudItem xs="12" sm="6" md="4" lg="2">
+            <MudCard Class="am-stat-card" Elevation="0">
+                <MudCardContent>
+                    <div class="am-stat-inner">
+                        <MudIcon Icon="@Icons.Material.Filled.Group" Class="am-stat-icon am-stat-blue" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.h4" Class="am-stat-value">@_stats.TotalUsers.ToString("N0")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Total Users</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4" lg="2">
+            <MudCard Class="am-stat-card" Elevation="0">
+                <MudCardContent>
+                    <div class="am-stat-inner">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="am-stat-icon am-stat-green" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.h4" Class="am-stat-value">@_stats.ActiveUsers.ToString("N0")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Active</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4" lg="2">
+            <MudCard Class="am-stat-card" Elevation="0">
+                <MudCardContent>
+                    <div class="am-stat-inner">
+                        <MudIcon Icon="@Icons.Material.Filled.Lock" Class="am-stat-icon am-stat-red" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.h4" Class="am-stat-value">@_stats.LockedOutUsers.ToString("N0")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Locked Out</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4" lg="2">
+            <MudCard Class="am-stat-card" Elevation="0">
+                <MudCardContent>
+                    <div class="am-stat-inner">
+                        <MudIcon Icon="@Icons.Material.Filled.Email" Class="am-stat-icon am-stat-yellow" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.h4" Class="am-stat-value">@_stats.UnconfirmedEmailUsers.ToString("N0")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Unverified</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4" lg="2">
+            <MudCard Class="am-stat-card" Elevation="0">
+                <MudCardContent>
+                    <div class="am-stat-inner">
+                        <MudIcon Icon="@Icons.Material.Filled.Stars" Class="am-stat-icon am-stat-purple" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.h4" Class="am-stat-value">@_stats.TotalRoles.ToString("N0")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Roles</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4" lg="2">
+            <MudCard Class="am-stat-card" Elevation="0">
+                <MudCardContent>
+                    <div class="am-stat-inner">
+                        <MudIcon Icon="@Icons.Material.Filled.Badge" Class="am-stat-icon am-stat-teal" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.h4" Class="am-stat-value">@_stats.TotalClaims.ToString("N0")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Claims</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Spacing="3">
+        <!-- Quick Actions -->
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent><MudText Typo="Typo.h6">Quick Actions</MudText></CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack Spacing="2">
+                        <MudButton Href="@("/authmanager/users")" Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.People" FullWidth="true" Class="justify-start">
+                            Manage Users
+                        </MudButton>
+                        <MudButton Href="@("/authmanager/roles")" Variant="Variant.Outlined" Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.Stars" FullWidth="true" Class="justify-start">
+                            Manage Roles
+                        </MudButton>
+                        <MudButton Href="@("/authmanager/oauth")" Variant="Variant.Outlined" Color="Color.Tertiary"
+                                   StartIcon="@Icons.Material.Filled.Share" FullWidth="true" Class="justify-start">
+                            OAuth Providers
+                        </MudButton>
+                        <MudButton Href="@("/authmanager/logs")" Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.List" FullWidth="true" Class="justify-start">
+                            View Logs
+                        </MudButton>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Distribution -->
+        <MudItem xs="12" md="8">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent><MudText Typo="Typo.h6">User Distribution</MudText></CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (_stats.TotalUsers > 0)
+                    {
+                        var activeP = (double)_stats.ActiveUsers / _stats.TotalUsers * 100;
+                        var lockedP = (double)_stats.LockedOutUsers / _stats.TotalUsers * 100;
+                        var unverP = (double)_stats.UnconfirmedEmailUsers / _stats.TotalUsers * 100;
+
+                        <MudStack Spacing="4">
+                            <div>
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mb-1">
+                                    <MudText Typo="Typo.body2">Active Users</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Success">@activeP.ToString("F0")%</MudText>
+                                </MudStack>
+                                <MudProgressLinear Value="@activeP" Color="Color.Success" Rounded="true" Size="Size.Medium" />
+                            </div>
+                            <div>
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mb-1">
+                                    <MudText Typo="Typo.body2">Locked Out</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Error">@lockedP.ToString("F0")%</MudText>
+                                </MudStack>
+                                <MudProgressLinear Value="@lockedP" Color="Color.Error" Rounded="true" Size="Size.Medium" />
+                            </div>
+                            <div>
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mb-1">
+                                    <MudText Typo="Typo.body2">Unverified Email</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Warning">@unverP.ToString("F0")%</MudText>
+                                </MudStack>
+                                <MudProgressLinear Value="@unverP" Color="Color.Warning" Rounded="true" Size="Size.Medium" />
+                            </div>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">
+                            No users yet. <MudLink Href="/authmanager/users">Create the first user</MudLink>.
+                        </MudAlert>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private DashboardStats? _stats;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stats = await UserService.GetDashboardStatsAsync();
+        _loading = false;
+    }
+}

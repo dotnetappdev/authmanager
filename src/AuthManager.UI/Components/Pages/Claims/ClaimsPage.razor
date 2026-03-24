@@ -1,0 +1,251 @@
+@page "/authmanager/claims"
+@rendermode InteractiveServer
+@inject IUserManagementService UserService
+@inject IRoleManagementService RoleService
+
+<PageTitle>Claims — Auth Manager</PageTitle>
+
+<div class="am-page-header">
+    <div>
+        <h1 class="am-page-title">Claims</h1>
+        <p class="am-page-subtitle">Manage claims for users and roles</p>
+    </div>
+</div>
+
+<div class="am-tab-bar">
+    <button class="am-tab @(_activeTab == "users" ? "am-tab-active" : "")" @onclick="@(() => SetTab("users"))">
+        User Claims
+    </button>
+    <button class="am-tab @(_activeTab == "roles" ? "am-tab-active" : "")" @onclick="@(() => SetTab("roles"))">
+        Role Claims
+    </button>
+    <button class="am-tab @(_activeTab == "types" ? "am-tab-active" : "")" @onclick="@(() => SetTab("types"))">
+        Claim Types Reference
+    </button>
+</div>
+
+@if (_activeTab == "users")
+{
+    <div class="am-card">
+        <div class="am-card-header">
+            <h2 class="am-card-title">User Claims</h2>
+            <div class="am-search-box am-search-box-sm">
+                <input class="am-search-input" placeholder="Search users..." @bind="_userSearch" @bind:event="oninput" />
+            </div>
+        </div>
+        <div class="am-card-body">
+            @if (_usersLoading)
+            {
+                <Spinner />
+            }
+            else
+            {
+                <p class="am-text-muted am-mb-3">Click on a user to view and manage their claims.</p>
+                <div class="am-user-claim-list">
+                    @foreach (var user in FilteredUsers)
+                    {
+                        <div class="am-user-claim-item @(_selectedUserId == user.Id ? "am-selected" : "")"
+                             @onclick="@(() => SelectUser(user))">
+                            <div class="am-avatar am-avatar-sm">@GetInitials(user.UserName)</div>
+                            <div class="am-user-claim-info">
+                                <div class="am-user-name">@user.UserName</div>
+                                <div class="am-user-claim-count">@user.Claims.Count claim(s)</div>
+                            </div>
+                            <div class="am-tags">
+                                @foreach (var claim in user.Claims.Take(3))
+                                {
+                                    <span class="am-tag">@claim.Type</span>
+                                }
+                                @if (user.Claims.Count > 3)
+                                {
+                                    <span class="am-tag am-tag-more">+@(user.Claims.Count - 3)</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (_selectedUser != null)
+                {
+                    <div class="am-claim-editor">
+                        <div class="am-claim-editor-header">
+                            <h3>Claims for @_selectedUser.UserName</h3>
+                            <button class="am-btn am-btn-sm am-btn-primary" @onclick="AddUserClaim">+ Add Claim</button>
+                        </div>
+                        @foreach (var claim in _selectedUser.Claims)
+                        {
+                            <div class="am-claim-row">
+                                <span class="am-tag">@claim.Type</span>
+                                <span class="am-claim-value">@claim.Value</span>
+                                <button class="am-btn am-btn-sm am-btn-danger" @onclick="@(() => RemoveUserClaim(claim))">Remove</button>
+                            </div>
+                        }
+                        @if (_addingClaim)
+                        {
+                            <div class="am-claim-add-form">
+                                <input class="am-input" placeholder="Claim type" @bind="_newClaimType" />
+                                <input class="am-input" placeholder="Claim value" @bind="_newClaimValue" />
+                                <button class="am-btn am-btn-primary am-btn-sm" @onclick="SaveUserClaim">Add</button>
+                                <button class="am-btn am-btn-ghost am-btn-sm" @onclick="@(() => _addingClaim = false)">Cancel</button>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+else if (_activeTab == "roles")
+{
+    <div class="am-card">
+        <div class="am-card-header"><h2 class="am-card-title">Role Claims</h2></div>
+        <div class="am-card-body">
+            @if (_rolesLoading) { <Spinner /> }
+            else
+            {
+                @foreach (var role in _roles)
+                {
+                    <div class="am-role-claim-section">
+                        <div class="am-role-claim-header">
+                            <span class="am-role-name">@role.Name</span>
+                            <span class="am-badge am-badge-ghost">@role.Claims.Count claims</span>
+                        </div>
+                        <div class="am-tags">
+                            @foreach (var claim in role.Claims)
+                            {
+                                <span class="am-tag">@claim.Type: @claim.Value</span>
+                            }
+                            @if (role.Claims.Count == 0)
+                            {
+                                <span class="am-text-muted">No claims. <a href="/authmanager/roles/@role.Id">Add via Role editor</a>.</span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="am-card">
+        <div class="am-card-header"><h2 class="am-card-title">Common Claim Types</h2></div>
+        <div class="am-card-body">
+            <p class="am-text-muted am-mb-3">Standard and well-known claim types for your reference.</p>
+            <table class="am-table">
+                <thead>
+                    <tr><th>Type</th><th>Description</th><th>Example</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var (type, desc, example) in ClaimReference)
+                    {
+                        <tr>
+                            <td><code>@type</code></td>
+                            <td>@desc</td>
+                            <td><span class="am-tag">@example</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private string _activeTab = "users";
+    private string _userSearch = "";
+    private List<UserDto> _users = [];
+    private List<RoleDto> _roles = [];
+    private bool _usersLoading = true;
+    private bool _rolesLoading = true;
+    private UserDto? _selectedUser;
+    private string? _selectedUserId;
+    private bool _addingClaim;
+    private string _newClaimType = "";
+    private string _newClaimValue = "";
+
+    private IEnumerable<UserDto> FilteredUsers =>
+        string.IsNullOrEmpty(_userSearch) ? _users :
+        _users.Where(u => u.UserName.Contains(_userSearch, StringComparison.OrdinalIgnoreCase)
+                       || u.Email.Contains(_userSearch, StringComparison.OrdinalIgnoreCase));
+
+    private static readonly List<(string Type, string Description, string Example)> ClaimReference =
+    [
+        ("sub", "Subject - unique user identifier", "user-123"),
+        ("email", "User's email address", "user@example.com"),
+        ("name", "User's full display name", "John Doe"),
+        ("role", "User's role", "Admin"),
+        ("permission", "Fine-grained permission", "read:reports"),
+        ("tenant", "Multi-tenant identifier", "tenant-abc"),
+        ("department", "Organizational department", "Engineering"),
+        ("employee_id", "HR system employee ID", "EMP-001"),
+        ("subscription", "Subscription tier", "premium"),
+        ("iss", "Issuer of the token", "https://api.example.com"),
+        ("aud", "Token audience", "https://api.example.com"),
+        ("exp", "Token expiration (Unix timestamp)", "1700000000"),
+        ("iat", "Token issued at (Unix timestamp)", "1699990000"),
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var usersTask = UserService.GetUsersAsync(new UserFilter { PageSize = 100 });
+        var rolesTask = RoleService.GetRolesAsync();
+        await Task.WhenAll(usersTask, rolesTask);
+        _users = usersTask.Result.Items;
+        _roles = rolesTask.Result;
+        _usersLoading = false;
+        _rolesLoading = false;
+    }
+
+    private async Task SetTab(string tab)
+    {
+        _activeTab = tab;
+        if (tab == "users" && _users.Count == 0)
+        {
+            _usersLoading = true;
+            var result = await UserService.GetUsersAsync(new UserFilter { PageSize = 100 });
+            _users = result.Items;
+            _usersLoading = false;
+        }
+    }
+
+    private void SelectUser(UserDto user)
+    {
+        _selectedUser = _selectedUserId == user.Id ? null : user;
+        _selectedUserId = _selectedUser?.Id;
+        _addingClaim = false;
+    }
+
+    private void AddUserClaim() => _addingClaim = true;
+
+    private async Task SaveUserClaim()
+    {
+        if (string.IsNullOrEmpty(_newClaimType) || _selectedUser is null) return;
+        var (success, _) = await UserService.AddClaimAsync(_selectedUser.Id, new ClaimDto(_newClaimType, _newClaimValue));
+        if (success)
+        {
+            _selectedUser.Claims.Add(new ClaimDto(_newClaimType, _newClaimValue));
+            _newClaimType = "";
+            _newClaimValue = "";
+            _addingClaim = false;
+            ToastService.Instance.Success("Claim added.");
+        }
+    }
+
+    private async Task RemoveUserClaim(ClaimDto claim)
+    {
+        if (_selectedUser is null) return;
+        var (success, _) = await UserService.RemoveClaimAsync(_selectedUser.Id, claim);
+        if (success)
+        {
+            _selectedUser.Claims.Remove(claim);
+            ToastService.Instance.Success("Claim removed.");
+        }
+    }
+
+    private static string GetInitials(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return "?";
+        return name[..Math.Min(2, name.Length)].ToUpper();
+    }
+}

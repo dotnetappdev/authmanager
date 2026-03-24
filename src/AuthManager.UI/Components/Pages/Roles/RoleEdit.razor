@@ -1,0 +1,161 @@
+@page "/authmanager/roles/create"
+@page "/authmanager/roles/{RoleId}"
+@rendermode InteractiveServer
+@inject IRoleManagementService RoleService
+@inject NavigationManager Nav
+
+<PageTitle>@(IsCreate ? "Create Role" : "Edit Role") — Auth Manager</PageTitle>
+
+<div class="am-page-header">
+    <div>
+        <a href="/authmanager/roles" class="am-breadcrumb">← Back to Roles</a>
+        <h1 class="am-page-title">@(IsCreate ? "Create New Role" : $"Edit Role: {_role?.Name}")</h1>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <Spinner />
+}
+else
+{
+    <div class="am-form-layout">
+        <div class="am-form-main">
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Role Details</h2></div>
+                <div class="am-card-body">
+                    <div class="am-form-group">
+                        <label class="am-label">Role Name <span class="am-required">*</span></label>
+                        <input class="am-input" type="text" @bind="_name" placeholder="e.g. Admin, Manager, Viewer" />
+                        <span class="am-input-hint">Use PascalCase. Cannot be changed after creation.</span>
+                    </div>
+                    <div class="am-form-group">
+                        <label class="am-label">Description</label>
+                        <textarea class="am-textarea" @bind="_description" placeholder="Describe what this role can do..." rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="am-card">
+                <div class="am-card-header">
+                    <h2 class="am-card-title">Role Claims</h2>
+                    <button class="am-btn am-btn-sm am-btn-ghost" @onclick="AddClaim">+ Add Claim</button>
+                </div>
+                <div class="am-card-body">
+                    <p class="am-text-muted am-mb-3">Claims attached to this role will be automatically applied to all users who have the role.</p>
+                    @if (_claims.Count == 0)
+                    {
+                        <p class="am-text-muted">No claims. Click "Add Claim" to add one.</p>
+                    }
+                    @foreach (var (claim, index) in _claims.Select((c, i) => (c, i)))
+                    {
+                        <div class="am-claim-row">
+                            <div class="am-form-group am-form-group-inline">
+                                <label class="am-label">Type</label>
+                                <input class="am-input" placeholder="permission" @bind="claim.Type" />
+                            </div>
+                            <div class="am-form-group am-form-group-inline">
+                                <label class="am-label">Value</label>
+                                <input class="am-input" placeholder="read:users" @bind="claim.Value" />
+                            </div>
+                            <button class="am-btn am-btn-sm am-btn-danger" @onclick="@(() => RemoveClaim(index))">Remove</button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="am-form-aside">
+            <div class="am-card">
+                <div class="am-card-body am-actions-card">
+                    @if (_errors.Length > 0)
+                    {
+                        <div class="am-alert am-alert-error">
+                            @foreach (var err in _errors)
+                            {
+                                <div>@err</div>
+                            }
+                        </div>
+                    }
+                    <button class="am-btn am-btn-primary am-btn-full" @onclick="Save" disabled="@_saving">
+                        @if (_saving) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
+                        @(IsCreate ? "Create Role" : "Save Changes")
+                    </button>
+                    <a href="/authmanager/roles" class="am-btn am-btn-ghost am-btn-full">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? RoleId { get; set; }
+
+    private bool IsCreate => string.IsNullOrEmpty(RoleId);
+    private RoleDto? _role;
+    private string _name = "";
+    private string? _description;
+    private List<ClaimDto> _claims = [];
+    private bool _loading = true;
+    private bool _saving;
+    private string[] _errors = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!IsCreate)
+        {
+            _role = await RoleService.GetRoleByIdAsync(RoleId!);
+            if (_role != null)
+            {
+                _name = _role.Name;
+                _description = _role.Description;
+                _claims = _role.Claims.ToList();
+            }
+        }
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _errors = [];
+        try
+        {
+            bool success;
+            string[] errors;
+
+            if (IsCreate)
+            {
+                (success, errors) = await RoleService.CreateRoleAsync(new CreateRoleDto
+                {
+                    Name = _name,
+                    Description = _description,
+                    Claims = _claims
+                });
+            }
+            else
+            {
+                (success, errors) = await RoleService.UpdateRoleAsync(new UpdateRoleDto
+                {
+                    Id = RoleId!,
+                    Name = _name,
+                    Description = _description
+                });
+            }
+
+            if (success)
+            {
+                ToastService.Instance.Success(IsCreate ? $"Role \"{_name}\" created." : "Role updated.");
+                Nav.NavigateTo("/authmanager/roles");
+            }
+            else
+            {
+                _errors = errors;
+            }
+        }
+        finally { _saving = false; }
+    }
+
+    private void AddClaim() => _claims.Add(new ClaimDto());
+    private void RemoveClaim(int index) => _claims.RemoveAt(index);
+}

@@ -1,0 +1,20 @@
+<div class="am-spinner-wrapper @(FullPage ? "am-spinner-fullpage" : "")">
+    <div class="am-spinner am-spinner-@Size.ToString().ToLower()">
+        <svg viewBox="0 0 24 24" fill="none">
+            <circle class="am-spinner-track" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
+            <path class="am-spinner-arc" d="M12 2 A10 10 0 0 1 22 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+    </div>
+    @if (!string.IsNullOrEmpty(Text))
+    {
+        <span class="am-spinner-text">@Text</span>
+    }
+</div>
+
+@code {
+    [Parameter] public SpinnerSize Size { get; set; } = SpinnerSize.Medium;
+    [Parameter] public bool FullPage { get; set; }
+    [Parameter] public string? Text { get; set; }
+
+    public enum SpinnerSize { Small, Medium, Large }
+}

@@ -1,0 +1,129 @@
+@page "/authmanager/audit"
+@rendermode InteractiveServer
+@inject IAuditService AuditService
+
+<PageTitle>Audit Log — Auth Manager</PageTitle>
+
+<div class="am-page-header">
+    <div>
+        <h1 class="am-page-title">Audit Log</h1>
+        <p class="am-page-subtitle">Track all administrative changes made via Auth Manager</p>
+    </div>
+</div>
+
+<div class="am-card">
+    @if (_loading)
+    {
+        <div class="am-card-body"><Spinner /></div>
+    }
+    else if (_result?.Items.Count == 0)
+    {
+        <div class="am-empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <h3>No audit entries yet</h3>
+            <p>Changes made via Auth Manager will appear here.</p>
+        </div>
+    }
+    else
+    {
+        <div class="am-table-wrapper">
+            <table class="am-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                        <th>Entity</th>
+                        <th>Performed By</th>
+                        <th>Result</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in _result!.Items)
+                    {
+                        <tr>
+                            <td>
+                                <span class="am-timestamp" title="@entry.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")">
+                                    @entry.Timestamp.ToString("MMM dd, HH:mm")
+                                </span>
+                            </td>
+                            <td>
+                                <span class="am-audit-action am-audit-action-@GetActionClass(entry.Action)">
+                                    @FormatAction(entry.Action)
+                                </span>
+                            </td>
+                            <td>
+                                <div class="am-audit-entity">
+                                    <span class="am-tag">@entry.EntityType</span>
+                                    <span>@(entry.EntityName ?? entry.EntityId)</span>
+                                </div>
+                            </td>
+                            <td>@(entry.PerformedByUserName ?? entry.PerformedByUserId ?? "System")</td>
+                            <td>
+                                @if (entry.Success)
+                                {
+                                    <span class="am-badge am-badge-success">Success</span>
+                                }
+                                else
+                                {
+                                    <span class="am-badge am-badge-error" title="@entry.ErrorMessage">Failed</span>
+                                }
+                            </td>
+                            <td>@(entry.IpAddress ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (_result.TotalPages > 1)
+        {
+            <div class="am-pagination">
+                <span class="am-pagination-info">@_result.TotalCount total entries</span>
+                <div class="am-pagination-controls">
+                    <button class="am-btn am-btn-sm am-btn-ghost" @onclick="PrevPage" disabled="@(!_result.HasPreviousPage)">← Prev</button>
+                    <button class="am-btn am-btn-sm am-btn-ghost" @onclick="NextPage" disabled="@(!_result.HasNextPage)">Next →</button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private PagedResult<AuditEntry>? _result;
+    private bool _loading = true;
+    private int _page = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEntries();
+    }
+
+    private async Task LoadEntries()
+    {
+        _loading = true;
+        _result = await AuditService.GetAuditLogAsync(_page, 50);
+        _loading = false;
+    }
+
+    private async Task PrevPage() { _page--; await LoadEntries(); }
+    private async Task NextPage() { _page++; await LoadEntries(); }
+
+    private static string GetActionClass(string action) => action switch
+    {
+        var a when a.Contains("Deleted") || a.Contains("Removed") => "danger",
+        var a when a.Contains("Created") || a.Contains("Added") => "success",
+        var a when a.Contains("Updated") || a.Contains("Reset") => "warning",
+        var a when a.Contains("Locked") => "error",
+        _ => "info"
+    };
+
+    private static string FormatAction(string action)
+    {
+        // Split PascalCase: "UserCreated" -> "User Created"
+        return System.Text.RegularExpressions.Regex.Replace(action, "(\\B[A-Z])", " $1");
+    }
+}

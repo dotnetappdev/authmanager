@@ -1,0 +1,22 @@
+@inherits LayoutComponentBase
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Color="Color.Primary">
+        <MudText Typo="Typo.h6" Class="ml-3">Blazor Sample App</MudText>
+        <MudSpacer />
+        <MudButton Href="/authmanager" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Shield">
+            Auth Manager
+        </MudButton>
+    </MudAppBar>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="pt-8">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@using MudBlazor
