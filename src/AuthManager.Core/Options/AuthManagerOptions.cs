@@ -88,6 +88,26 @@ public sealed class AuthManagerOptions
     /// Defaults to "SuperAdmin".
     /// </summary>
     public string SuperAdminRole { get; set; } = "SuperAdmin";
+
+    /// <summary>
+    /// Password complexity and rotation policy.
+    /// Applied to ASP.NET Identity's <c>PasswordOptions</c> automatically.
+    /// Equivalent to Keycloak's "Password Policy" realm tab.
+    /// </summary>
+    public PasswordPolicyOptions PasswordPolicy { get; set; } = new();
+
+    /// <summary>
+    /// Account lockout and brute-force detection settings.
+    /// Applied to ASP.NET Identity's <c>LockoutOptions</c> automatically.
+    /// Equivalent to Keycloak's "Brute Force Detection" realm tab.
+    /// </summary>
+    public SecurityPolicyOptions SecurityPolicy { get; set; } = new();
+
+    /// <summary>
+    /// HTTP webhook endpoint configuration.
+    /// Fire-and-forget signed HTTP POSTs on auth events.
+    /// </summary>
+    public WebhookOptions Webhooks { get; set; } = new();
 }
 
 /// <summary>

@@ -23,6 +23,24 @@ public interface IUserManagementService
     Task<(bool Success, string[] Errors)> RemoveClaimAsync(string userId, ClaimDto claim, CancellationToken ct = default);
     Task<bool> SendConfirmationEmailAsync(string userId, CancellationToken ct = default);
     Task<DashboardStats> GetDashboardStatsAsync(CancellationToken ct = default);
+
+    // ── Required Actions (Keycloak-style) ────────────────────────────────────
+
+    /// <summary>
+    /// Add a required action that the user must complete on their next sign-in
+    /// (e.g. "UpdatePassword", "ConfigureTOTP", "VerifyEmail").
+    /// Stored as an ASP.NET Identity claim with type "required_action".
+    /// </summary>
+    Task<(bool Success, string[] Errors)> AddRequiredActionAsync(string userId, string action, CancellationToken ct = default);
+
+    /// <summary>Remove a previously assigned required action.</summary>
+    Task<(bool Success, string[] Errors)> RemoveRequiredActionAsync(string userId, string action, CancellationToken ct = default);
+
+    /// <summary>
+    /// Return the list of required action strings currently assigned to a user.
+    /// Returns an empty list if the user has none.
+    /// </summary>
+    Task<List<string>> GetRequiredActionsAsync(string userId, CancellationToken ct = default);
 }
 
 /// <summary>

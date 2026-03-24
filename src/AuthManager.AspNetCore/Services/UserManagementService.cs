@@ -255,6 +255,60 @@ internal sealed class UserManagementService<TUser> : IUserManagementService
         return Task.FromResult(true);
     }
 
+    // ── Required Actions ──────────────────────────────────────────────────────
+
+    private const string RequiredActionClaimType = "required_action";
+
+    public async Task<(bool Success, string[] Errors)> AddRequiredActionAsync(
+        string userId, string action, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        // Avoid duplicates
+        var existing = await _userManager.GetClaimsAsync(user);
+        if (existing.Any(c => c.Type == RequiredActionClaimType && c.Value == action))
+            return (true, []);
+
+        var result = await _userManager.AddClaimAsync(
+            user, new System.Security.Claims.Claim(RequiredActionClaimType, action));
+
+        if (!result.Succeeded)
+            return (false, result.Errors.Select(e => e.Description).ToArray());
+
+        _logger.LogInformation("Required action '{Action}' added for user {UserId}.", action, userId);
+        return (true, []);
+    }
+
+    public async Task<(bool Success, string[] Errors)> RemoveRequiredActionAsync(
+        string userId, string action, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        var result = await _userManager.RemoveClaimAsync(
+            user, new System.Security.Claims.Claim(RequiredActionClaimType, action));
+
+        if (!result.Succeeded)
+            return (false, result.Errors.Select(e => e.Description).ToArray());
+
+        _logger.LogInformation("Required action '{Action}' removed for user {UserId}.", action, userId);
+        return (true, []);
+    }
+
+    public async Task<List<string>> GetRequiredActionsAsync(
+        string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return [];
+
+        var claims = await _userManager.GetClaimsAsync(user);
+        return claims
+            .Where(c => c.Type == RequiredActionClaimType)
+            .Select(c => c.Value)
+            .ToList();
+    }
+
     public async Task<DashboardStats> GetDashboardStatsAsync(CancellationToken ct = default)
     {
         var now = DateTimeOffset.UtcNow;

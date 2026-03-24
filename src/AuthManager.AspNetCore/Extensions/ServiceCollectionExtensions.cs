@@ -64,18 +64,50 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<LogAggregationService>();
         services.TryAddSingleton<ILogAggregationService>(sp => sp.GetRequiredService<LogAggregationService>());
         services.TryAddSingleton<IAuditService, InMemoryAuditService>();
+        services.TryAddSingleton<ISessionService, InMemorySessionService>();
+        services.TryAddSingleton<ISecurityPolicyService, SecurityPolicyService>();
 
         // Scoped (one per Blazor circuit)
         services.TryAddScoped<IUserManagementService, UserManagementService<TUser>>();
         services.TryAddScoped<IRoleManagementService, RoleManagementService<TRole>>();
         services.TryAddScoped<IOAuthProviderService, OAuthProviderService>();
         services.TryAddScoped<IJwtConfigService, JwtConfigService>();
+        services.TryAddScoped<IUserImportExportService, UserImportExportService<TUser>>();
+
+        // Webhook dispatcher — requires HttpClient
+        services.TryAddScoped<IWebhookService, WebhookService>();
+        services.AddHttpClient("AuthManager.Webhooks");
 
         // Blazor — idempotent if host already called AddRazorComponents()
         services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
         services.AddHttpContextAccessor();
+
+        // Apply PasswordPolicy and SecurityPolicy to ASP.NET Identity options at startup
+        services.PostConfigure<Microsoft.AspNetCore.Identity.PasswordOptions>(opts =>
+        {
+            using var sp = services.BuildServiceProvider();
+            var authOpts = sp.GetService<Microsoft.Extensions.Options.IOptions<AuthManagerOptions>>()?.Value;
+            if (authOpts is null) return;
+            var pp = authOpts.PasswordPolicy;
+            opts.RequiredLength         = pp.MinimumLength;
+            opts.RequireUppercase       = pp.RequireUppercase;
+            opts.RequireLowercase       = pp.RequireLowercase;
+            opts.RequireDigit           = pp.RequireDigit;
+            opts.RequireNonAlphanumeric = pp.RequireNonAlphanumeric;
+        });
+
+        services.PostConfigure<Microsoft.AspNetCore.Identity.LockoutOptions>(opts =>
+        {
+            using var sp = services.BuildServiceProvider();
+            var authOpts = sp.GetService<Microsoft.Extensions.Options.IOptions<AuthManagerOptions>>()?.Value;
+            if (authOpts is null) return;
+            var sec = authOpts.SecurityPolicy;
+            opts.AllowedForNewUsers      = sec.EnableBruteForceDetection;
+            opts.MaxFailedAccessAttempts = sec.MaxFailedLoginAttempts;
+            opts.DefaultLockoutTimeSpan  = sec.LockoutDuration;
+        });
 
         // Optional SuperAdmin seeder — only acts when options.SeedSuperAdmin = true
         services.AddHostedService<SuperAdminSeeder<TUser, TRole>>();
