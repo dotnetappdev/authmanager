@@ -1,9 +1,10 @@
 using AuthManager.AspNetCore.Extensions;
 using AuthManager.Core.Options;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
 
-// ---- Serilog bootstrap (logs appear in AuthManager log viewer) ----
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -16,62 +17,45 @@ builder.Host.UseSerilog();
 
 builder.Services.AddControllersWithViews();
 
-// ----------------------------------------------------------------
-//  DotNetAuthManager
-//
-//  Scans ALL connection strings in appsettings.json and picks the right one.
-//  Provider (SQL Server / PostgreSQL / MySQL / SQLite) is auto-detected.
-//
-//  appsettings.json (any name works — the package finds it automatically):
-//  {
-//    "ConnectionStrings": {
-//      "Default": "Data Source=sample-mvc.db"          ← SQLite detected
-//      // "Default": "Server=.;Database=SampleMvc;Trusted_Connection=True;" ← SQL Server
-//      // "Default": "Host=localhost;Database=myapp;Username=app;Password=x" ← PostgreSQL
-//    }
-//  }
-//
-//  Override provider detection in one line (optional):
-//    options.DbProvider = AuthManagerDbProvider.SqlServer;
-// ----------------------------------------------------------------
-builder.Services.AddAuthManager<ApplicationUser>(
-    builder.Configuration,
-    options =>
+// ── 1. Your own DbContext (any provider you like) ────────────────────────
+builder.Services.AddDbContext<AppDbContext>(o =>
+    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
+
+// ── 2. Your own Identity setup ───────────────────────────────────────────
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(o =>
+{
+    o.Password.RequireDigit             = true;
+    o.Password.RequiredLength           = 8;
+    o.Password.RequireUppercase         = true;
+    o.Lockout.MaxFailedAccessAttempts   = 5;
+    o.Lockout.DefaultLockoutTimeSpan    = TimeSpan.FromMinutes(15);
+    o.User.RequireUniqueEmail           = true;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+
+// ── 3. AuthManager — just lays on top, no DB config needed ───────────────
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    options.RoutePrefix    = "authmanager";
+    options.Title          = "Sample MVC — Auth Manager";
+    options.DefaultTheme   = AuthManagerTheme.Dark;
+    options.SuperAdminRole = "SuperAdmin";
+
+    // Seed a default SuperAdmin on first run.
+    // ⚠️  Set SeedSuperAdmin = false after first login + password change.
+    options.SeedSuperAdmin         = true;
+    options.SeedSuperAdminEmail    = "superadmin@example.com";
+    options.SeedSuperAdminPassword = "SuperAdmin@123456!";
+
+    options.Jwt = new JwtOptions
     {
-        options.RoutePrefix  = "authmanager";
-        options.Title        = "Sample MVC — Auth Manager";
-        options.DefaultTheme = AuthManagerTheme.Dark;
-
-        // Optional: uncomment to override auto-detection
-        // options.DbProvider = AuthManagerDbProvider.SqlServer;
-
-        // Only SuperAdmin role can access the management UI.
-        options.SuperAdminRole = "SuperAdmin";
-
-        // Seed default SuperAdmin on first run.
-        // ⚠️  Set SeedSuperAdmin = false once you've logged in and changed the password.
-        options.SeedSuperAdmin         = true;
-        options.SeedSuperAdminEmail    = "superadmin@example.com";
-        options.SeedSuperAdminPassword = "SuperAdmin@123456!";
-
-        options.Jwt = new JwtOptions
-        {
-            Issuer   = "https://localhost:5001",
-            Audience = "https://localhost:5001/api",
-            AccessTokenExpiryMinutes = 60,
-            EnableRefreshTokens      = true
-        };
-    },
-    identity =>
-    {
-        identity.Password.RequireDigit       = true;
-        identity.Password.RequiredLength     = 8;
-        identity.Password.RequireUppercase   = true;
-        identity.Lockout.MaxFailedAccessAttempts = 5;
-        identity.Lockout.DefaultLockoutTimeSpan  = TimeSpan.FromMinutes(15);
-        identity.User.RequireUniqueEmail     = true;
-    }
-);
+        Issuer                   = "https://localhost:5001",
+        Audience                 = "https://localhost:5001/api",
+        AccessTokenExpiryMinutes = 60,
+        EnableRefreshTokens      = true
+    };
+});
 
 var app = builder.Build();
 
@@ -87,18 +71,9 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Maps /authmanager — SuperAdmin role required (no exceptions)
+// ── 4. Maps /authmanager — SuperAdmin role required ──────────────────────
 app.MapAuthManager();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
-
-// ---- ApplicationUser (extend with your own fields) ----
-public class ApplicationUser : Microsoft.AspNetCore.Identity.IdentityUser
-{
-    public string? FullName { get; set; }
-    public DateTimeOffset? LastLoginAt { get; set; }
-}

@@ -1,8 +1,7 @@
-// ---- DotNetAuthManager — Minimal API Sample ----
-// Reads connection string from appsettings.json.
-// Auto-detects provider (SQLite in this sample).
 using AuthManager.AspNetCore.Extensions;
 using AuthManager.Core.Options;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
 
@@ -19,20 +18,26 @@ builder.Host.UseSerilog();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ---- AuthManager — auto-detects SQLite from appsettings.json ----
-builder.Services.AddAuthManager<IdentityUser>(
-    builder.Configuration,
-    options =>
-    {
-        options.RoutePrefix    = "authmanager";
-        options.Title          = "Minimal API Auth Manager";
-        options.DefaultTheme   = AuthManagerTheme.Dark;
-        options.SuperAdminRole = "SuperAdmin";
-        options.SeedSuperAdmin = true;
-        options.SeedSuperAdminEmail    = "superadmin@example.com";
-        options.SeedSuperAdminPassword = "SuperAdmin@123456!";
-    }
-);
+// ── 1. Your own DbContext ────────────────────────────────────────────────
+builder.Services.AddDbContext<AppDbContext>(o =>
+    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
+
+// ── 2. Your own Identity ─────────────────────────────────────────────────
+builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+// ── 3. AuthManager on top ────────────────────────────────────────────────
+builder.Services.AddAuthManager<IdentityUser>(options =>
+{
+    options.RoutePrefix    = "authmanager";
+    options.Title          = "Minimal API Auth Manager";
+    options.DefaultTheme   = AuthManagerTheme.Dark;
+    options.SuperAdminRole = "SuperAdmin";
+    options.SeedSuperAdmin         = true;
+    options.SeedSuperAdminEmail    = "superadmin@example.com";
+    options.SeedSuperAdminPassword = "SuperAdmin@123456!";
+});
 
 var app = builder.Build();
 
@@ -44,12 +49,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapAuthManager();
 
-app.MapGet("/", () => new { Message = "Visit /authmanager (SuperAdmin only)" })
-   .WithTags("Info");
+app.MapGet("/", () => new { Message = "Visit /authmanager (SuperAdmin only)" });
 
 app.Run();
 
-using Microsoft.AspNetCore.Identity;
+// ── Shared app DbContext ─────────────────────────────────────────────────
+public class AppDbContext : IdentityDbContext<IdentityUser>
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+}

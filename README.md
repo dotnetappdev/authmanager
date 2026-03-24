@@ -29,142 +29,73 @@ A **Keycloak-style** ASP.NET Identity management UI for .NET — inspired by how
 ## Architecture
 
 ```
-DotNetAuthManager (main)
+DotNetAuthManager  ← one package, that's it
 ├── AuthManager.Core          — Models, DTOs, service interfaces
 ├── AuthManager.UI            — Blazor Server RCL (MudBlazor)
-└── AuthManager.AspNetCore    — DI extensions, middleware, services
+└── AuthManager.AspNetCore    — DI extensions, services, SuperAdmin seeder
 
-Storage (pick one):
-├── DotNetAuthManager.Storage.SqlServer    — SQL Server via EF Core
-├── DotNetAuthManager.Storage.PostgreSQL   — PostgreSQL via Npgsql
-└── DotNetAuthManager.Storage.MySql        — MySQL/MariaDB via Pomelo
+AuthManager does not own your database.
+It uses the UserManager<TUser> and RoleManager<TRole> already in your container.
+Bring your own DbContext + Identity — any provider, any schema.
 
-Tooling:
-└── DotNetAuthManager.SourceGenerator — Roslyn scaffolding
+Tooling (optional):
+└── DotNetAuthManager.SourceGenerator — Roslyn scaffolding if you have no Identity yet
 ```
 
 ---
 
 ## Quick Start
 
-### 1. Install the core package
+### 1. Install
 
 ```bash
 dotnet add package DotNetAuthManager
 ```
 
-Then install one EF Core provider for your database:
+### 2. Set up your DbContext and Identity as normal
 
-```bash
-dotnet add package Microsoft.EntityFrameworkCore.SqlServer     # SQL Server
-dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL       # PostgreSQL
-dotnet add package Pomelo.EntityFrameworkCore.MySql            # MySQL/MariaDB
-dotnet add package Microsoft.EntityFrameworkCore.Sqlite        # SQLite
-```
-
-### 2. Add connection string to appsettings.json
-
-```json
-{
-  "ConnectionStrings": {
-    "Default": "Server=.;Database=MyApp;Trusted_Connection=True;"
-  }
-}
-```
-
-The package reads this automatically — **no need to pass it in code**.
-Provider (SQL Server / PostgreSQL / MySQL / SQLite) is auto-detected from the connection string format.
-
-### 3. Program.cs — two calls
+AuthManager does not touch your database. Set it up however you like:
 
 ```csharp
-// ── Services ──────────────────────────────────────────────
-builder.Services.AddAuthManager<ApplicationUser>(
-    builder.Configuration,          // reads ConnectionStrings:Default, auto-detects provider
-    options =>
-    {
-        options.RoutePrefix    = "authmanager";
-        options.DefaultTheme   = AuthManagerTheme.Dark;
+// Any provider — SQL Server, PostgreSQL, MySQL, SQLite, whatever you already use
+builder.Services.AddDbContext<AppDbContext>(o =>
+    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
 
-        // Only users with the SuperAdmin role can access the management UI.
-        options.SuperAdminRole = "SuperAdmin";
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(o =>
+{
+    o.Password.RequiredLength        = 8;
+    o.Lockout.MaxFailedAccessAttempts = 5;
+    o.User.RequireUniqueEmail        = true;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+```
 
-        // Seed a default SuperAdmin on first run. Remove once set up!
-        options.SeedSuperAdmin         = true;
-        options.SeedSuperAdminEmail    = "superadmin@example.com";
-        options.SeedSuperAdminPassword = "SuperAdmin@123456!";
-    },
-    identity =>
-    {
-        identity.Password.RequiredLength        = 8;
-        identity.Lockout.MaxFailedAccessAttempts = 5;
-        identity.User.RequireUniqueEmail        = true;
-    }
-);
+### 3. Add AuthManager on top
 
-// ── Pipeline ──────────────────────────────────────────────
+```csharp
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    options.RoutePrefix    = "authmanager";
+    options.DefaultTheme   = AuthManagerTheme.Dark;
+    options.SuperAdminRole = "SuperAdmin";   // only this role can enter the UI
+
+    // Seed a default SuperAdmin on first run.
+    // ⚠️  Set SeedSuperAdmin = false after first login + password change.
+    options.SeedSuperAdmin         = true;
+    options.SeedSuperAdminEmail    = "superadmin@example.com";
+    options.SeedSuperAdminPassword = "SuperAdmin@123456!";
+});
+
 var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapAuthManager();       // → /authmanager, SuperAdmin only
+app.MapAuthManager();   // → /authmanager
 ```
 
 ### 4. Open the dashboard
 
-Navigate to **`https://localhost:5001/authmanager`** and sign in with the seeded SuperAdmin account.
-Change the password immediately, then set `options.SeedSuperAdmin = false`.
-
----
-
-## How provider detection works
-
-The package **scans every entry** in `ConnectionStrings` and picks the first one it recognises. You never need to specify a name or a provider — it just works.
-
-| Pattern in any connection string | Detected provider |
-|----------------------------------|-------------------|
-| `Server=.;Database=…;Trusted_Connection=True` | SQL Server |
-| `Host=localhost;Username=…` | PostgreSQL |
-| `server=localhost;uid=…` | MySQL/MariaDB |
-| `Data Source=app.db` | SQLite |
-
-Multiple connection strings? Set the provider in one line and it picks the matching one:
-
-```csharp
-options.DbProvider = AuthManagerDbProvider.PostgreSQL;  // picks the PostgreSQL string
-```
-
-## Using Your Own DbContext
-
-If you already have Identity set up (called `AddIdentity()` + `AddEntityFrameworkStores()`):
-
-```csharp
-// Just layer AuthManager on top — no connection string needed
-builder.Services.AddAuthManager<ApplicationUser>(options =>
-{
-    options.RoutePrefix    = "authmanager";
-    options.SuperAdminRole = "SuperAdmin";
-});
-
-app.MapAuthManager();
-```
-
-## Different connection string name
-
-```json
-{
-  "ConnectionStrings": {
-    "IdentityDb": "Host=db;Database=myapp;Username=app;Password=secret"
-  }
-}
-```
-
-```csharp
-builder.Services.AddAuthManager<ApplicationUser>(builder.Configuration, options =>
-{
-    options.ConnectionStringName = "IdentityDb";   // reads that key
-    options.RoutePrefix = "authmanager";
-});
-```
+Navigate to **`https://localhost:5001/authmanager`**, sign in, change the password, then set `SeedSuperAdmin = false`.
 
 ---
 
