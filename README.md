@@ -47,40 +47,58 @@ Tooling:
 
 ## Quick Start
 
-### 1. Install
+### 1. Install the core package
 
 ```bash
-# All-in-one with SQL Server
-dotnet add package DotNetAuthManager.Storage.SqlServer
-
-# Or for PostgreSQL
-dotnet add package DotNetAuthManager.Storage.PostgreSQL
-
-# Or MySQL
-dotnet add package DotNetAuthManager.Storage.MySql
+dotnet add package DotNetAuthManager
 ```
 
-### 2. Program.cs
+Then install one EF Core provider for your database:
+
+```bash
+dotnet add package Microsoft.EntityFrameworkCore.SqlServer     # SQL Server
+dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL       # PostgreSQL
+dotnet add package Pomelo.EntityFrameworkCore.MySql            # MySQL/MariaDB
+dotnet add package Microsoft.EntityFrameworkCore.Sqlite        # SQLite
+```
+
+### 2. Add connection string to appsettings.json
+
+```json
+{
+  "ConnectionStrings": {
+    "Default": "Server=.;Database=MyApp;Trusted_Connection=True;"
+  }
+}
+```
+
+The package reads this automatically — **no need to pass it in code**.
+Provider (SQL Server / PostgreSQL / MySQL / SQLite) is auto-detected from the connection string format.
+
+### 3. Program.cs — two calls
 
 ```csharp
-using AuthManager.Core.Options;
-using AuthManager.Storage.SqlServer;  // or .PostgreSQL / .MySql
-
 // ── Services ──────────────────────────────────────────────
-builder.Services.AddAuthManagerWithSqlServer<ApplicationUser>(
-    connectionString: builder.Configuration.GetConnectionString("Default")!,
-    authManager: options =>
+builder.Services.AddAuthManager<ApplicationUser>(
+    builder.Configuration,          // reads ConnectionStrings:Default, auto-detects provider
+    options =>
     {
-        options.RoutePrefix  = "authmanager";      // → /authmanager
-        options.Title        = "My App";
-        options.DefaultTheme = AuthManagerTheme.Dark;
-        options.AdminRoles   = ["Admin"];           // who can access the UI
+        options.RoutePrefix    = "authmanager";
+        options.DefaultTheme   = AuthManagerTheme.Dark;
+
+        // Only users with the SuperAdmin role can access the management UI.
+        options.SuperAdminRole = "SuperAdmin";
+
+        // Seed a default SuperAdmin on first run. Remove once set up!
+        options.SeedSuperAdmin         = true;
+        options.SeedSuperAdminEmail    = "superadmin@example.com";
+        options.SeedSuperAdminPassword = "SuperAdmin@123456!";
     },
-    identity: options =>
+    identity =>
     {
-        options.Password.RequiredLength  = 8;
-        options.Lockout.MaxFailedAccessAttempts = 5;
-        options.User.RequireUniqueEmail  = true;
+        identity.Password.RequiredLength        = 8;
+        identity.Lockout.MaxFailedAccessAttempts = 5;
+        identity.User.RequireUniqueEmail        = true;
     }
 );
 
@@ -88,38 +106,64 @@ builder.Services.AddAuthManagerWithSqlServer<ApplicationUser>(
 var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapAuthManager();           // that's it — /authmanager is live
+app.MapAuthManager();       // → /authmanager, SuperAdmin only
 ```
 
-### 3. Open the dashboard
+### 4. Open the dashboard
 
-Navigate to **`https://localhost:5001/authmanager`** and sign in.
+Navigate to **`https://localhost:5001/authmanager`** and sign in with the seeded SuperAdmin account.
+Change the password immediately, then set `options.SeedSuperAdmin = false`.
 
 ---
 
-## Using Your Own DbContext
+## How provider detection works
 
-If you already have Identity set up:
+The package reads your connection string and sniffs the format:
+
+| Pattern in connection string | Detected provider |
+|------------------------------|-------------------|
+| `Server=.;Database=…;Trusted_Connection=True` | SQL Server |
+| `Host=localhost;Username=…` | PostgreSQL |
+| `server=localhost;uid=…` | MySQL/MariaDB |
+| `Data Source=app.db` | SQLite |
+
+Override detection explicitly if needed:
 
 ```csharp
-// Just register AuthManager on top of your existing setup
-builder.Services.AddAuthManager<ApplicationUser, ApplicationRole>(options =>
+options.DbProvider = AuthManagerDbProvider.PostgreSQL;
+```
+
+## Using Your Own DbContext
+
+If you already have Identity set up (called `AddIdentity()` + `AddEntityFrameworkStores()`):
+
+```csharp
+// Just layer AuthManager on top — no connection string needed
+builder.Services.AddAuthManager<ApplicationUser>(options =>
 {
-    options.RoutePrefix = "authmanager";
+    options.RoutePrefix    = "authmanager";
+    options.SuperAdminRole = "SuperAdmin";
 });
 
 app.MapAuthManager();
 ```
 
----
+## Different connection string name
 
-## PostgreSQL
+```json
+{
+  "ConnectionStrings": {
+    "IdentityDb": "Host=db;Database=myapp;Username=app;Password=secret"
+  }
+}
+```
 
 ```csharp
-builder.Services.AddAuthManagerWithPostgreSQL<ApplicationUser>(
-    connectionString: "Host=localhost;Database=myapp;Username=postgres;Password=secret",
-    authManager: options => { options.RoutePrefix = "authmanager"; }
-);
+builder.Services.AddAuthManager<ApplicationUser>(builder.Configuration, options =>
+{
+    options.ConnectionStringName = "IdentityDb";   // reads that key
+    options.RoutePrefix = "authmanager";
+});
 ```
 
 ---
@@ -168,12 +212,21 @@ The generator creates:
 ## Configuration Reference
 
 ```csharp
-options.RoutePrefix          = "authmanager";   // URL path
-options.Title                = "Auth Manager";  // sidebar title
-options.DefaultTheme         = AuthManagerTheme.Dark; // Light | Dark | System
-options.RequireAuthentication = true;           // false = open (dev only!)
-options.AdminRoles           = ["Admin"];       // roles with UI access
-options.DefaultPageSize      = 25;
+options.RoutePrefix           = "authmanager";          // URL path
+options.Title                 = "Auth Manager";         // sidebar title
+options.DefaultTheme          = AuthManagerTheme.Dark;  // Light | Dark | System
+options.RequireAuthentication = true;                   // false = open (dev only!)
+options.SuperAdminRole        = "SuperAdmin";           // ONLY this role can access the UI
+options.DefaultPageSize       = 25;
+
+// Connection string / provider
+options.ConnectionStringName  = "Default";              // reads ConnectionStrings:Default
+options.DbProvider            = null;                   // null = auto-detect from connection string
+
+// SuperAdmin seeding (run once, then disable)
+options.SeedSuperAdmin         = true;                  // ⚠️  disable after first login
+options.SeedSuperAdminEmail    = "superadmin@example.com";
+options.SeedSuperAdminPassword = "SuperAdmin@123456!";
 
 options.Jwt.Issuer                  = "https://api.example.com";
 options.Jwt.Audience                = "https://api.example.com";
