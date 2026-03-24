@@ -150,10 +150,6 @@ options.RequireAuthentication = true;                   // false = open (dev onl
 options.SuperAdminRole        = "SuperAdmin";           // ONLY this role can access the UI
 options.DefaultPageSize       = 25;
 
-// Connection string / provider
-options.ConnectionStringName  = "Default";              // reads ConnectionStrings:Default
-options.DbProvider            = null;                   // null = auto-detect from connection string
-
 // SuperAdmin seeding (run once, then disable)
 options.SeedSuperAdmin         = true;                  // ⚠️  disable after first login
 options.SeedSuperAdminEmail    = "superadmin@example.com";
@@ -199,11 +195,8 @@ dotnet run
 src/
   AuthManager.Core/           Models, DTOs, service interfaces
   AuthManager.UI/             Blazor RCL (MudBlazor) — pages & layout
-  AuthManager.AspNetCore/     DI extensions, service implementations
-  AuthManager.Storage.SqlServer/
-  AuthManager.Storage.PostgreSQL/
-  AuthManager.Storage.MySql/
-  AuthManager.SourceGenerator/
+  AuthManager.AspNetCore/     DI extensions, service implementations, seeder
+  AuthManager.SourceGenerator/ Roslyn scaffolding (optional)
 samples/
   SampleApp.Mvc/
   SampleApp.MinimalApi/
