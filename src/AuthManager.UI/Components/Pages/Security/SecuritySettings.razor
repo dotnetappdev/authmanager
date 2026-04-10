@@ -1,0 +1,366 @@
+@page "/authmanager/security"
+@rendermode InteractiveServer
+@inject ISecurityPolicyService SecurityService
+@inject IAuditService AuditService
+
+<PageTitle>Security Settings — Auth Manager</PageTitle>
+
+<div class="am-page-header">
+    <div>
+        <h1 class="am-page-title">Security Settings</h1>
+        <p class="am-page-subtitle">Configure password policy and brute-force protection — equivalent to Keycloak's realm security tabs</p>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <Spinner />
+}
+else
+{
+    <div class="am-form-layout">
+        <div class="am-form-main">
+
+            <!-- Password Policy -->
+            <div class="am-card">
+                <div class="am-card-header">
+                    <h2 class="am-card-title">Password Policy</h2>
+                    <span class="am-badge am-badge-info">ASP.NET Identity</span>
+                </div>
+                <div class="am-card-body">
+                    <div class="am-form-grid">
+                        <div class="am-form-group">
+                            <label class="am-label">Minimum Length</label>
+                            <input class="am-input" type="number" min="4" max="128"
+                                   @bind="_pw.MinimumLength" />
+                            <span class="am-input-hint">Minimum number of characters required (default: 8)</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Maximum Length</label>
+                            <input class="am-input" type="number" min="8" max="256"
+                                   @bind="_pw.MaximumLength" />
+                            <span class="am-input-hint">Prevents DoS via bcrypt — keep ≤ 128 (default: 128)</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Password History (last N)</label>
+                            <input class="am-input" type="number" min="0" max="24"
+                                   @bind="_pw.PasswordHistoryCount" />
+                            <span class="am-input-hint">Reject if the password matches a recent one. 0 = disabled</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Password Expiry (days)</label>
+                            <input class="am-input" type="number" min="0" max="365"
+                                   @bind="_pw.PasswordExpiryDays" />
+                            <span class="am-input-hint">Force password change after N days. 0 = never expires</span>
+                        </div>
+                    </div>
+
+                    <div class="am-toggle-list am-mt-4">
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Require Uppercase Letter (A–Z)</div>
+                                <div class="am-toggle-desc">Password must contain at least one uppercase character</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_pw.RequireUppercase" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Require Lowercase Letter (a–z)</div>
+                                <div class="am-toggle-desc">Password must contain at least one lowercase character</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_pw.RequireLowercase" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Require Digit (0–9)</div>
+                                <div class="am-toggle-desc">Password must contain at least one numeric digit</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_pw.RequireDigit" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Require Non-Alphanumeric (!, @, #…)</div>
+                                <div class="am-toggle-desc">Password must contain at least one special character</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_pw.RequireNonAlphanumeric" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Deny Username in Password</div>
+                                <div class="am-toggle-desc">Reject passwords that contain the user's username</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_pw.DenyUsernameInPassword" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Brute Force / Lockout -->
+            <div class="am-card">
+                <div class="am-card-header">
+                    <h2 class="am-card-title">Brute Force Detection</h2>
+                    <span class="am-badge am-badge-info">Account Lockout</span>
+                </div>
+                <div class="am-card-body">
+
+                    <div class="am-toggle-list">
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Enable Brute Force Detection</div>
+                                <div class="am-toggle-desc">Temporarily lock accounts after repeated failed login attempts</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_sec.EnableBruteForceDetection" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="am-form-grid am-mt-4">
+                        <div class="am-form-group">
+                            <label class="am-label">Max Failed Attempts</label>
+                            <input class="am-input" type="number" min="1" max="20"
+                                   @bind="_sec.MaxFailedLoginAttempts"
+                                   disabled="@(!_sec.EnableBruteForceDetection)" />
+                            <span class="am-input-hint">Failed logins before the account is locked (default: 5)</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Lockout Duration (minutes)</label>
+                            <input class="am-input" type="number" min="1" max="10080"
+                                   @bind="_lockoutMinutes"
+                                   disabled="@(!_sec.EnableBruteForceDetection)" />
+                            <span class="am-input-hint">How long the account stays locked (default: 15 min)</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Failed Attempt Window (hours)</label>
+                            <input class="am-input" type="number" min="1" max="168"
+                                   @bind="_failedAttemptWindowHours"
+                                   disabled="@(!_sec.EnableBruteForceDetection)" />
+                            <span class="am-input-hint">Reset failure count after this idle period (default: 12 h)</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Max Concurrent Sessions Per User</label>
+                            <input class="am-input" type="number" min="0" max="100"
+                                   @bind="_sec.MaxConcurrentSessions" />
+                            <span class="am-input-hint">0 = unlimited. Oldest session terminated when exceeded</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Security Stamp Validation (minutes)</label>
+                            <input class="am-input" type="number" min="1" max="1440"
+                                   @bind="_secStampMinutes" />
+                            <span class="am-input-hint">How often cookie auth re-validates against the server (default: 30 min)</span>
+                        </div>
+                    </div>
+
+                    <div class="am-toggle-list am-mt-4">
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Invalidate Sessions on Password Change</div>
+                                <div class="am-toggle-desc">Force re-login on all devices when a user changes their password</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_sec.InvalidateSessionsOnPasswordChange" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Enable Refresh Token Rotation</div>
+                                <div class="am-toggle-desc">Issue a new refresh token on each use and invalidate the old one</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_sec.EnableRefreshTokenRotation" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registration -->
+            <div class="am-card">
+                <div class="am-card-header">
+                    <h2 class="am-card-title">Registration Policy</h2>
+                </div>
+                <div class="am-card-body">
+                    <div class="am-toggle-list">
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Allow Self-Registration</div>
+                                <div class="am-toggle-desc">Allow new users to register themselves via the standard Identity flows</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_sec.AllowSelfRegistration" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="am-toggle-item">
+                            <div class="am-toggle-info">
+                                <div class="am-toggle-label">Require Email Verification on Registration</div>
+                                <div class="am-toggle-desc">New accounts must verify their email before they can sign in</div>
+                            </div>
+                            <label class="am-switch">
+                                <input type="checkbox" @bind="_sec.RequireEmailVerificationOnRegistration" />
+                                <span class="am-switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="am-form-aside">
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">Save Changes</h2></div>
+                <div class="am-card-body am-actions-card">
+                    @if (_saved)
+                    {
+                        <div class="am-alert am-alert-success">Settings saved successfully.</div>
+                    }
+                    @if (_errors.Length > 0)
+                    {
+                        <div class="am-alert am-alert-error">@string.Join(", ", _errors)</div>
+                    }
+                    <button class="am-btn am-btn-primary am-btn-full" @onclick="SaveAll" disabled="@_saving">
+                        @if (_saving) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
+                        Save All Settings
+                    </button>
+                    <button class="am-btn am-btn-ghost am-btn-full" @onclick="ResetDefaults">
+                        Reset to Defaults
+                    </button>
+                </div>
+            </div>
+
+            <div class="am-card">
+                <div class="am-card-header"><h2 class="am-card-title">About</h2></div>
+                <div class="am-card-body">
+                    <p class="am-text-muted">
+                        Password policy changes take effect on the <strong>next password creation or reset</strong>.
+                        Existing passwords are not affected.
+                    </p>
+                    <p class="am-text-muted am-mt-2">
+                        Lockout settings are applied to <strong>ASP.NET Identity's LockoutOptions</strong> at startup
+                        via <code>AddAuthManager()</code>. Runtime changes are stored in memory and visible in the UI;
+                        restart the app to persist them permanently via <code>appsettings.json</code>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private PasswordPolicyOptions _pw = new();
+    private SecurityPolicyOptions _sec = new();
+    private bool _loading = true;
+    private bool _saving;
+    private bool _saved;
+    private string[] _errors = [];
+
+    // Bridge TimeSpan ↔ numeric form fields
+    private int _lockoutMinutes
+    {
+        get => (int)_sec.LockoutDuration.TotalMinutes;
+        set => _sec.LockoutDuration = TimeSpan.FromMinutes(value);
+    }
+    private int _failedAttemptWindowHours
+    {
+        get => (int)_sec.FailedAttemptWindow.TotalHours;
+        set => _sec.FailedAttemptWindow = TimeSpan.FromHours(value);
+    }
+    private int _secStampMinutes
+    {
+        get => (int)_sec.SecurityStampValidationInterval.TotalMinutes;
+        set => _sec.SecurityStampValidationInterval = TimeSpan.FromMinutes(value);
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        _pw  = SecurityService.GetPasswordPolicy();
+        _sec = SecurityService.GetSecurityPolicy();
+        _loading = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAll()
+    {
+        _saving = true;
+        _saved  = false;
+        _errors = [];
+
+        try
+        {
+            await SecurityService.UpdatePasswordPolicyAsync(_pw);
+            await SecurityService.UpdateSecurityPolicyAsync(_sec);
+
+            await AuditService.RecordAsync(new AuditEntry
+            {
+                Action    = AuditActions.PasswordPolicyUpdated,
+                EntityType = "SecuritySettings",
+                EntityId   = "password_policy",
+                NewValues  = new Dictionary<string, object?>
+                {
+                    ["MinimumLength"]          = _pw.MinimumLength,
+                    ["RequireUppercase"]       = _pw.RequireUppercase,
+                    ["RequireLowercase"]       = _pw.RequireLowercase,
+                    ["RequireDigit"]           = _pw.RequireDigit,
+                    ["RequireNonAlphanumeric"] = _pw.RequireNonAlphanumeric,
+                    ["PasswordHistoryCount"]   = _pw.PasswordHistoryCount,
+                    ["PasswordExpiryDays"]     = _pw.PasswordExpiryDays,
+                },
+                Success = true
+            });
+
+            await AuditService.RecordAsync(new AuditEntry
+            {
+                Action    = AuditActions.SecurityPolicyUpdated,
+                EntityType = "SecuritySettings",
+                EntityId   = "security_policy",
+                NewValues  = new Dictionary<string, object?>
+                {
+                    ["EnableBruteForceDetection"] = _sec.EnableBruteForceDetection,
+                    ["MaxFailedLoginAttempts"]     = _sec.MaxFailedLoginAttempts,
+                    ["LockoutDurationMinutes"]     = _lockoutMinutes,
+                    ["MaxConcurrentSessions"]      = _sec.MaxConcurrentSessions,
+                },
+                Success = true
+            });
+
+            ToastService.Instance.Success("Security settings saved.");
+            _saved = true;
+        }
+        catch (Exception ex)
+        {
+            _errors = [ex.Message];
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void ResetDefaults()
+    {
+        _pw  = new PasswordPolicyOptions();
+        _sec = new SecurityPolicyOptions();
+        _saved = false;
+        _errors = [];
+        ToastService.Instance.Info("Defaults loaded. Click Save to apply.");
+    }
+}

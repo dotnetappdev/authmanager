@@ -1,0 +1,241 @@
+@page "/authmanager/sessions"
+@rendermode InteractiveServer
+@inject ISessionService SessionService
+@inject IAuditService AuditService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Active Sessions — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Active Sessions</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            View and revoke live user sessions — equivalent to Keycloak's Sessions admin panel
+        </MudText>
+    </div>
+    <MudStack Row="true" Spacing="2">
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="align-self-center">
+            @_totalCount active session@(_totalCount == 1 ? "" : "s")
+        </MudText>
+        <MudButton Variant="Variant.Outlined" Color="Color.Warning"
+                   StartIcon="@Icons.Material.Filled.LogoutOutlined"
+                   OnClick="RevokeAllSessions"
+                   Disabled="@(_totalCount == 0)">
+            Revoke All
+        </MudButton>
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
+                       OnClick="Refresh" Title="Refresh" />
+    </MudStack>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+
+<MudCard Elevation="0" Class="am-card-border">
+    <MudCardContent Class="pa-0">
+        @if (!_loading && _sessions.Count == 0)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                <MudIcon Icon="@Icons.Material.Filled.DesktopAccessDisabled" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">No active sessions</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Sessions appear here once users sign in. Tracked sessions require
+                    <code>ISessionService.TrackSessionAsync()</code> to be called in your auth pipeline.
+                </MudText>
+            </MudStack>
+        }
+        else
+        {
+            <MudTable T="SessionInfo" Items="_sessions" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm"
+                      Loading="@_loading" Class="am-data-grid" Elevation="0">
+                <HeaderContent>
+                    <MudTh>User</MudTh>
+                    <MudTh>IP Address</MudTh>
+                    <MudTh>Device / Browser</MudTh>
+                    <MudTh>Started</MudTh>
+                    <MudTh>Last Active</MudTh>
+                    <MudTh>Expires</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small" Class="am-avatar-initial">
+                                @GetInitials(context.UserName)
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.body2" Class="font-weight-medium">@context.UserName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.UserId[..Math.Min(8, context.UserId.Length)]…</MudText>
+                            </div>
+                            @if (context.IsCurrent)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Current</MudChip>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd>
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body2">@(context.IpAddress ?? "—")</MudText>
+                            @if (!string.IsNullOrEmpty(context.CountryCode))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.CountryCode</MudText>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd>
+                        <MudTooltip Text="@context.UserAgent">
+                            <MudText Typo="Typo.body2">@(context.DeviceDescription ?? TruncateUserAgent(context.UserAgent))</MudText>
+                        </MudTooltip>
+                    </MudTd>
+                    <MudTd>
+                        <MudTooltip Text="@context.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")">
+                            <MudText Typo="Typo.body2">@FormatRelative(context.CreatedAt)</MudText>
+                        </MudTooltip>
+                    </MudTd>
+                    <MudTd>
+                        <MudTooltip Text="@context.LastActiveAt.ToString("yyyy-MM-dd HH:mm:ss UTC")">
+                            <MudText Typo="Typo.body2">@FormatRelative(context.LastActiveAt)</MudText>
+                        </MudTooltip>
+                    </MudTd>
+                    <MudTd>
+                        @if (context.ExpiresAt.HasValue)
+                        {
+                            var expired = context.ExpiresAt.Value < DateTimeOffset.UtcNow;
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@(expired ? Color.Error : Color.Default)"
+                                     Variant="Variant.Outlined">
+                                @(expired ? "Expired" : FormatRelative(context.ExpiresAt.Value))
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">—</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Logout"
+                                           Size="Size.Small" Color="Color.Warning" Variant="Variant.Text"
+                                           Title="Revoke this session"
+                                           OnClick="@(() => RevokeSession(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.LogoutOutlined"
+                                           Size="Size.Small" Color="Color.Error" Variant="Variant.Text"
+                                           Title="Revoke all sessions for this user"
+                                           OnClick="@(() => RevokeUserSessions(context))" />
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<SessionInfo> _sessions = [];
+    private int _totalCount;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await Refresh();
+
+    private async Task Refresh()
+    {
+        _loading = true;
+        _sessions = (await SessionService.GetAllSessionsAsync(1, 200)).ToList();
+        _totalCount = await SessionService.GetActiveSessionCountAsync();
+        _loading = false;
+    }
+
+    private async Task RevokeSession(SessionInfo session)
+    {
+        await SessionService.RevokeSessionAsync(session.SessionId);
+
+        await AuditService.RecordAsync(new AuditEntry
+        {
+            Action     = AuditActions.SessionRevoked,
+            EntityType = "Session",
+            EntityId   = session.SessionId,
+            EntityName = session.UserName,
+            NewValues  = new Dictionary<string, object?> { ["UserId"] = session.UserId },
+            Success    = true
+        });
+
+        Snackbar.Add($"Session for {session.UserName} revoked.", Severity.Success);
+        await Refresh();
+    }
+
+    private async Task RevokeUserSessions(SessionInfo session)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Revoke All Sessions",
+            $"Sign out {session.UserName} from all devices? They will need to log in again.",
+            yesText: "Revoke All", cancelText: "Cancel");
+
+        if (confirm != true) return;
+
+        await SessionService.RevokeAllUserSessionsAsync(session.UserId);
+
+        await AuditService.RecordAsync(new AuditEntry
+        {
+            Action     = AuditActions.AllSessionsRevoked,
+            EntityType = "User",
+            EntityId   = session.UserId,
+            EntityName = session.UserName,
+            Success    = true
+        });
+
+        Snackbar.Add($"All sessions for {session.UserName} revoked.", Severity.Success);
+        await Refresh();
+    }
+
+    private async Task RevokeAllSessions()
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Revoke ALL Sessions",
+            "This will sign out every user from every device immediately. Continue?",
+            yesText: "Revoke All", cancelText: "Cancel");
+
+        if (confirm != true) return;
+
+        // Revoke per unique user
+        var userIds = _sessions.Select(s => s.UserId).Distinct().ToList();
+        foreach (var uid in userIds)
+            await SessionService.RevokeAllUserSessionsAsync(uid);
+
+        await AuditService.RecordAsync(new AuditEntry
+        {
+            Action     = AuditActions.AllSessionsRevoked,
+            EntityType = "System",
+            EntityId   = "all",
+            NewValues  = new Dictionary<string, object?> { ["RevokedCount"] = _totalCount },
+            Success    = true
+        });
+
+        Snackbar.Add($"All {_totalCount} sessions revoked.", Severity.Warning);
+        await Refresh();
+    }
+
+    private static string GetInitials(string name) =>
+        string.IsNullOrEmpty(name) ? "?" :
+        name.Length >= 2 ? name[..2].ToUpper() : name.ToUpper();
+
+    private static string TruncateUserAgent(string? ua)
+    {
+        if (string.IsNullOrEmpty(ua)) return "Unknown";
+        return ua.Length > 40 ? ua[..40] + "…" : ua;
+    }
+
+    private static string FormatRelative(DateTimeOffset dt)
+    {
+        var diff = DateTimeOffset.UtcNow - dt;
+        if (diff.TotalSeconds < 60) return "just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        return dt.ToString("MMM dd HH:mm");
+    }
+}

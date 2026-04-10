@@ -1,0 +1,29 @@
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+        Home
+    </MudNavLink>
+
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">
+                My Profile
+            </MudNavLink>
+            <MudNavLink Href="/protected" Icon="@Icons.Material.Filled.Lock">
+                Protected Area
+            </MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="Admin,SuperAdmin">
+        <Authorized>
+            <MudNavGroup Title="Administration" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="true">
+                <MudNavLink Href="/admin" Icon="@Icons.Material.Filled.Dashboard">
+                    Admin Panel
+                </MudNavLink>
+                <MudNavLink Href="/authmanager" Icon="@Icons.Material.Filled.ManageAccounts" Target="_blank">
+                    Identity Manager ↗
+                </MudNavLink>
+            </MudNavGroup>
+        </Authorized>
+    </AuthorizeView>
+</MudNavMenu>

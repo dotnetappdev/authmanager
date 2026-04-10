@@ -1,0 +1,124 @@
+@page "/account/login"
+@* SSR (no @rendermode) so HttpContext is available for SignInManager *@
+@attribute [ExcludeFromInteractiveRouting]
+
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+@inject NavigationManager Navigation
+@inject ILogger<Login> Logger
+
+<PageTitle>Sign In</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudText Typo="Typo.h5" GutterBottom="true">
+            <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+            Sign In
+        </MudText>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
+        }
+
+        <EditForm Model="Input" OnValidSubmit="HandleLogin" FormName="login" method="post">
+            <DataAnnotationsValidator />
+
+            <MudTextField @bind-Value="Input.Email"
+                          Label="Email"
+                          InputType="InputType.Email"
+                          Variant="Variant.Outlined"
+                          Class="mb-3"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Email"
+                          For="@(() => Input.Email)"
+                          Required="true" />
+
+            <MudTextField @bind-Value="Input.Password"
+                          Label="Password"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined"
+                          Class="mb-3"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Lock"
+                          For="@(() => Input.Password)"
+                          Required="true" />
+
+            <MudCheckBox @bind-Value="Input.RememberMe"
+                         Label="Remember me"
+                         Color="Color.Primary"
+                         Class="mb-4" />
+
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Size="Size.Large">
+                Sign In
+            </MudButton>
+        </EditForm>
+
+        <MudDivider Class="my-4" />
+
+        <MudStack Row="true" Justify="Justify.SpaceBetween">
+            <MudLink Href="/account/register">Create an account</MudLink>
+            <MudLink Href="/account/forgot-password">Forgot password?</MudLink>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginInput Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private string? _errorMessage;
+
+    private async Task HandleLogin()
+    {
+        var result = await SignInManager.PasswordSignInAsync(
+            Input.Email,
+            Input.Password,
+            Input.RememberMe,
+            lockoutOnFailure: true);
+
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User {Email} signed in.", Input.Email);
+            Navigation.NavigateTo(ReturnUrl ?? "/", forceLoad: true);
+            return;
+        }
+
+        if (result.IsLockedOut)
+        {
+            _errorMessage = "This account is locked. Please try again later or contact support.";
+            Logger.LogWarning("Account locked out: {Email}", Input.Email);
+            return;
+        }
+
+        if (result.RequiresTwoFactor)
+        {
+            Navigation.NavigateTo("/account/two-factor", forceLoad: true);
+            return;
+        }
+
+        _errorMessage = "Invalid email or password.";
+    }
+
+    public sealed class LoginInput
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+    }
+}

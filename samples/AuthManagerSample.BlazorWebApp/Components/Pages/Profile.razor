@@ -1,0 +1,166 @@
+@page "/profile"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<IdentityUser> UserManager
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>My Profile</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">My Profile</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_user is not null)
+{
+    <MudGrid>
+        <!-- Account Info -->
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderAvatar>
+                        <MudAvatar Color="Color.Primary" Size="Size.Large">
+                            @_user.UserName!.First().ToString().ToUpper()
+                        </MudAvatar>
+                    </CardHeaderAvatar>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@_user.UserName</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@_user.Email</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudList T="string" Dense="true">
+                        <MudListItem Icon="@Icons.Material.Filled.VerifiedUser"
+                                     Text="@(_user.EmailConfirmed ? "Email verified" : "Email not verified")"
+                                     IconColor="@(_user.EmailConfirmed ? Color.Success : Color.Warning)" />
+                        <MudListItem Icon="@(_user.TwoFactorEnabled ? Icons.Material.Filled.Security : Icons.Material.Filled.GppMaybe)"
+                                     Text="@(_user.TwoFactorEnabled ? "Two-factor enabled" : "Two-factor disabled")"
+                                     IconColor="@(_user.TwoFactorEnabled ? Color.Success : Color.Default)" />
+                        <MudListItem Icon="@Icons.Material.Filled.VpnKey"
+                                     Text="@($"ID: {_user.Id[..8]}…")" />
+                    </MudList>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Roles -->
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">
+                            <MudIcon Icon="@Icons.Material.Filled.Stars" Class="mr-1" />
+                            Roles & Permissions
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (_roles.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No roles assigned.</MudText>
+                    }
+                    else
+                    {
+                        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                            @foreach (var role in _roles)
+                            {
+                                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small">@role</MudChip>
+                            }
+                        </MudStack>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Required Actions -->
+        @if (_requiredActions.Count > 0)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Warning">
+                    <MudText Typo="Typo.subtitle2" GutterBottom="true">
+                        Action required before you can continue:
+                    </MudText>
+                    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                        @foreach (var action in _requiredActions)
+                        {
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small">@FormatAction(action)</MudChip>
+                        }
+                    </MudStack>
+                </MudAlert>
+            </MudItem>
+        }
+
+        <!-- Custom Attributes -->
+        @if (_customAttributes.Count > 0)
+        {
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Custom Attributes</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudTable T="KeyValuePair<string,string>" Items="_customAttributes" Dense="true" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>Key</MudTh>
+                                <MudTh>Value</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd><MudText Typo="Typo.body2"><code>@context.Key</code></MudText></MudTd>
+                                <MudTd><MudText Typo="Typo.body2">@context.Value</MudText></MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private IdentityUser? _user;
+    private IList<string> _roles = [];
+    private List<string> _requiredActions = [];
+    private List<KeyValuePair<string, string>> _customAttributes = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state  = await AuthState.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return;
+
+        _user = await UserManager.FindByIdAsync(userId);
+        if (_user is null) return;
+
+        _roles = await UserManager.GetRolesAsync(_user);
+        var claims = await UserManager.GetClaimsAsync(_user);
+
+        _requiredActions = claims
+            .Where(c => c.Type == "required_action")
+            .Select(c => c.Value)
+            .ToList();
+
+        _customAttributes = claims
+            .Where(c => c.Type.StartsWith("custom:", StringComparison.OrdinalIgnoreCase))
+            .Select(c => new KeyValuePair<string, string>(c.Type["custom:".Length..], c.Value))
+            .ToList();
+
+        _loading = false;
+    }
+
+    private static string FormatAction(string action) => action switch
+    {
+        "UpdatePassword" => "Change Password",
+        "VerifyEmail"    => "Verify Email",
+        "ConfigureTOTP"  => "Set Up Authenticator",
+        "UpdateProfile"  => "Complete Profile",
+        "AcceptTerms"    => "Accept Terms",
+        _                => action
+    };
+}

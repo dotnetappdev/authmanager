@@ -1,8 +1,10 @@
 using AuthManager.Core.Models;
+using AuthManager.Core.Options;
 using AuthManager.Core.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AuthManager.AspNetCore.Services;
 
@@ -11,11 +13,18 @@ internal sealed class UserManagementService<TUser> : IUserManagementService
 {
     private readonly UserManager<TUser> _userManager;
     private readonly ILogger<UserManagementService<TUser>> _logger;
+    private readonly AuthManagerOptions _options;
 
-    public UserManagementService(UserManager<TUser> userManager, ILogger<UserManagementService<TUser>> logger)
+    private const string PasswordHistoryClaimType = "password_history";
+
+    public UserManagementService(
+        UserManager<TUser> userManager,
+        IOptions<AuthManagerOptions> options,
+        ILogger<UserManagementService<TUser>> logger)
     {
         _userManager = userManager;
-        _logger = logger;
+        _options     = options.Value;
+        _logger      = logger;
     }
 
     public async Task<PagedResult<UserDto>> GetUsersAsync(UserFilter filter, CancellationToken ct = default)
@@ -161,11 +170,57 @@ internal sealed class UserManagementService<TUser> : IUserManagementService
         if (user is null)
             return (false, [$"User {dto.UserId} not found."]);
 
+        // ── Password History check ────────────────────────────────────────────
+        int historyCount = _options.PasswordPolicy.PasswordHistoryCount;
+        if (historyCount > 0)
+        {
+            var claims = await _userManager.GetClaimsAsync(user);
+            var history = claims
+                .Where(c => c.Type == PasswordHistoryClaimType)
+                .OrderByDescending(c => c.Value)   // most recent first
+                .Take(historyCount)
+                .ToList();
+
+            foreach (var historyClaim in history)
+            {
+                // The claim value stores: "<unix-timestamp>|<hash>"
+                var parts = historyClaim.Value.Split('|', 2);
+                if (parts.Length < 2) continue;
+                var oldHash = parts[1];
+
+                var verifyResult = _userManager.PasswordHasher.VerifyHashedPassword(
+                    user, oldHash, dto.NewPassword);
+
+                if (verifyResult != PasswordVerificationResult.Failed)
+                    return (false, [$"This password was used recently. Choose a different password (last {historyCount} passwords are blocked)."]);
+            }
+        }
+
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         var result = await _userManager.ResetPasswordAsync(user, token, dto.NewPassword);
 
         if (!result.Succeeded)
             return (false, result.Errors.Select(e => e.Description).ToArray());
+
+        // ── Store new hash in history ─────────────────────────────────────────
+        if (historyCount > 0)
+        {
+            var newHash = _userManager.PasswordHasher.HashPassword(user, dto.NewPassword);
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            await _userManager.AddClaimAsync(user,
+                new System.Security.Claims.Claim(PasswordHistoryClaimType, $"{timestamp}|{newHash}"));
+
+            // Prune excess history entries
+            var allClaims = await _userManager.GetClaimsAsync(user);
+            var historyToRemove = allClaims
+                .Where(c => c.Type == PasswordHistoryClaimType)
+                .OrderByDescending(c => c.Value)
+                .Skip(historyCount)
+                .ToList();
+
+            foreach (var old in historyToRemove)
+                await _userManager.RemoveClaimAsync(user, old);
+        }
 
         _logger.LogInformation("Password reset for user {UserId}.", dto.UserId);
         return (true, []);
@@ -253,6 +308,60 @@ internal sealed class UserManagementService<TUser> : IUserManagementService
         // Implementation depends on email service - placeholder
         _logger.LogInformation("Confirmation email requested for user {UserId}.", userId);
         return Task.FromResult(true);
+    }
+
+    // ── Required Actions ──────────────────────────────────────────────────────
+
+    private const string RequiredActionClaimType = "required_action";
+
+    public async Task<(bool Success, string[] Errors)> AddRequiredActionAsync(
+        string userId, string action, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        // Avoid duplicates
+        var existing = await _userManager.GetClaimsAsync(user);
+        if (existing.Any(c => c.Type == RequiredActionClaimType && c.Value == action))
+            return (true, []);
+
+        var result = await _userManager.AddClaimAsync(
+            user, new System.Security.Claims.Claim(RequiredActionClaimType, action));
+
+        if (!result.Succeeded)
+            return (false, result.Errors.Select(e => e.Description).ToArray());
+
+        _logger.LogInformation("Required action '{Action}' added for user {UserId}.", action, userId);
+        return (true, []);
+    }
+
+    public async Task<(bool Success, string[] Errors)> RemoveRequiredActionAsync(
+        string userId, string action, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        var result = await _userManager.RemoveClaimAsync(
+            user, new System.Security.Claims.Claim(RequiredActionClaimType, action));
+
+        if (!result.Succeeded)
+            return (false, result.Errors.Select(e => e.Description).ToArray());
+
+        _logger.LogInformation("Required action '{Action}' removed for user {UserId}.", action, userId);
+        return (true, []);
+    }
+
+    public async Task<List<string>> GetRequiredActionsAsync(
+        string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return [];
+
+        var claims = await _userManager.GetClaimsAsync(user);
+        return claims
+            .Where(c => c.Type == RequiredActionClaimType)
+            .Select(c => c.Value)
+            .ToList();
     }
 
     public async Task<DashboardStats> GetDashboardStatsAsync(CancellationToken ct = default)

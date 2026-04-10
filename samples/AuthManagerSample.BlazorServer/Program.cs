@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Serilog;
 using Serilog.Events;
-using SampleApp.BlazorServer.Components;
+using AuthManagerSample.BlazorServer.Components;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()

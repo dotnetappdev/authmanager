@@ -109,6 +109,87 @@ else
                 </div>
             }
 
+            <!-- Required Actions (edit mode only) -->
+            @if (!IsCreate)
+            {
+                <div class="am-card">
+                    <div class="am-card-header">
+                        <h2 class="am-card-title">Required Actions</h2>
+                        <span class="am-badge am-badge-info">Enforced on next sign-in</span>
+                    </div>
+                    <div class="am-card-body">
+                        <p class="am-text-muted">
+                            Assign actions the user <strong>must complete</strong> the next time they sign in —
+                            equivalent to Keycloak's Required User Actions.
+                        </p>
+                        <div class="am-toggle-list am-mt-2">
+                            @foreach (var action in _allRequiredActions)
+                            {
+                                var isAssigned = _requiredActions.Contains(action.Key);
+                                <div class="am-toggle-item">
+                                    <div class="am-toggle-info">
+                                        <div class="am-toggle-label">@action.Value</div>
+                                        <div class="am-toggle-desc">@GetRequiredActionDesc(action.Key)</div>
+                                    </div>
+                                    <label class="am-switch">
+                                        <input type="checkbox"
+                                               checked="@isAssigned"
+                                               @onchange="@(e => ToggleRequiredAction(action.Key, (bool)e.Value!))" />
+                                        <span class="am-switch-slider"></span>
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                        @if (_requiredActions.Count > 0)
+                        {
+                            <div class="am-mt-3">
+                                <span class="am-text-muted">Active: </span>
+                                @foreach (var a in _requiredActions)
+                                {
+                                    <span class="am-tag am-tag-warning am-mr-1">@a</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Custom Attributes (edit mode only) -->
+            @if (!IsCreate)
+            {
+                <div class="am-card">
+                    <div class="am-card-header">
+                        <h2 class="am-card-title">Custom Attributes</h2>
+                        <button class="am-btn am-btn-sm am-btn-ghost" @onclick="AddAttributeRow">+ Add Attribute</button>
+                    </div>
+                    <div class="am-card-body">
+                        <p class="am-text-muted">
+                            Custom key/value metadata attached to this user.
+                            Stored as <code>custom:key</code> claims and available in JWT tokens.
+                        </p>
+                        @if (_customAttributes.Count == 0)
+                        {
+                            <p class="am-text-muted">No custom attributes. Click "Add Attribute" to add one.</p>
+                        }
+                        @foreach (var (attr, index) in _customAttributes.Select((a, i) => (a, i)))
+                        {
+                            <div class="am-claim-row">
+                                <input class="am-input" placeholder="Key (e.g. department)" @bind="attr.Key" />
+                                <input class="am-input" placeholder="Value" @bind="attr.Value" />
+                                <button class="am-btn am-btn-sm am-btn-danger am-btn-icon" @onclick="@(() => RemoveAttribute(index))">×</button>
+                            </div>
+                        }
+                        @if (_customAttributes.Count > 0)
+                        {
+                            <button class="am-btn am-btn-secondary am-mt-2" @onclick="SaveAttributes" disabled="@_savingAttributes">
+                                @if (_savingAttributes) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
+                                Save Attributes
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+
             <!-- Claims -->
             <div class="am-card">
                 <div class="am-card-header">
@@ -195,6 +276,27 @@ else
     private string[] _errors = [];
     private string _newPassword = "";
 
+    // Custom Attributes (stored as custom:key claims)
+    private List<AttributeRow> _customAttributes = [];
+    private bool _savingAttributes;
+
+    private sealed class AttributeRow
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+    }
+
+    // Required Actions
+    private HashSet<string> _requiredActions = [];
+    private static readonly Dictionary<string, string> _allRequiredActions = new()
+    {
+        ["UpdatePassword"]  = "Update Password",
+        ["VerifyEmail"]     = "Verify Email",
+        ["ConfigureTOTP"]   = "Configure Authenticator (TOTP)",
+        ["UpdateProfile"]   = "Update Profile",
+        ["AcceptTerms"]     = "Accept Terms of Service",
+    };
+
     protected override async Task OnInitializedAsync()
     {
         _allRoles = await RoleService.GetRolesAsync();
@@ -224,6 +326,19 @@ else
                 };
                 _selectedRoles = [.. _user.Roles];
                 _claims = _user.Claims.ToList();
+
+                var actions = await UserService.GetRequiredActionsAsync(UserId!);
+                _requiredActions = [.. actions];
+
+                // Load custom attributes from custom:* claims
+                _customAttributes = _user.Claims
+                    .Where(c => c.Type.StartsWith("custom:", StringComparison.OrdinalIgnoreCase))
+                    .Select(c => new AttributeRow
+                    {
+                        Key   = c.Type["custom:".Length..],
+                        Value = c.Value
+                    })
+                    .ToList();
             }
         }
 
@@ -313,4 +428,59 @@ else
 
     private void AddClaimRow() => _claims.Add(new ClaimDto());
     private void RemoveClaim(int index) => _claims.RemoveAt(index);
+
+    private async Task ToggleRequiredAction(string action, bool assign)
+    {
+        if (assign)
+        {
+            var (ok, errs) = await UserService.AddRequiredActionAsync(UserId!, action);
+            if (ok) _requiredActions.Add(action);
+            else _errors = errs;
+        }
+        else
+        {
+            var (ok, errs) = await UserService.RemoveRequiredActionAsync(UserId!, action);
+            if (ok) _requiredActions.Remove(action);
+            else _errors = errs;
+        }
+    }
+
+    private void AddAttributeRow() => _customAttributes.Add(new AttributeRow());
+    private void RemoveAttribute(int index) => _customAttributes.RemoveAt(index);
+
+    private async Task SaveAttributes()
+    {
+        _savingAttributes = true;
+        _errors = [];
+
+        try
+        {
+            // Remove all existing custom: claims
+            var user = await UserService.GetUserByIdAsync(UserId!);
+            if (user is null) return;
+
+            foreach (var claim in user.Claims.Where(c => c.Type.StartsWith("custom:", StringComparison.OrdinalIgnoreCase)))
+                await UserService.RemoveClaimAsync(UserId!, claim);
+
+            // Add the current set
+            foreach (var attr in _customAttributes.Where(a => !string.IsNullOrWhiteSpace(a.Key)))
+                await UserService.AddClaimAsync(UserId!, new ClaimDto($"custom:{attr.Key.Trim()}", attr.Value));
+
+            ToastService.Instance.Success("Custom attributes saved.");
+        }
+        finally
+        {
+            _savingAttributes = false;
+        }
+    }
+
+    private static string GetRequiredActionDesc(string action) => action switch
+    {
+        "UpdatePassword" => "Force the user to choose a new password before proceeding",
+        "VerifyEmail"    => "Send a verification link and require the user to confirm their email",
+        "ConfigureTOTP"  => "Prompt the user to set up a TOTP authenticator app (e.g. Google Authenticator)",
+        "UpdateProfile"  => "Ask the user to complete their profile information",
+        "AcceptTerms"    => "Require the user to accept the current Terms of Service",
+        _                => string.Empty
+    };
 }

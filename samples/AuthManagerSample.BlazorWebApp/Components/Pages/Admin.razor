@@ -1,0 +1,65 @@
+@page "/admin"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+<PageTitle>Admin Panel</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">
+    <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mr-2" />
+    Admin Panel
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-6">
+    This page is only accessible to users with the <strong>Admin</strong> or <strong>SuperAdmin</strong> role.
+</MudAlert>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudCard Elevation="2">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Identity Management</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.body2" Class="mb-3">
+                    Manage users, roles, claims, sessions, password policies, and more from the
+                    dedicated identity management dashboard.
+                </MudText>
+                <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                    <MudButton Href="/authmanager" Target="_blank"
+                               Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.ManageAccounts">
+                        Open Identity Manager ↗
+                    </MudButton>
+                    <MudButton Href="/authmanager/sessions" Target="_blank"
+                               Variant="Variant.Outlined" Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Devices">
+                        Active Sessions ↗
+                    </MudButton>
+                    <MudButton Href="/authmanager/security" Target="_blank"
+                               Variant="Variant.Outlined" Color="Color.Warning"
+                               StartIcon="@Icons.Material.Filled.Security">
+                        Security Settings ↗
+                    </MudButton>
+                </MudStack>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudCard Elevation="2">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Quick Stats</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Live statistics are available in the identity management dashboard at
+                    <MudLink Href="/authmanager" Target="_blank">/authmanager</MudLink>.
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>

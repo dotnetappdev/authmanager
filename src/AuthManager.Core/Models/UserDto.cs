@@ -20,6 +20,24 @@ public sealed class UserDto
     public DateTimeOffset? LastLoginAt { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<ClaimDto> Claims { get; set; } = [];
+
+    /// <summary>
+    /// Custom user attributes (Keycloak-style).
+    /// Stored as claims with a "custom:" prefix and surfaced here for easy access.
+    /// The key is the attribute name (without prefix), the value is its current value.
+    /// </summary>
+    public Dictionary<string, string> CustomAttributes { get; set; } = [];
+
+    /// <summary>
+    /// Required actions the user must complete on their next sign-in.
+    /// E.g. VerifyEmail, UpdatePassword, ConfigureTOTP.
+    /// Stored as a "required_action" claim per entry.
+    /// </summary>
+    public List<string> RequiredActions { get; set; } = [];
+
+    /// <summary>Number of currently tracked active sessions for this user.</summary>
+    public int ActiveSessionCount { get; set; }
+
     public Dictionary<string, string?> AdditionalProperties { get; set; } = [];
 }
 
@@ -72,6 +90,10 @@ public sealed class UserFilter
     public string? Role { get; set; }
     public bool? IsLockedOut { get; set; }
     public bool? EmailConfirmed { get; set; }
+    public bool? TwoFactorEnabled { get; set; }
+    public bool? HasRequiredActions { get; set; }
+    /// <summary>Filter by a specific custom attribute value. Key = attribute key, Value = value to match.</summary>
+    public Dictionary<string, string>? AttributeFilter { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;
     public string SortBy { get; set; } = "UserName";

@@ -1,0 +1,104 @@
+@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Welcome</MudText>
+<MudText Typo="Typo.body1" Class="mb-4">
+    This Blazor Web App uses ASP.NET Identity for authentication and
+    AuthManager for identity administration.
+</MudText>
+
+<AuthorizeView>
+    <Authorized>
+        <MudAlert Severity="Severity.Success" Class="mb-4">
+            Signed in as <strong>@context.User.Identity!.Name</strong>.
+            <MudLink Href="/profile">View your profile →</MudLink>
+        </MudAlert>
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1" />
+                                My Profile
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2">
+                            View and manage your account information, roles, and required actions.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/profile" Color="Color.Primary" Variant="Variant.Text">Open Profile</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Lock" Class="mr-1" />
+                                Protected Area
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2">
+                            Example content that requires authentication to access.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/protected" Color="Color.Primary" Variant="Variant.Text">Enter</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <AuthorizeView Roles="Admin,SuperAdmin">
+                <Authorized>
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard>
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">
+                                        <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mr-1" />
+                                        Administration
+                                    </MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body2">
+                                    Admin panel and full identity management UI.
+                                </MudText>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Href="/admin" Color="Color.Warning" Variant="Variant.Text">Admin Panel</MudButton>
+                                <MudButton Href="/authmanager" Color="Color.Secondary" Variant="Variant.Text" Target="_blank">Identity Manager ↗</MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                </Authorized>
+            </AuthorizeView>
+        </MudGrid>
+    </Authorized>
+
+    <NotAuthorized>
+        <MudText Typo="Typo.body1" Class="mb-4">
+            Sign in to access all features.
+        </MudText>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Href="/account/login" Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Login">
+                Sign In
+            </MudButton>
+            <MudButton Href="/account/register" Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.PersonAdd">
+                Create Account
+            </MudButton>
+        </MudStack>
+    </NotAuthorized>
+</AuthorizeView>
