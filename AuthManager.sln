@@ -12,15 +12,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthManager.AspNetCore", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthManager.SourceGenerator", "src\AuthManager.SourceGenerator\AuthManager.SourceGenerator.csproj", "{A1B2C3D4-0007-0000-0000-000000000007}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp.Mvc", "samples\SampleApp.Mvc\SampleApp.Mvc.csproj", "{A1B2C3D4-0010-0000-0000-000000000010}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthManagerSample.Mvc", "samples\AuthManagerSample.Mvc\AuthManagerSample.Mvc.csproj", "{A1B2C3D4-0010-0000-0000-000000000010}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp.MinimalApi", "samples\SampleApp.MinimalApi\SampleApp.MinimalApi.csproj", "{A1B2C3D4-0011-0000-0000-000000000011}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthManagerSample.MinimalApi", "samples\AuthManagerSample.MinimalApi\AuthManagerSample.MinimalApi.csproj", "{A1B2C3D4-0011-0000-0000-000000000011}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp.BlazorServer", "samples\SampleApp.BlazorServer\SampleApp.BlazorServer.csproj", "{A1B2C3D4-0012-0000-0000-000000000012}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthManagerSample.BlazorServer", "samples\AuthManagerSample.BlazorServer\AuthManagerSample.BlazorServer.csproj", "{A1B2C3D4-0012-0000-0000-000000000012}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp.WebApi", "samples\SampleApp.WebApi\SampleApp.WebApi.csproj", "{A1B2C3D4-0013-0000-0000-000000000013}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthManagerSample.WebApi", "samples\AuthManagerSample.WebApi\AuthManagerSample.WebApi.csproj", "{A1B2C3D4-0013-0000-0000-000000000013}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApp.BlazorWebApp", "samples\SampleApp.BlazorWebApp\SampleApp.BlazorWebApp.csproj", "{A1B2C3D4-0014-0000-0000-000000000014}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthManagerSample.BlazorWebApp", "samples\AuthManagerSample.BlazorWebApp\AuthManagerSample.BlazorWebApp.csproj", "{A1B2C3D4-0014-0000-0000-000000000014}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{F0000001-0000-0000-0000-000000000001}"
 EndProject

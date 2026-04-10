@@ -4,7 +4,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A **Keycloak-style** ASP.NET Identity management UI for .NET — inspired by how **.NET Aspire** embeds its dashboard. Drop in a NuGet package, call two methods, and navigate to `/authmanager`.
+A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET Aspire** embeds its dashboard. Drop in a NuGet package, call two methods, and navigate to `/authmanager`.
 
 ![Dashboard screenshot](docs/site/assets/img/screenshot-dashboard.png)
 
@@ -17,7 +17,8 @@ A **Keycloak-style** ASP.NET Identity management UI for .NET — inspired by how
 | **Users** | Full CRUD via MudBlazor DataGrid · Lock/unlock · Password reset · 2FA toggle · Role assignment · Claims editor |
 | **Roles** | Create / edit / delete · Assign claims to roles |
 | **Claims** | User and role claims management with type reference |
-| **Required Actions** | Keycloak-style per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
+| **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
+| **Custom Attributes** | Store arbitrary key/value attributes per user via `custom:*` claims |
 | **Security Settings** | Password Policy UI (length, complexity, history, expiry) · Brute Force Detection (max attempts, lockout duration) · Registration Policy |
 | **Active Sessions** | View all tracked sessions · Revoke individual, per-user, or all sessions at once |
 | **JWT** | Configure issuer, audience, expiry, algorithm · Test token generator |
@@ -155,13 +156,13 @@ AuthManager ships an `ISessionService` (in-memory by default). Call `TrackSessio
 // In your login action / minimal API handler
 var session = new SessionInfo
 {
-    SessionId       = Guid.NewGuid().ToString(),
-    UserId          = user.Id,
-    UserName        = user.UserName!,
-    CreatedAt       = DateTimeOffset.UtcNow,
-    LastActiveAt    = DateTimeOffset.UtcNow,
-    IpAddress       = HttpContext.Connection.RemoteIpAddress?.ToString(),
-    UserAgent       = Request.Headers.UserAgent,
+    SessionId         = Guid.NewGuid().ToString(),
+    UserId            = user.Id,
+    UserName          = user.UserName!,
+    CreatedAt         = DateTimeOffset.UtcNow,
+    LastActiveAt      = DateTimeOffset.UtcNow,
+    IpAddress         = HttpContext.Connection.RemoteIpAddress?.ToString(),
+    UserAgent         = Request.Headers.UserAgent,
     DeviceDescription = "Chrome on Windows",  // parse yourself or use a UA library
 };
 await sessionService.TrackSessionAsync(session);
@@ -174,9 +175,11 @@ For distributed deployments, replace the in-memory store:
 services.AddSingleton<ISessionService, RedisSessionService>();
 ```
 
+---
+
 ## Required Actions
 
-Assign actions users must complete on their **next sign-in** — works like Keycloak's Required User Actions:
+Assign actions users must complete on their **next sign-in**:
 
 ```csharp
 // Force a user to set up TOTP on next login
@@ -197,6 +200,33 @@ var requiredActions = user.Claims
 
 if (requiredActions.Contains("UpdatePassword"))
     return RedirectToAction("ForcePasswordChange");
+```
+
+---
+
+## Custom User Attributes
+
+Store arbitrary key/value data per user via `custom:*` claims — accessible from the **Users → Edit User → Custom Attributes** panel or programmatically:
+
+```csharp
+// Add a custom attribute
+await userManager.AddClaimAsync(user, new Claim("custom:department", "Engineering"));
+
+// Read custom attributes
+var claims = await userManager.GetClaimsAsync(user);
+var attributes = claims
+    .Where(c => c.Type.StartsWith("custom:", StringComparison.OrdinalIgnoreCase))
+    .ToDictionary(c => c.Type["custom:".Length..], c => c.Value);
+```
+
+---
+
+## Password History
+
+AuthManager enforces password history automatically when `PasswordPolicy.PasswordHistoryCount > 0`. Previous password hashes are stored as `password_history` claims and checked on every password reset:
+
+```csharp
+options.PasswordPolicy.PasswordHistoryCount = 5;  // reject last 5 passwords
 ```
 
 ---
@@ -292,16 +322,27 @@ options.LogViewer.LiveUpdateIntervalMs  = 2000;
 
 ## Sample Apps
 
-| App | Location |
-|-----|----------|
-| ASP.NET MVC | `samples/SampleApp.Mvc/` |
-| Minimal API | `samples/SampleApp.MinimalApi/` |
-| Blazor Server | `samples/SampleApp.BlazorServer/` |
+| App | Location | Description |
+|-----|----------|-------------|
+| ASP.NET MVC | `samples/AuthManagerSample.Mvc/` | Classic MVC app with Identity + AuthManager admin UI |
+| Minimal API | `samples/AuthManagerSample.MinimalApi/` | Minimal API with AuthManager embedded |
+| Blazor Server | `samples/AuthManagerSample.BlazorServer/` | Blazor Server app wired to AuthManager |
+| **Web API + JWT** | `samples/AuthManagerSample.WebApi/` | .NET 10 REST API with JWT auth, refresh tokens, and AuthManager at `/authmanager` |
+| **Blazor Web App** | `samples/AuthManagerSample.BlazorWebApp/` | .NET 10 Blazor Web App (SSR + interactive) with cookie auth, login/register/profile pages, and AuthManager admin panel |
 
 ```bash
-cd samples/SampleApp.Mvc
+# Run the JWT Web API sample
+cd samples/AuthManagerSample.WebApi
 dotnet run
-# Open https://localhost:5001/authmanager
+# POST /register  POST /login  GET /me  GET /products/premium
+# Open https://localhost:5001/authmanager for the admin UI
+
+# Run the Blazor Web App sample
+cd samples/AuthManagerSample.BlazorWebApp
+dotnet run
+# Open https://localhost:5002
+# Register → Login → /profile shows roles, required actions, custom attributes
+# Admin users can navigate to /authmanager
 ```
 
 ---
@@ -383,9 +424,11 @@ src/
   AuthManager.AspNetCore/     DI extensions, service implementations, seeder
   AuthManager.SourceGenerator/ Roslyn scaffolding (optional)
 samples/
-  SampleApp.Mvc/
-  SampleApp.MinimalApi/
-  SampleApp.BlazorServer/
+  AuthManagerSample.Mvc/
+  AuthManagerSample.MinimalApi/
+  AuthManagerSample.BlazorServer/
+  AuthManagerSample.WebApi/        ← .NET 10, JWT REST API
+  AuthManagerSample.BlazorWebApp/  ← .NET 10, Blazor Web App
 docs/
   site/                       GitHub Pages static site
 ```

@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using SampleApp.WebApi.Data;
-using SampleApp.WebApi.Endpoints;
-using SampleApp.WebApi.Services;
+using AuthManagerSample.WebApi.Data;
+using AuthManagerSample.WebApi.Endpoints;
+using AuthManagerSample.WebApi.Services;
 using Serilog;
 using Serilog.Events;
 

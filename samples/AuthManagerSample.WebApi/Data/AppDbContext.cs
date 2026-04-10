@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace SampleApp.WebApi.Data;
+namespace AuthManagerSample.WebApi.Data;
 
 /// <summary>
 /// The host app's DbContext — AuthManager uses this directly via UserManager/RoleManager.

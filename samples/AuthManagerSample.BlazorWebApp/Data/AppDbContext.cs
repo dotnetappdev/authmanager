@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace SampleApp.BlazorWebApp.Data;
+namespace AuthManagerSample.BlazorWebApp.Data;
 
 /// <summary>
 /// The host app's DbContext — AuthManager uses this via UserManager/RoleManager.

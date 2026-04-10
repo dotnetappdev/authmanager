@@ -6,9 +6,9 @@ using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using SampleApp.WebApi.Models;
+using AuthManagerSample.WebApi.Models;
 
-namespace SampleApp.WebApi.Services;
+namespace AuthManagerSample.WebApi.Services;
 
 /// <summary>
 /// Issues and validates JWT access tokens + opaque refresh tokens.

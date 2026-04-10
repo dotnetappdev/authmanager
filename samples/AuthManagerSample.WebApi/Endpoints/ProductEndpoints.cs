@@ -1,7 +1,7 @@
 using System.Security.Claims;
-using SampleApp.WebApi.Models;
+using AuthManagerSample.WebApi.Models;
 
-namespace SampleApp.WebApi.Endpoints;
+namespace AuthManagerSample.WebApi.Endpoints;
 
 /// <summary>
 /// Example domain endpoints that demonstrate role-based authorization.

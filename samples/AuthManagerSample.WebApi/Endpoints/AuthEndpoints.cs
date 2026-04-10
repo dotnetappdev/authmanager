@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
-using SampleApp.WebApi.Models;
-using SampleApp.WebApi.Services;
+using AuthManagerSample.WebApi.Models;
+using AuthManagerSample.WebApi.Services;
 
-namespace SampleApp.WebApi.Endpoints;
+namespace AuthManagerSample.WebApi.Endpoints;
 
 public static class AuthEndpoints
 {

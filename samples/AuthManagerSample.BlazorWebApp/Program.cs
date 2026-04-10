@@ -3,8 +3,8 @@ using AuthManager.Core.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
-using SampleApp.BlazorWebApp.Components;
-using SampleApp.BlazorWebApp.Data;
+using AuthManagerSample.BlazorWebApp.Components;
+using AuthManagerSample.BlazorWebApp.Data;
 using Serilog;
 using Serilog.Events;
 

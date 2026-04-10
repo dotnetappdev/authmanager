@@ -1,4 +1,4 @@
-namespace SampleApp.WebApi.Models;
+namespace AuthManagerSample.WebApi.Models;
 
 public sealed record RegisterRequest(string Email, string Password, string? DisplayName = null);
 
