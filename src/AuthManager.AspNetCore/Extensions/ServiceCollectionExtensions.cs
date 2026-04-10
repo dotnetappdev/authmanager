@@ -72,10 +72,12 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ILogAggregationService>(
             sp => sp.GetRequiredService<LogAggregationService>());
 
-        // DB-backed audit, security-policy, and session services
+        // DB-backed audit, security-policy, session, field, and naming services
         services.TryAddSingleton<IAuditService, PersistentAuditService>();
         services.TryAddSingleton<ISessionService, PersistentSessionService>();
         services.TryAddSingleton<ISecurityPolicyService, PersistentSecurityPolicyService>();
+        services.TryAddSingleton<IUserFieldService, UserFieldService>();
+        services.TryAddSingleton<IEntityNamingService, EntityNamingService>();
 
         // ── Scoped (one per Blazor circuit) ──────────────────────────────────
         services.TryAddScoped<IUserManagementService, UserManagementService<TUser>>();

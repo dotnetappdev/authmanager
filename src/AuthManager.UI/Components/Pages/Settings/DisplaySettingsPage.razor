@@ -1,0 +1,207 @@
+@page "/authmanager/settings"
+@rendermode InteractiveServer
+@inject IEntityNamingService NamingService
+@inject IRoleManagementService RoleService
+@inject IAuditService AuditService
+@inject IOptions<AuthManagerOptions> Options
+
+<PageTitle>Display Settings — Auth Manager</PageTitle>
+
+<div class="am-page-header">
+    <div>
+        <h1 class="am-page-title">Display Settings</h1>
+        <p class="am-page-subtitle">
+            Customise how entities are labelled throughout the admin UI.
+            Changes are persisted immediately and reflected on the next page load.
+        </p>
+    </div>
+</div>
+
+<div class="am-form-layout">
+    <div class="am-form-main">
+
+        <!-- Entity Names -->
+        <div class="am-card">
+            <div class="am-card-header">
+                <h2 class="am-card-title">User Entity Name</h2>
+                <span class="am-badge am-badge-info">Branding</span>
+            </div>
+            <div class="am-card-body">
+                <p class="am-text-muted am-mb-3">
+                    Rename the "User" concept to match your application domain —
+                    "Member", "Customer", "Employee", "Player", etc.
+                    The name is used in page titles, breadcrumbs, and button labels.
+                </p>
+                <div class="am-form-grid">
+                    <div class="am-form-group">
+                        <label class="am-label">Singular Name</label>
+                        <input class="am-input" type="text" @bind="_singular"
+                               placeholder="User" maxlength="32" />
+                        <span class="am-input-hint">E.g. "Member", "Customer", "Employee"</span>
+                    </div>
+                    <div class="am-form-group">
+                        <label class="am-label">Plural Name</label>
+                        <input class="am-input" type="text" @bind="_plural"
+                               placeholder="Users" maxlength="32" />
+                        <span class="am-input-hint">E.g. "Members", "Customers", "Employees"</span>
+                    </div>
+                </div>
+
+                <div class="am-alert am-mt-3" style="background:var(--am-surface-2);border:1px solid var(--am-border)">
+                    Preview: <strong>@(_plural ?? "Users")</strong> list · Edit <strong>@(_singular ?? "User")</strong> · New <strong>@(_singular ?? "User")</strong>
+                </div>
+
+                <button class="am-btn am-btn-primary am-mt-3" @onclick="SaveNaming" disabled="@_savingNaming">
+                    @if (_savingNaming) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
+                    Save Names
+                </button>
+                @if (_namingSaved)
+                {
+                    <span class="am-text-success am-ml-2">✓ Saved — reload to see changes in the sidebar</span>
+                }
+            </div>
+        </div>
+
+        <!-- Admin UI Branding -->
+        <div class="am-card">
+            <div class="am-card-header">
+                <h2 class="am-card-title">Admin UI Title</h2>
+            </div>
+            <div class="am-card-body">
+                <p class="am-text-muted am-mb-3">
+                    The title shown in the sidebar header is set in <code>AddAuthManager()</code>
+                    via <code>options.Title</code>. Current value:
+                </p>
+                <div class="am-form-group">
+                    <label class="am-label">Current Title</label>
+                    <input class="am-input" type="text" value="@Options.Value.Title" disabled />
+                    <span class="am-input-hint">
+                        Change in <code>Program.cs</code>:
+                        <code>options.Title = "My App Admin";</code>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Default Role Names -->
+        <div class="am-card">
+            <div class="am-card-header">
+                <h2 class="am-card-title">Existing Roles</h2>
+                <span class="am-badge">@_roles.Count total</span>
+            </div>
+            <div class="am-card-body">
+                <p class="am-text-muted am-mb-3">
+                    Roles are managed in the <a href="/authmanager/roles" class="am-link">Roles</a> section.
+                    To rename a role, edit it there. Below is a read-only overview.
+                </p>
+                @if (_roles.Count == 0)
+                {
+                    <p class="am-text-muted">No roles defined yet.</p>
+                }
+                else
+                {
+                    <div class="am-tag-list">
+                        @foreach (var role in _roles)
+                        {
+                            <a href="/authmanager/roles/@role.Id" class="am-tag am-tag-primary">
+                                @role.Name
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- SuperAdmin Role Config -->
+        <div class="am-card">
+            <div class="am-card-header">
+                <h2 class="am-card-title">Admin UI Access Role</h2>
+            </div>
+            <div class="am-card-body">
+                <p class="am-text-muted am-mb-2">
+                    Only users in this role can access the Auth Manager admin UI.
+                    Change in <code>Program.cs</code>:
+                </p>
+                <div class="am-form-group">
+                    <label class="am-label">Current SuperAdmin Role</label>
+                    <input class="am-input" type="text" value="@Options.Value.SuperAdminRole" disabled />
+                    <span class="am-input-hint">
+                        <code>options.SuperAdminRole = "@Options.Value.SuperAdminRole";</code>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="am-form-aside">
+        <div class="am-card">
+            <div class="am-card-header"><h2 class="am-card-title">Quick Links</h2></div>
+            <div class="am-card-body am-actions-card">
+                <a href="/authmanager/userfields" class="am-btn am-btn-ghost am-btn-full">
+                    🏷️ Custom Field Definitions
+                </a>
+                <a href="/authmanager/roles" class="am-btn am-btn-ghost am-btn-full">
+                    ⭐ Manage Roles
+                </a>
+                <a href="/authmanager/security" class="am-btn am-btn-ghost am-btn-full">
+                    🔒 Security Settings
+                </a>
+            </div>
+        </div>
+
+        <div class="am-card">
+            <div class="am-card-header"><h2 class="am-card-title">Startup Config</h2></div>
+            <div class="am-card-body">
+                <p class="am-text-muted" style="font-size:0.8rem">
+                    Some settings (title, SuperAdmin role) can only be changed in
+                    <code>Program.cs</code> via <code>AddAuthManager(options =&gt; …)</code>
+                    because they affect authentication at startup.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _singular = "User";
+    private string _plural   = "Users";
+    private bool _savingNaming;
+    private bool _namingSaved;
+    private List<RoleDto> _roles = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _singular = NamingService.GetUserDisplayName();
+        _plural   = NamingService.GetUsersDisplayName();
+
+        var paged = await RoleService.GetRolesAsync(1, 100);
+        _roles    = paged.Items.ToList();
+    }
+
+    private async Task SaveNaming()
+    {
+        if (string.IsNullOrWhiteSpace(_singular)) _singular = "User";
+        if (string.IsNullOrWhiteSpace(_plural))   _plural   = "Users";
+
+        _savingNaming = true;
+        await NamingService.SaveNamingAsync(_singular, _plural);
+
+        await AuditService.RecordAsync(new AuditEntry
+        {
+            Action     = "EntityNamingUpdated",
+            EntityType = "DisplaySettings",
+            EntityId   = "entity_naming",
+            NewValues  = new Dictionary<string, object?>
+            {
+                ["UserSingular"] = _singular,
+                ["UserPlural"]   = _plural,
+            },
+            Success = true
+        });
+
+        ToastService.Instance.Success("Display names saved.");
+        _namingSaved  = true;
+        _savingNaming = false;
+    }
+}

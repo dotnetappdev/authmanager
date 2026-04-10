@@ -110,6 +110,19 @@ public sealed class AuthManagerOptions
     public WebhookOptions Webhooks { get; set; } = new();
 
     /// <summary>
+    /// Singular display name for the user entity shown throughout the admin UI.
+    /// E.g. "User" (default), "Member", "Customer", "Employee".
+    /// Overridable at runtime via /authmanager/settings.
+    /// </summary>
+    public string UserEntityDisplayName { get; set; } = "User";
+
+    /// <summary>
+    /// Plural display name for the user entity.
+    /// E.g. "Users" (default), "Members", "Customers", "Employees".
+    /// </summary>
+    public string UserEntityPluralDisplayName { get; set; } = "Users";
+
+    /// <summary>
     /// Connection string for AuthManager's own internal database
     /// (stores audit entries, sessions, and settings overrides).
     /// Defaults to a local <c>authmanager.db</c> SQLite file.

@@ -1,5 +1,6 @@
 @inject NavigationManager Nav
 @inject IOptions<AuthManagerOptions> Options
+@inject IEntityNamingService Naming
 
 <MudDrawer Open="true" Elevation="0" Variant="DrawerVariant.Persistent" ClipMode="DrawerClipMode.Always"
            Class="am-sidebar">
@@ -23,7 +24,7 @@
 
         <MudText Typo="Typo.overline" Class="am-nav-section-label">Identity</MudText>
         <MudNavLink Href="@Prefix("users")" Icon="@Icons.Material.Filled.People">
-            Users
+            @Naming.GetUsersDisplayName()
         </MudNavLink>
         <MudNavLink Href="@Prefix("roles")" Icon="@Icons.Material.Filled.Stars">
             Roles
@@ -41,6 +42,14 @@
         </MudNavLink>
         <MudNavLink Href="@Prefix("sessions")" Icon="@Icons.Material.Filled.Devices">
             Active Sessions
+        </MudNavLink>
+
+        <MudText Typo="Typo.overline" Class="am-nav-section-label">Customisation</MudText>
+        <MudNavLink Href="@Prefix("userfields")" Icon="@Icons.Material.Filled.DynamicForm">
+            User Fields
+        </MudNavLink>
+        <MudNavLink Href="@Prefix("settings")" Icon="@Icons.Material.Filled.Tune">
+            Display Settings
         </MudNavLink>
 
         <MudText Typo="Typo.overline" Class="am-nav-section-label">Security</MudText>

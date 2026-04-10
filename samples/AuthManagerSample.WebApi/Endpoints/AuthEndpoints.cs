@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using AuthManagerSample.WebApi.Identity;
 using AuthManagerSample.WebApi.Models;
 using AuthManagerSample.WebApi.Services;
 
@@ -36,13 +37,13 @@ public static class AuthEndpoints
 
     private static async Task<IResult> Register(
         RegisterRequest req,
-        UserManager<IdentityUser> users)
+        UserManager<ApplicationUser> users)
     {
         var existing = await users.FindByEmailAsync(req.Email);
         if (existing is not null)
             return Results.Conflict(new MessageResponse("An account with that email already exists."));
 
-        var user = new IdentityUser
+        var user = new ApplicationUser
         {
             UserName       = req.DisplayName ?? req.Email.Split('@')[0],
             Email          = req.Email,
@@ -90,7 +91,7 @@ public static class AuthEndpoints
 
     private static async Task<IResult> Me(
         ClaimsPrincipal principal,
-        UserManager<IdentityUser> users)
+        UserManager<ApplicationUser> users)
     {
         var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
                   ?? principal.FindFirstValue("sub");

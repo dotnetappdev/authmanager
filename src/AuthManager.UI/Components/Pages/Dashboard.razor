@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @inject IUserManagementService UserService
 @inject ISessionService SessionService
+@inject IEntityNamingService Naming
 @inject IOptions<AuthManagerOptions> Options
 
 <PageTitle>Dashboard — @Options.Value.Title</PageTitle>
@@ -27,7 +28,7 @@ else if (_stats != null)
                         <MudIcon Icon="@Icons.Material.Filled.Group" Class="am-stat-icon am-stat-blue" Size="Size.Large" />
                         <div>
                             <MudText Typo="Typo.h4" Class="am-stat-value">@_stats.TotalUsers.ToString("N0")</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Total Users</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Total @Naming.GetUsersDisplayName()</MudText>
                         </div>
                     </div>
                 </MudCardContent>
@@ -130,7 +131,7 @@ else if (_stats != null)
                     <MudStack Spacing="2">
                         <MudButton Href="@("/authmanager/users")" Variant="Variant.Outlined" Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.People" FullWidth="true" Class="justify-start">
-                            Manage Users
+                            Manage @Naming.GetUsersDisplayName()
                         </MudButton>
                         <MudButton Href="@("/authmanager/roles")" Variant="Variant.Outlined" Color="Color.Secondary"
                                    StartIcon="@Icons.Material.Filled.Stars" FullWidth="true" Class="justify-start">
@@ -193,7 +194,8 @@ else if (_stats != null)
                     else
                     {
                         <MudAlert Severity="Severity.Info">
-                            No users yet. <MudLink Href="/authmanager/users">Create the first user</MudLink>.
+                            No @Naming.GetUsersDisplayName().ToLower() yet.
+                            <MudLink Href="/authmanager/users">Create the first @Naming.GetUserDisplayName().ToLower()</MudLink>.
                         </MudAlert>
                     }
                 </MudCardContent>

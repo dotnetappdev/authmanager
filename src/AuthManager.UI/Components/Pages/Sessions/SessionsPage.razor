@@ -11,13 +11,10 @@
     <div>
         <MudText Typo="Typo.h4">Active Sessions</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">
-            View and revoke live user sessions — live session tracking
+            @_totalCount active session@(_totalCount == 1 ? "" : "s") — view and revoke live user sessions
         </MudText>
     </div>
     <MudStack Row="true" Spacing="2">
-        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="align-self-center">
-            @_totalCount active session@(_totalCount == 1 ? "" : "s")
-        </MudText>
         <MudButton Variant="Variant.Outlined" Color="Color.Warning"
                    StartIcon="@Icons.Material.Filled.LogoutOutlined"
                    OnClick="RevokeAllSessions"
@@ -29,125 +26,155 @@
     </MudStack>
 </MudStack>
 
-@if (_loading)
-{
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
-}
-
 <MudCard Elevation="0" Class="am-card-border">
     <MudCardContent Class="pa-0">
-        @if (!_loading && _sessions.Count == 0)
-        {
-            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
-                <MudIcon Icon="@Icons.Material.Filled.DesktopAccessDisabled" Size="Size.Large" Color="Color.Secondary" />
-                <MudText Typo="Typo.h6" Color="Color.Secondary">No active sessions</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    Sessions appear here once users sign in. Tracked sessions require
-                    <code>ISessionService.TrackSessionAsync()</code> to be called in your auth pipeline.
-                </MudText>
-            </MudStack>
-        }
-        else
-        {
-            <MudTable T="SessionInfo" Items="_sessions" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm"
-                      Loading="@_loading" Class="am-data-grid" Elevation="0">
-                <HeaderContent>
-                    <MudTh>User</MudTh>
-                    <MudTh>IP Address</MudTh>
-                    <MudTh>Device / Browser</MudTh>
-                    <MudTh>Started</MudTh>
-                    <MudTh>Last Active</MudTh>
-                    <MudTh>Expires</MudTh>
-                    <MudTh>Actions</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>
+        <MudDataGrid T="SessionInfo"
+                     Items="_sessions"
+                     @ref="_grid"
+                     Dense="true"
+                     Hover="true"
+                     Filterable="true"
+                     FilterMode="DataGridFilterMode.ColumnFilterRow"
+                     ShowColumnOptions="true"
+                     SortMode="SortMode.Single"
+                     Loading="@_loading"
+                     RowsPerPage="25"
+                     Class="am-data-grid">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_searchText" Placeholder="Search by username or IP..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium" Immediate="true" DebounceInterval="300"
+                              Class="mt-0" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </ToolBarContent>
+
+            <Columns>
+                <TemplateColumn T="SessionInfo" Title="User" SortBy="x => x.UserName">
+                    <CellTemplate>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudAvatar Color="Color.Primary" Size="Size.Small" Class="am-avatar-initial">
-                                @GetInitials(context.UserName)
+                                @GetInitials(context.Item.UserName)
                             </MudAvatar>
                             <div>
-                                <MudText Typo="Typo.body2" Class="font-weight-medium">@context.UserName</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.UserId[..Math.Min(8, context.UserId.Length)]…</MudText>
+                                <MudText Typo="Typo.body2" Class="font-weight-medium">@context.Item.UserName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @context.Item.UserId[..Math.Min(8, context.Item.UserId.Length)]…
+                                </MudText>
                             </div>
-                            @if (context.IsCurrent)
+                            @if (context.Item.IsCurrent)
                             {
                                 <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Current</MudChip>
                             }
                         </MudStack>
-                    </MudTd>
-                    <MudTd>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <PropertyColumn T="SessionInfo" TProperty="string?" Property="x => x.IpAddress"
+                                Title="IP Address" Sortable="true">
+                    <CellTemplate>
                         <MudStack Spacing="0">
-                            <MudText Typo="Typo.body2">@(context.IpAddress ?? "—")</MudText>
-                            @if (!string.IsNullOrEmpty(context.CountryCode))
+                            <MudText Typo="Typo.body2">@(context.Item.IpAddress ?? "—")</MudText>
+                            @if (!string.IsNullOrEmpty(context.Item.CountryCode))
                             {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.CountryCode</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Item.CountryCode</MudText>
                             }
                         </MudStack>
-                    </MudTd>
-                    <MudTd>
-                        <MudTooltip Text="@context.UserAgent">
-                            <MudText Typo="Typo.body2">@(context.DeviceDescription ?? TruncateUserAgent(context.UserAgent))</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <TemplateColumn T="SessionInfo" Title="Device / Browser" Sortable="false">
+                    <CellTemplate>
+                        <MudTooltip Text="@context.Item.UserAgent">
+                            <MudText Typo="Typo.body2">
+                                @(context.Item.DeviceDescription ?? TruncateUserAgent(context.Item.UserAgent))
+                            </MudText>
                         </MudTooltip>
-                    </MudTd>
-                    <MudTd>
-                        <MudTooltip Text="@context.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")">
-                            <MudText Typo="Typo.body2">@FormatRelative(context.CreatedAt)</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <PropertyColumn T="SessionInfo" TProperty="DateTimeOffset" Property="x => x.CreatedAt"
+                                Title="Started" Sortable="true" Filterable="false">
+                    <CellTemplate>
+                        <MudTooltip Text="@context.Item.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")">
+                            <MudText Typo="Typo.body2">@FormatRelative(context.Item.CreatedAt)</MudText>
                         </MudTooltip>
-                    </MudTd>
-                    <MudTd>
-                        <MudTooltip Text="@context.LastActiveAt.ToString("yyyy-MM-dd HH:mm:ss UTC")">
-                            <MudText Typo="Typo.body2">@FormatRelative(context.LastActiveAt)</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <PropertyColumn T="SessionInfo" TProperty="DateTimeOffset" Property="x => x.LastActiveAt"
+                                Title="Last Active" Sortable="true" Filterable="false">
+                    <CellTemplate>
+                        <MudTooltip Text="@context.Item.LastActiveAt.ToString("yyyy-MM-dd HH:mm:ss UTC")">
+                            <MudText Typo="Typo.body2">@FormatRelative(context.Item.LastActiveAt)</MudText>
                         </MudTooltip>
-                    </MudTd>
-                    <MudTd>
-                        @if (context.ExpiresAt.HasValue)
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <TemplateColumn T="SessionInfo" Title="Expires" Sortable="false" Filterable="false">
+                    <CellTemplate>
+                        @if (context.Item.ExpiresAt.HasValue)
                         {
-                            var expired = context.ExpiresAt.Value < DateTimeOffset.UtcNow;
+                            var expired = context.Item.ExpiresAt.Value < DateTimeOffset.UtcNow;
                             <MudChip T="string" Size="Size.Small"
                                      Color="@(expired ? Color.Error : Color.Default)"
                                      Variant="Variant.Outlined">
-                                @(expired ? "Expired" : FormatRelative(context.ExpiresAt.Value))
+                                @(expired ? "Expired" : FormatRelative(context.Item.ExpiresAt.Value))
                             </MudChip>
                         }
                         else
                         {
                             <MudText Typo="Typo.caption" Color="Color.Secondary">—</MudText>
                         }
-                    </MudTd>
-                    <MudTd>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="SessionInfo" Title="Actions" Sortable="false" Filterable="false">
+                    <CellTemplate>
                         <MudStack Row="true" Spacing="1">
                             <MudIconButton Icon="@Icons.Material.Filled.Logout"
                                            Size="Size.Small" Color="Color.Warning" Variant="Variant.Text"
                                            Title="Revoke this session"
-                                           OnClick="@(() => RevokeSession(context))" />
+                                           OnClick="@(() => RevokeSession(context.Item))" />
                             <MudIconButton Icon="@Icons.Material.Filled.LogoutOutlined"
                                            Size="Size.Small" Color="Color.Error" Variant="Variant.Text"
                                            Title="Revoke all sessions for this user"
-                                           OnClick="@(() => RevokeUserSessions(context))" />
+                                           OnClick="@(() => RevokeUserSessions(context.Item))" />
                         </MudStack>
-                    </MudTd>
-                </RowTemplate>
-                <PagerContent>
-                    <MudTablePager />
-                </PagerContent>
-            </MudTable>
-        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+
+            <PagerContent>
+                <MudDataGridPager T="SessionInfo" />
+            </PagerContent>
+
+            <NoRecordsContent>
+                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                    <MudIcon Icon="@Icons.Material.Filled.DesktopAccessDisabled" Size="Size.Large" Color="Color.Secondary" />
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">No active sessions</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Sessions appear here once users sign in and
+                        <code>ISessionService.TrackSessionAsync()</code> is called in your auth pipeline.
+                    </MudText>
+                </MudStack>
+            </NoRecordsContent>
+        </MudDataGrid>
     </MudCardContent>
 </MudCard>
 
 @code {
+    private MudDataGrid<SessionInfo> _grid = default!;
     private List<SessionInfo> _sessions = [];
     private int _totalCount;
     private bool _loading = true;
+    private string _searchText = "";
 
     protected override async Task OnInitializedAsync() => await Refresh();
 
     private async Task Refresh()
     {
         _loading = true;
-        _sessions = (await SessionService.GetAllSessionsAsync(1, 200)).ToList();
-        _totalCount = await SessionService.GetActiveSessionCountAsync();
+        _sessions = (await SessionService.GetAllSessionsAsync(1, 500)).ToList();
+        _totalCount = _sessions.Count;
         _loading = false;
     }
 
@@ -202,7 +229,6 @@
 
         if (confirm != true) return;
 
-        // Revoke per unique user
         var userIds = _sessions.Select(s => s.UserId).Distinct().ToList();
         foreach (var uid in userIds)
             await SessionService.RevokeAllUserSessionsAsync(uid);
@@ -224,11 +250,9 @@
         string.IsNullOrEmpty(name) ? "?" :
         name.Length >= 2 ? name[..2].ToUpper() : name.ToUpper();
 
-    private static string TruncateUserAgent(string? ua)
-    {
-        if (string.IsNullOrEmpty(ua)) return "Unknown";
-        return ua.Length > 40 ? ua[..40] + "…" : ua;
-    }
+    private static string TruncateUserAgent(string? ua) =>
+        string.IsNullOrEmpty(ua) ? "Unknown" :
+        ua.Length > 40 ? ua[..40] + "…" : ua;
 
     private static string FormatRelative(DateTimeOffset dt)
     {

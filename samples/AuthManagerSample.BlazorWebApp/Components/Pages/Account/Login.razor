@@ -1,9 +1,10 @@
+@using AuthManagerSample.BlazorWebApp.Identity
 @page "/account/login"
 @* SSR (no @rendermode) so HttpContext is available for SignInManager *@
 @attribute [ExcludeFromInteractiveRouting]
 
 @using Microsoft.AspNetCore.Identity
-@inject SignInManager<IdentityUser> SignInManager
+@inject SignInManager<ApplicationUser> SignInManager
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
 

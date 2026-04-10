@@ -2,157 +2,274 @@
 @rendermode InteractiveServer
 @inject IUserManagementService UserService
 @inject IRoleManagementService RoleService
+@inject IEntityNamingService Naming
+@inject ISnackbar Snackbar
 
 <PageTitle>Claims — Auth Manager</PageTitle>
 
-<div class="am-page-header">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
     <div>
-        <h1 class="am-page-title">Claims</h1>
-        <p class="am-page-subtitle">Manage claims for users and roles</p>
+        <MudText Typo="Typo.h4">Claims</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Manage claims for @Naming.GetUsersDisplayName().ToLower() and roles
+        </MudText>
     </div>
-</div>
+</MudStack>
 
-<div class="am-tab-bar">
-    <button class="am-tab @(_activeTab == "users" ? "am-tab-active" : "")" @onclick="@(() => SetTab("users"))">
-        User Claims
-    </button>
-    <button class="am-tab @(_activeTab == "roles" ? "am-tab-active" : "")" @onclick="@(() => SetTab("roles"))">
-        Role Claims
-    </button>
-    <button class="am-tab @(_activeTab == "types" ? "am-tab-active" : "")" @onclick="@(() => SetTab("types"))">
-        Claim Types Reference
-    </button>
-</div>
+<MudTabs Elevation="0" Rounded="false" PanelClass="pt-4" @bind-ActivePanelIndex="_activeTab">
 
-@if (_activeTab == "users")
-{
-    <div class="am-card">
-        <div class="am-card-header">
-            <h2 class="am-card-title">User Claims</h2>
-            <div class="am-search-box am-search-box-sm">
-                <input class="am-search-input" placeholder="Search users..." @bind="_userSearch" @bind:event="oninput" />
-            </div>
-        </div>
-        <div class="am-card-body">
-            @if (_usersLoading)
-            {
-                <Spinner />
-            }
-            else
-            {
-                <p class="am-text-muted am-mb-3">Click on a user to view and manage their claims.</p>
-                <div class="am-user-claim-list">
-                    @foreach (var user in FilteredUsers)
-                    {
-                        <div class="am-user-claim-item @(_selectedUserId == user.Id ? "am-selected" : "")"
-                             @onclick="@(() => SelectUser(user))">
-                            <div class="am-avatar am-avatar-sm">@GetInitials(user.UserName)</div>
-                            <div class="am-user-claim-info">
-                                <div class="am-user-name">@user.UserName</div>
-                                <div class="am-user-claim-count">@user.Claims.Count claim(s)</div>
-                            </div>
-                            <div class="am-tags">
-                                @foreach (var claim in user.Claims.Take(3))
-                                {
-                                    <span class="am-tag">@claim.Type</span>
-                                }
-                                @if (user.Claims.Count > 3)
-                                {
-                                    <span class="am-tag am-tag-more">+@(user.Claims.Count - 3)</span>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
+    <!-- User Claims -->
+    <MudTabPanel Text="User Claims" Icon="@Icons.Material.Filled.Person">
+        <MudGrid Spacing="3">
+            <!-- User picker -->
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardContent Class="pa-0">
+                        <MudDataGrid T="UserDto"
+                                     Items="@FilteredUsers"
+                                     @ref="_userGrid"
+                                     Dense="true"
+                                     Hover="true"
+                                     Filterable="true"
+                                     FilterMode="DataGridFilterMode.ColumnFilterRow"
+                                     SortMode="SortMode.Single"
+                                     ShowColumnOptions="false"
+                                     RowsPerPage="15"
+                                     Loading="_usersLoading"
+                                     RowClass="@(u => _selectedUserId == u.Id ? "mud-selected-item" : "")"
+                                     RowClick="OnRowClick"
+                                     Class="am-data-grid">
+                            <ToolBarContent>
+                                <MudTextField @bind-Value="_userSearch" Placeholder="Search @Naming.GetUsersDisplayName().ToLower()..."
+                                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                              Immediate="true" DebounceInterval="300"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-0" />
+                            </ToolBarContent>
+                            <Columns>
+                                <TemplateColumn T="UserDto" Title="@Naming.GetUserDisplayName()" SortBy="x => x.UserName">
+                                    <CellTemplate>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudAvatar Color="Color.Primary" Size="Size.Small" Class="am-avatar-initial">
+                                                @GetInitials(context.Item.UserName)
+                                            </MudAvatar>
+                                            <div>
+                                                <MudText Typo="Typo.body2" Class="font-weight-medium">@context.Item.UserName</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                    @context.Item.Claims.Count claim(s)
+                                                </MudText>
+                                            </div>
+                                        </MudStack>
+                                    </CellTemplate>
+                                </TemplateColumn>
+                            </Columns>
+                            <PagerContent><MudDataGridPager T="UserDto" /></PagerContent>
+                        </MudDataGrid>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
 
-                @if (_selectedUser != null)
+            <!-- Claim editor for selected user -->
+            <MudItem xs="12" md="8">
+                @if (_selectedUser is null)
                 {
-                    <div class="am-claim-editor">
-                        <div class="am-claim-editor-header">
-                            <h3>Claims for @_selectedUser.UserName</h3>
-                            <button class="am-btn am-btn-sm am-btn-primary" @onclick="AddUserClaim">+ Add Claim</button>
-                        </div>
-                        @foreach (var claim in _selectedUser.Claims)
-                        {
-                            <div class="am-claim-row">
-                                <span class="am-tag">@claim.Type</span>
-                                <span class="am-claim-value">@claim.Value</span>
-                                <button class="am-btn am-btn-sm am-btn-danger" @onclick="@(() => RemoveUserClaim(claim))">Remove</button>
-                            </div>
-                        }
-                        @if (_addingClaim)
-                        {
-                            <div class="am-claim-add-form">
-                                <input class="am-input" placeholder="Claim type" @bind="_newClaimType" />
-                                <input class="am-input" placeholder="Claim value" @bind="_newClaimValue" />
-                                <button class="am-btn am-btn-primary am-btn-sm" @onclick="SaveUserClaim">Add</button>
-                                <button class="am-btn am-btn-ghost am-btn-sm" @onclick="@(() => _addingClaim = false)">Cancel</button>
-                            </div>
-                        }
-                    </div>
+                    <MudCard Elevation="0" Class="am-card-border">
+                        <MudCardContent>
+                            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                                <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Large" Color="Color.Secondary" />
+                                <MudText Typo="Typo.h6" Color="Color.Secondary">
+                                    Select a @Naming.GetUserDisplayName().ToLower() to manage their claims
+                                </MudText>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
                 }
-            }
-        </div>
-    </div>
-}
-else if (_activeTab == "roles")
-{
-    <div class="am-card">
-        <div class="am-card-header"><h2 class="am-card-title">Role Claims</h2></div>
-        <div class="am-card-body">
-            @if (_rolesLoading) { <Spinner /> }
-            else
-            {
-                @foreach (var role in _roles)
+                else
                 {
-                    <div class="am-role-claim-section">
-                        <div class="am-role-claim-header">
-                            <span class="am-role-name">@role.Name</span>
-                            <span class="am-badge am-badge-ghost">@role.Claims.Count claims</span>
-                        </div>
-                        <div class="am-tags">
-                            @foreach (var claim in role.Claims)
-                            {
-                                <span class="am-tag">@claim.Type: @claim.Value</span>
-                            }
-                            @if (role.Claims.Count == 0)
-                            {
-                                <span class="am-text-muted">No claims. <a href="/authmanager/roles/@role.Id">Add via Role editor</a>.</span>
-                            }
-                        </div>
-                    </div>
-                }
-            }
-        </div>
-    </div>
-}
-else
-{
-    <div class="am-card">
-        <div class="am-card-header"><h2 class="am-card-title">Common Claim Types</h2></div>
-        <div class="am-card-body">
-            <p class="am-text-muted am-mb-3">Standard and well-known claim types for your reference.</p>
-            <table class="am-table">
-                <thead>
-                    <tr><th>Type</th><th>Description</th><th>Example</th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var (type, desc, example) in ClaimReference)
+                    <MudCard Elevation="0" Class="am-card-border">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Claims for @_selectedUser.UserName</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Add"
+                                           OnClick="() => _addingClaim = true">
+                                    Add Claim
+                                </MudButton>
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent Class="pa-0">
+                            <MudDataGrid T="ClaimDto"
+                                         Items="_selectedUser.Claims"
+                                         Dense="true"
+                                         Hover="true"
+                                         Filterable="true"
+                                         FilterMode="DataGridFilterMode.ColumnFilterRow"
+                                         ShowColumnOptions="true"
+                                         SortMode="SortMode.Single"
+                                         RowsPerPage="20"
+                                         Class="am-data-grid">
+                                <Columns>
+                                    <PropertyColumn T="ClaimDto" TProperty="string" Property="x => x.Type"
+                                                    Title="Type" Sortable="true" />
+                                    <PropertyColumn T="ClaimDto" TProperty="string" Property="x => x.Value"
+                                                    Title="Value" Sortable="true" />
+                                    <TemplateColumn T="ClaimDto" Title="" Sortable="false" Filterable="false">
+                                        <CellTemplate>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Size="Size.Small" Color="Color.Error" Variant="Variant.Text"
+                                                           Title="Remove claim"
+                                                           OnClick="@(() => RemoveUserClaim(context.Item))" />
+                                        </CellTemplate>
+                                    </TemplateColumn>
+                                </Columns>
+                                <PagerContent><MudDataGridPager T="ClaimDto" /></PagerContent>
+                                <NoRecordsContent>
+                                    <MudStack AlignItems="AlignItems.Center" Class="pa-4">
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">No claims assigned.</MudText>
+                                    </MudStack>
+                                </NoRecordsContent>
+                            </MudDataGrid>
+                        </MudCardContent>
+                    </MudCard>
+
+                    @if (_addingClaim)
                     {
-                        <tr>
-                            <td><code>@type</code></td>
-                            <td>@desc</td>
-                            <td><span class="am-tag">@example</span></td>
-                        </tr>
+                        <MudCard Elevation="0" Class="am-card-border mt-4">
+                            <MudCardHeader>
+                                <CardHeaderContent><MudText Typo="Typo.h6">Add New Claim</MudText></CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudGrid>
+                                    <MudItem xs="12" sm="5">
+                                        <MudTextField @bind-Value="_newClaimType" Label="Claim Type"
+                                                      Placeholder="e.g. permission"
+                                                      Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="5">
+                                        <MudTextField @bind-Value="_newClaimValue" Label="Claim Value"
+                                                      Placeholder="e.g. read:reports"
+                                                      Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="2" Class="d-flex align-center gap-2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                                   OnClick="SaveUserClaim">Add</MudButton>
+                                        <MudButton Variant="Variant.Text"
+                                                   OnClick="() => _addingClaim = false">Cancel</MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCardContent>
+                        </MudCard>
                     }
-                </tbody>
-            </table>
-        </div>
-    </div>
-}
+                }
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    <!-- Role Claims -->
+    <MudTabPanel Text="Role Claims" Icon="@Icons.Material.Filled.Stars">
+        @if (_rolesLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            @foreach (var role in _roles)
+            {
+                <MudCard Elevation="0" Class="am-card-border mb-3">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudAvatar Color="Color.Secondary" Size="Size.Small">
+                                    <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" />
+                                </MudAvatar>
+                                <MudText Typo="Typo.h6">@role.Name</MudText>
+                                <MudChip T="string" Size="Size.Small">@role.Claims.Count claims</MudChip>
+                            </MudStack>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudButton Href="@($"/authmanager/roles/{role.Id}")" Variant="Variant.Text"
+                                       Size="Size.Small" Color="Color.Primary"
+                                       EndIcon="@Icons.Material.Filled.ArrowForward">
+                                Edit Role
+                            </MudButton>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    @if (role.Claims.Any())
+                    {
+                        <MudCardContent Class="pt-0">
+                            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                                @foreach (var claim in role.Claims)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                                        @claim.Type: @claim.Value
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        </MudCardContent>
+                    }
+                    else
+                    {
+                        <MudCardContent Class="pt-0">
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                No claims. <MudLink Href="@($"/authmanager/roles/{role.Id}")">Add via Role editor</MudLink>.
+                            </MudText>
+                        </MudCardContent>
+                    }
+                </MudCard>
+            }
+        }
+    </MudTabPanel>
+
+    <!-- Claim Types Reference -->
+    <MudTabPanel Text="Claim Types Reference" Icon="@Icons.Material.Filled.MenuBook">
+        <MudCard Elevation="0" Class="am-card-border">
+            <MudCardContent Class="pa-0">
+                <MudDataGrid T="ClaimRefRow"
+                             Items="ClaimReference"
+                             Dense="true"
+                             Hover="true"
+                             Filterable="true"
+                             FilterMode="DataGridFilterMode.ColumnFilterRow"
+                             ShowColumnOptions="true"
+                             SortMode="SortMode.Single"
+                             RowsPerPage="25"
+                             Class="am-data-grid">
+                    <ToolBarContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Standard and well-known claim types for reference.
+                        </MudText>
+                    </ToolBarContent>
+                    <Columns>
+                        <PropertyColumn T="ClaimRefRow" TProperty="string" Property="x => x.Type"
+                                        Title="Type" Sortable="true">
+                            <CellTemplate>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ma-0 font-mono">
+                                    @context.Item.Type
+                                </MudChip>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn T="ClaimRefRow" TProperty="string" Property="x => x.Description"
+                                        Title="Description" Sortable="true" />
+                        <PropertyColumn T="ClaimRefRow" TProperty="string" Property="x => x.Example"
+                                        Title="Example" Sortable="false">
+                            <CellTemplate>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Class="ma-0">
+                                    @context.Item.Example
+                                </MudChip>
+                            </CellTemplate>
+                        </PropertyColumn>
+                    </Columns>
+                    <PagerContent><MudDataGridPager T="ClaimRefRow" /></PagerContent>
+                </MudDataGrid>
+            </MudCardContent>
+        </MudCard>
+    </MudTabPanel>
+
+</MudTabs>
 
 @code {
-    private string _activeTab = "users";
+    private int _activeTab;
     private string _userSearch = "";
     private List<UserDto> _users = [];
     private List<RoleDto> _roles = [];
@@ -164,31 +281,36 @@ else
     private string _newClaimType = "";
     private string _newClaimValue = "";
 
+    private MudDataGrid<UserDto> _userGrid = default!;
+
     private IEnumerable<UserDto> FilteredUsers =>
         string.IsNullOrEmpty(_userSearch) ? _users :
         _users.Where(u => u.UserName.Contains(_userSearch, StringComparison.OrdinalIgnoreCase)
                        || u.Email.Contains(_userSearch, StringComparison.OrdinalIgnoreCase));
 
-    private static readonly List<(string Type, string Description, string Example)> ClaimReference =
+    public sealed record ClaimRefRow(string Type, string Description, string Example);
+
+    private static readonly List<ClaimRefRow> ClaimReference =
     [
-        ("sub", "Subject - unique user identifier", "user-123"),
-        ("email", "User's email address", "user@example.com"),
-        ("name", "User's full display name", "John Doe"),
-        ("role", "User's role", "Admin"),
-        ("permission", "Fine-grained permission", "read:reports"),
-        ("tenant", "Multi-tenant identifier", "tenant-abc"),
-        ("department", "Organizational department", "Engineering"),
-        ("employee_id", "HR system employee ID", "EMP-001"),
-        ("subscription", "Subscription tier", "premium"),
-        ("iss", "Issuer of the token", "https://api.example.com"),
-        ("aud", "Token audience", "https://api.example.com"),
-        ("exp", "Token expiration (Unix timestamp)", "1700000000"),
-        ("iat", "Token issued at (Unix timestamp)", "1699990000"),
+        new("sub",          "Subject — unique user identifier",      "user-123"),
+        new("email",        "User's email address",                  "user@example.com"),
+        new("name",         "User's full display name",              "John Doe"),
+        new("role",         "User's role",                           "Admin"),
+        new("permission",   "Fine-grained permission",               "read:reports"),
+        new("tenant",       "Multi-tenant identifier",               "tenant-abc"),
+        new("department",   "Organisational department",             "Engineering"),
+        new("employee_id",  "HR system employee ID",                 "EMP-001"),
+        new("subscription", "Subscription tier",                     "premium"),
+        new("iss",          "Issuer of the token",                   "https://api.example.com"),
+        new("aud",          "Token audience",                        "https://api.example.com"),
+        new("exp",          "Token expiration (Unix timestamp)",     "1700000000"),
+        new("iat",          "Token issued at (Unix timestamp)",      "1699990000"),
+        new("custom:*",     "AuthManager custom field claim prefix", "custom:department"),
     ];
 
     protected override async Task OnInitializedAsync()
     {
-        var usersTask = UserService.GetUsersAsync(new UserFilter { PageSize = 100 });
+        var usersTask = UserService.GetUsersAsync(new UserFilter { PageSize = 200 });
         var rolesTask = RoleService.GetRolesAsync();
         await Task.WhenAll(usersTask, rolesTask);
         _users = usersTask.Result.Items;
@@ -197,26 +319,12 @@ else
         _rolesLoading = false;
     }
 
-    private async Task SetTab(string tab)
+    private void OnRowClick(DataGridRowClickEventArgs<UserDto> args)
     {
-        _activeTab = tab;
-        if (tab == "users" && _users.Count == 0)
-        {
-            _usersLoading = true;
-            var result = await UserService.GetUsersAsync(new UserFilter { PageSize = 100 });
-            _users = result.Items;
-            _usersLoading = false;
-        }
-    }
-
-    private void SelectUser(UserDto user)
-    {
-        _selectedUser = _selectedUserId == user.Id ? null : user;
+        _selectedUser   = _selectedUserId == args.Item.Id ? null : args.Item;
         _selectedUserId = _selectedUser?.Id;
-        _addingClaim = false;
+        _addingClaim    = false;
     }
-
-    private void AddUserClaim() => _addingClaim = true;
 
     private async Task SaveUserClaim()
     {
@@ -225,10 +333,10 @@ else
         if (success)
         {
             _selectedUser.Claims.Add(new ClaimDto(_newClaimType, _newClaimValue));
-            _newClaimType = "";
+            _newClaimType  = "";
             _newClaimValue = "";
-            _addingClaim = false;
-            ToastService.Instance.Success("Claim added.");
+            _addingClaim   = false;
+            Snackbar.Add("Claim added.", Severity.Success);
         }
     }
 
@@ -239,13 +347,10 @@ else
         if (success)
         {
             _selectedUser.Claims.Remove(claim);
-            ToastService.Instance.Success("Claim removed.");
+            Snackbar.Add("Claim removed.", Severity.Success);
         }
     }
 
-    private static string GetInitials(string name)
-    {
-        if (string.IsNullOrEmpty(name)) return "?";
-        return name[..Math.Min(2, name.Length)].ToUpper();
-    }
+    private static string GetInitials(string name) =>
+        string.IsNullOrEmpty(name) ? "?" : name[..Math.Min(2, name.Length)].ToUpper();
 }

@@ -5,16 +5,17 @@ namespace AuthManager.AspNetCore.Data;
 
 /// <summary>
 /// AuthManager's own internal database context for persisting settings,
-/// audit entries, and session data. Separate from the host application's
-/// DbContext — defaults to SQLite so no extra server is required.
+/// audit entries, session data, and user field definitions. Separate from
+/// the host application's DbContext — defaults to SQLite.
 /// </summary>
 public sealed class AuthManagerDbContext : DbContext
 {
     public AuthManagerDbContext(DbContextOptions<AuthManagerDbContext> options) : base(options) { }
 
-    public DbSet<AuthManagerSettingRecord> Settings { get; set; } = default!;
-    public DbSet<AuditEntryRecord> AuditEntries { get; set; } = default!;
-    public DbSet<AuthManagerSessionRecord> Sessions { get; set; } = default!;
+    public DbSet<AuthManagerSettingRecord>    Settings            { get; set; } = default!;
+    public DbSet<AuditEntryRecord>            AuditEntries        { get; set; } = default!;
+    public DbSet<AuthManagerSessionRecord>    Sessions            { get; set; } = default!;
+    public DbSet<UserFieldDefinitionRecord>   UserFieldDefinitions { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -51,10 +52,23 @@ public sealed class AuthManagerDbContext : DbContext
             e.HasIndex(x => x.UserId);
             e.HasIndex(x => x.LastActiveAt);
         });
+
+        b.Entity<UserFieldDefinitionRecord>(e =>
+        {
+            e.HasKey(x => x.FieldId);
+            e.Property(x => x.FieldId).HasMaxLength(64);
+            e.Property(x => x.DisplayName).HasMaxLength(128);
+            e.Property(x => x.FieldType).HasMaxLength(32);
+            e.Property(x => x.Placeholder).HasMaxLength(256);
+            e.Property(x => x.DefaultValue).HasMaxLength(512);
+            e.Property(x => x.SelectOptions).HasMaxLength(2048);
+            e.Property(x => x.HelpText).HasMaxLength(512);
+            e.HasIndex(x => x.SortOrder);
+        });
     }
 }
 
-/// <summary>Key/value store for serialised settings overrides (e.g. PasswordPolicy, SecurityPolicy).</summary>
+/// <summary>Key/value store for serialised settings overrides.</summary>
 public sealed class AuthManagerSettingRecord
 {
     [MaxLength(128)]
@@ -96,4 +110,20 @@ public sealed class AuthManagerSessionRecord
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
     public string? DeviceDescription { get; set; }
+}
+
+/// <summary>Persisted user field definition row.</summary>
+public sealed class UserFieldDefinitionRecord
+{
+    public string FieldId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string FieldType { get; set; } = "Text";
+    public bool IsRequired { get; set; }
+    public string? Placeholder { get; set; }
+    public string? DefaultValue { get; set; }
+    public string? SelectOptions { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsVisible { get; set; } = true;
+    public string? HelpText { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

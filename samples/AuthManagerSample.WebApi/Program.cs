@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using AuthManagerSample.WebApi.Data;
 using AuthManagerSample.WebApi.Endpoints;
+using AuthManagerSample.WebApi.Identity;
 using AuthManagerSample.WebApi.Services;
 using Serilog;
 using Serilog.Events;
@@ -32,7 +33,7 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 
 // ── 2. ASP.NET Identity ───────────────────────────────────────────────────────
 builder.Services
-    .AddIdentity<IdentityUser, IdentityRole>(o =>
+    .AddIdentity<ApplicationUser, IdentityRole>(o =>
     {
         o.User.RequireUniqueEmail = true;
     })
@@ -73,7 +74,7 @@ builder.Services.AddSingleton<TokenService>();
 
 // ── 5. AuthManager on top of Identity ────────────────────────────────────────
 //       No DB configuration — it uses the AppDbContext + Identity you set up above.
-builder.Services.AddAuthManager<IdentityUser>(options =>
+builder.Services.AddAuthManager<ApplicationUser>(options =>
 {
     options.RoutePrefix    = "authmanager";
     options.Title          = "Web API — Auth Manager";

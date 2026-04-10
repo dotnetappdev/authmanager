@@ -1,10 +1,11 @@
+@using AuthManagerSample.BlazorWebApp.Identity
 @page "/account/register"
 @* SSR so we have HttpContext access for SignInManager after account creation *@
 @attribute [ExcludeFromInteractiveRouting]
 
 @using Microsoft.AspNetCore.Identity
-@inject UserManager<IdentityUser> UserManager
-@inject SignInManager<IdentityUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
 @inject NavigationManager Navigation
 @inject ILogger<Register> Logger
 
@@ -80,7 +81,7 @@
 
     private async Task HandleRegister()
     {
-        var user = new IdentityUser
+        var user = new ApplicationUser
         {
             UserName = Input.Email,
             Email    = Input.Email,

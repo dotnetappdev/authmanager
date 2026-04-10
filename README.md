@@ -18,7 +18,8 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 | **Roles** | Create / edit / delete · Assign claims to roles |
 | **Claims** | User and role claims management with type reference |
 | **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
-| **Custom Attributes** | Store arbitrary key/value attributes per user via `custom:*` claims |
+| **Custom Fields** | Define typed field definitions (Text, Email, Number, Boolean, Select, Date…) · Values stored as `custom:fieldId` claims · No schema migration needed |
+| **Display Settings** | Rename "User"/"Users" to match your domain · Changes reflected across all pages immediately |
 | **Security Settings** | Password Policy UI (length, complexity, history, expiry) · Brute Force Detection (max attempts, lockout duration) · Registration Policy |
 | **Active Sessions** | View all tracked sessions · Revoke individual, per-user, or all sessions at once |
 | **JWT** | Configure issuer, audience, expiry, algorithm · Test token generator |
@@ -150,7 +151,7 @@ builder.Host.UseSerilog();
 
 ## Session Tracking
 
-AuthManager ships an `ISessionService` (in-memory by default). Call `TrackSessionAsync` from your login endpoint to make sessions appear in the **Active Sessions** UI:
+AuthManager ships an `ISessionService` backed by its own internal SQLite database. Call `TrackSessionAsync` from your login endpoint to make sessions appear in the **Active Sessions** UI:
 
 ```csharp
 // In your login action / minimal API handler
@@ -204,20 +205,53 @@ if (requiredActions.Contains("UpdatePassword"))
 
 ---
 
-## Custom User Attributes
+## Custom User Fields
 
-Store arbitrary key/value data per user via `custom:*` claims — accessible from the **Users → Edit User → Custom Attributes** panel or programmatically:
+Define typed field definitions in **Settings → User Fields** (`/authmanager/userfields`). Fields support ten types — Text, TextArea, Email, Phone, URL, Number, Boolean (toggle), Date, DateTime, and Select (dropdown). Values are stored as `custom:fieldId` claims — no database migration is ever required.
 
 ```csharp
-// Add a custom attribute
+// Values written by AuthManager look like this:
 await userManager.AddClaimAsync(user, new Claim("custom:department", "Engineering"));
+await userManager.AddClaimAsync(user, new Claim("custom:start_date", "2024-01-15"));
+await userManager.AddClaimAsync(user, new Claim("custom:is_contractor", "true"));
 
-// Read custom attributes
+// Read them back
 var claims = await userManager.GetClaimsAsync(user);
-var attributes = claims
+var fields = claims
     .Where(c => c.Type.StartsWith("custom:", StringComparison.OrdinalIgnoreCase))
     .ToDictionary(c => c.Type["custom:".Length..], c => c.Value);
 ```
+
+Manage field definitions in code or via the UI:
+
+| Field Type | HTML Input | Stored As |
+|------------|-----------|-----------|
+| Text       | `<input type="text">` | string |
+| TextArea   | `<textarea>` | string |
+| Email      | `<input type="email">` | string |
+| Phone      | `<input type="tel">` | string |
+| Url        | `<input type="url">` | string |
+| Number     | `<input type="number">` | string |
+| Boolean    | Toggle switch | `"true"` / `"false"` |
+| Date       | `<input type="date">` | ISO 8601 date |
+| DateTime   | `<input type="datetime-local">` | ISO 8601 datetime |
+| Select     | `<select>` | selected option string |
+
+---
+
+## Entity Display Names
+
+Rename the "User"/"Users" concept to match your domain — "Member", "Customer", "Employee", "Player" — via **Settings → Display Settings** (`/authmanager/settings`) or in code:
+
+```csharp
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    options.UserEntityDisplayName       = "Member";   // singular
+    options.UserEntityPluralDisplayName = "Members";  // plural
+});
+```
+
+The names propagate automatically to the sidebar navigation, page titles, buttons, and stat cards.
 
 ---
 
@@ -317,6 +351,31 @@ options.OAuth.Microsoft.TenantId     = "common";
 options.LogViewer.MaxLogEntries         = 10_000;
 options.LogViewer.LiveUpdateIntervalMs  = 2000;
 ```
+
+---
+
+## UI Endpoints Reference
+
+All routes are prefixed with `options.RoutePrefix` (default `authmanager`).
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/authmanager` | Dashboard | Stats overview — total users, locked out, unverified, active sessions, role/claim counts |
+| `/authmanager/users` | User List | Paginated MudBlazor DataGrid — search, filter by role/status, lock, unlock, delete |
+| `/authmanager/users/create` | Create User | Create new user with username, email, password, role assignment and initial claims |
+| `/authmanager/users/{id}` | Edit User | Edit user details, account settings, reset password, required actions, custom fields, claims, roles |
+| `/authmanager/roles` | Role List | All roles with user counts; create, edit, delete |
+| `/authmanager/roles/create` | Create Role | Create a new role and attach initial claims |
+| `/authmanager/roles/{id}` | Edit Role | Rename role, add/remove role-level claims |
+| `/authmanager/claims` | Claims Reference | Full list of claims across all users and roles with type reference |
+| `/authmanager/jwt` | JWT Settings | Configure issuer, audience, expiry, algorithm; generate and inspect test tokens |
+| `/authmanager/oauth` | OAuth Providers | Enable/configure Google, Microsoft, Apple, GitHub, and custom OIDC providers |
+| `/authmanager/sessions` | Active Sessions | Live session table — revoke individual, per-user, or all sessions |
+| `/authmanager/security` | Security Settings | Password policy, lockout/brute-force settings, registration policy, theme picker, internal database config |
+| `/authmanager/userfields` | User Field Definitions | Add, edit, reorder, and delete typed custom field definitions |
+| `/authmanager/settings` | Display Settings | Rename the user entity (singular/plural), view role list, view current SuperAdmin role |
+| `/authmanager/logs` | Log Viewer | Real-time Serilog log viewer with level filter, search, and live-update toggle |
+| `/authmanager/audit` | Audit Log | Paginated audit trail — action, entity, actor, timestamp, old/new values |
 
 ---
 
