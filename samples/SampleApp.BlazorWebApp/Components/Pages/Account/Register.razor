@@ -1,0 +1,117 @@
+@page "/account/register"
+@* SSR so we have HttpContext access for SignInManager after account creation *@
+@attribute [ExcludeFromInteractiveRouting]
+
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<IdentityUser> UserManager
+@inject SignInManager<IdentityUser> SignInManager
+@inject NavigationManager Navigation
+@inject ILogger<Register> Logger
+
+<PageTitle>Create Account</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudText Typo="Typo.h5" GutterBottom="true">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Class="mr-2" />
+            Create Account
+        </MudText>
+
+        @if (_errors.Count > 0)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">
+                @foreach (var err in _errors)
+                {
+                    <div>@err</div>
+                }
+            </MudAlert>
+        }
+
+        <EditForm Model="Input" OnValidSubmit="HandleRegister" FormName="register" method="post">
+            <DataAnnotationsValidator />
+
+            <MudTextField @bind-Value="Input.Email"
+                          Label="Email"
+                          InputType="InputType.Email"
+                          Variant="Variant.Outlined"
+                          Class="mb-3"
+                          For="@(() => Input.Email)"
+                          Required="true" />
+
+            <MudTextField @bind-Value="Input.Password"
+                          Label="Password"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined"
+                          Class="mb-3"
+                          For="@(() => Input.Password)"
+                          HelperText="Min 8 chars, uppercase, digit required"
+                          Required="true" />
+
+            <MudTextField @bind-Value="Input.ConfirmPassword"
+                          Label="Confirm Password"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          For="@(() => Input.ConfirmPassword)"
+                          Required="true" />
+
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Size="Size.Large">
+                Create Account
+            </MudButton>
+        </EditForm>
+
+        <MudDivider Class="my-4" />
+        <MudLink Href="/account/login">Already have an account? Sign in</MudLink>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromForm]
+    private RegisterInput Input { get; set; } = new();
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private List<string> _errors = [];
+
+    private async Task HandleRegister()
+    {
+        var user = new IdentityUser
+        {
+            UserName = Input.Email,
+            Email    = Input.Email,
+        };
+
+        var result = await UserManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
+            _errors = result.Errors.Select(e => e.Description).ToList();
+            return;
+        }
+
+        Logger.LogInformation("New account created for {Email}.", Input.Email);
+
+        // Sign in immediately after registration
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    public sealed class RegisterInput
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MinLength(8)]
+        public string Password { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

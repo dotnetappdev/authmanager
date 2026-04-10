@@ -1,0 +1,19 @@
+@page "/protected"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+<PageTitle>Protected Area</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">
+    <MudIcon Icon="@Icons.Material.Filled.Lock" Class="mr-2" Color="Color.Success" />
+    Protected Area
+</MudText>
+
+<MudAlert Severity="Severity.Success" Class="mb-4">
+    You are authenticated and authorised to view this page.
+</MudAlert>
+
+<MudText Typo="Typo.body1">
+    This page requires the user to be signed in. Unauthenticated visitors are
+    automatically redirected to the login page.
+</MudText>

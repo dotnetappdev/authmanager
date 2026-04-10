@@ -2,6 +2,7 @@
 @page "/authmanager/"
 @rendermode InteractiveServer
 @inject IUserManagementService UserService
+@inject ISessionService SessionService
 @inject IOptions<AuthManagerOptions> Options
 
 <PageTitle>Dashboard — @Options.Value.Title</PageTitle>
@@ -102,6 +103,20 @@ else if (_stats != null)
                 </MudCardContent>
             </MudCard>
         </MudItem>
+
+        <MudItem xs="12" sm="6" md="4" lg="2">
+            <MudCard Class="am-stat-card" Elevation="0">
+                <MudCardContent>
+                    <div class="am-stat-inner">
+                        <MudIcon Icon="@Icons.Material.Filled.Devices" Class="am-stat-icon am-stat-blue" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.h4" Class="am-stat-value">@_activeSessions.ToString("N0")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Active Sessions</MudText>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
     </MudGrid>
 
     <MudGrid Spacing="3">
@@ -121,9 +136,13 @@ else if (_stats != null)
                                    StartIcon="@Icons.Material.Filled.Stars" FullWidth="true" Class="justify-start">
                             Manage Roles
                         </MudButton>
-                        <MudButton Href="@("/authmanager/oauth")" Variant="Variant.Outlined" Color="Color.Tertiary"
-                                   StartIcon="@Icons.Material.Filled.Share" FullWidth="true" Class="justify-start">
-                            OAuth Providers
+                        <MudButton Href="@("/authmanager/sessions")" Variant="Variant.Outlined" Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Devices" FullWidth="true" Class="justify-start">
+                            Active Sessions (@_activeSessions)
+                        </MudButton>
+                        <MudButton Href="@("/authmanager/security")" Variant="Variant.Outlined" Color="Color.Warning"
+                                   StartIcon="@Icons.Material.Filled.AdminPanelSettings" FullWidth="true" Class="justify-start">
+                            Security Settings
                         </MudButton>
                         <MudButton Href="@("/authmanager/logs")" Variant="Variant.Outlined"
                                    StartIcon="@Icons.Material.Filled.List" FullWidth="true" Class="justify-start">
@@ -185,11 +204,16 @@ else if (_stats != null)
 
 @code {
     private DashboardStats? _stats;
+    private int _activeSessions;
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
-        _stats = await UserService.GetDashboardStatsAsync();
+        var statsTask   = UserService.GetDashboardStatsAsync();
+        var sessionTask = SessionService.GetActiveSessionCountAsync();
+        await Task.WhenAll(statsTask, sessionTask);
+        _stats          = statsTask.Result;
+        _activeSessions = sessionTask.Result;
         _loading = false;
     }
 }
