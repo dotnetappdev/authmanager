@@ -4,7 +4,7 @@ namespace AuthManager.Core.Services;
 
 /// <summary>
 /// Reads and updates password complexity, rotation, lockout, and brute-force detection
-/// settings at runtime — equivalent to Keycloak's "Password Policy" and
+/// settings at runtime — equivalent to the Password Policy and
 /// "Brute Force Detection" realm configuration tabs.
 ///
 /// The default in-memory implementation stores overrides for the current process

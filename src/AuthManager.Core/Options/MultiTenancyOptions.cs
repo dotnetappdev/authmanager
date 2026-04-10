@@ -2,7 +2,7 @@ namespace AuthManager.Core.Options;
 
 /// <summary>
 /// Multi-tenancy configuration — scope users and roles to isolated tenants.
-/// Inspired by Firebase Auth multi-tenancy and Keycloak realms.
+/// Inspired by Firebase Auth multi-tenancy and multi-tenant configurations.
 ///
 /// When enabled, every user and role has a <c>tenant_id</c> claim.
 /// The AuthManager UI lets admins switch tenant context and manage users per tenant.

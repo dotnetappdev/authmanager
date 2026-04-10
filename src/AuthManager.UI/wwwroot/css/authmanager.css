@@ -336,3 +336,48 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--am-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--am-text-3); }
+
+/* ---- Theme Picker (Security Settings → Appearance) ---- */
+.am-theme-picker {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.am-theme-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 24px;
+  border: 2px solid var(--am-border);
+  border-radius: 12px;
+  background: var(--am-surface);
+  color: var(--am-text-1);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  min-width: 90px;
+}
+
+.am-theme-btn:hover {
+  border-color: var(--am-primary);
+  background: var(--am-surface-2);
+  transform: translateY(-1px);
+}
+
+.am-theme-btn-active {
+  border-color: var(--am-primary) !important;
+  background: color-mix(in srgb, var(--am-primary) 12%, transparent) !important;
+  color: var(--am-primary) !important;
+}
+
+.am-theme-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* ---- Utility spacing ---- */
+.am-mb-3 { margin-bottom: 0.75rem; }
+.am-mt-3 { margin-top: 0.75rem; }

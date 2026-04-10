@@ -2,7 +2,7 @@ namespace AuthManager.Core.Options;
 
 /// <summary>
 /// Admin impersonation — lets a SuperAdmin sign in as any user for debugging.
-/// Equivalent to Keycloak's "Impersonate" button on the user detail page.
+/// Equivalent to the Impersonate button on the user detail page.
 ///
 /// When an admin impersonates a user, the original admin identity is stored in a
 /// claim (<c>impersonated_by</c>) so the app can differentiate.

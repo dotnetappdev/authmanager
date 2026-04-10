@@ -2,13 +2,15 @@
 @rendermode InteractiveServer
 @inject ISecurityPolicyService SecurityService
 @inject IAuditService AuditService
+@inject IOptions<AuthManagerOptions> Options
+@inject IJSRuntime JS
 
 <PageTitle>Security Settings — Auth Manager</PageTitle>
 
 <div class="am-page-header">
     <div>
         <h1 class="am-page-title">Security Settings</h1>
-        <p class="am-page-subtitle">Configure password policy and brute-force protection — equivalent to Keycloak's realm security tabs</p>
+        <p class="am-page-subtitle">Configure password policy, brute-force protection, database storage, and appearance.</p>
     </div>
 </div>
 
@@ -117,7 +119,6 @@ else
                     <span class="am-badge am-badge-info">Account Lockout</span>
                 </div>
                 <div class="am-card-body">
-
                     <div class="am-toggle-list">
                         <div class="am-toggle-item">
                             <div class="am-toggle-info">
@@ -223,6 +224,85 @@ else
                 </div>
             </div>
 
+            <!-- Database & Storage -->
+            <div class="am-card">
+                <div class="am-card-header">
+                    <h2 class="am-card-title">Database &amp; Storage</h2>
+                    <span class="am-badge am-badge-success">Internal DB</span>
+                </div>
+                <div class="am-card-body">
+                    <p class="am-text-muted am-mb-3">
+                        AuthManager keeps its own internal database for audit entries, session records, and settings
+                        overrides — separate from your application's database. <strong>SQLite</strong> is the default
+                        and requires no external server. Switch to <strong>SQL Server</strong> for enterprise
+                        or clustered deployments.
+                    </p>
+                    <div class="am-form-grid">
+                        <div class="am-form-group">
+                            <label class="am-label">Database Provider</label>
+                            <select class="am-input" @bind="_dbProvider">
+                                <option value="SQLite">SQLite (default — no install needed)</option>
+                                <option value="SqlServer">SQL Server</option>
+                            </select>
+                            <span class="am-input-hint">Changes take effect after saving and restarting the application</span>
+                        </div>
+                        <div class="am-form-group">
+                            <label class="am-label">Connection String</label>
+                            <input class="am-input" type="text" @bind="_dbConnectionString"
+                                   placeholder="@(_dbProvider == "SQLite" ? "Data Source=authmanager.db" : "Server=.;Database=AuthManager;Trusted_Connection=true")" />
+                            <span class="am-input-hint">
+                                @if (_dbProvider == "SQLite")
+                                {
+                                    <text>SQLite file path — relative to the application working directory</text>
+                                }
+                                else
+                                {
+                                    <text>SQL Server connection string. Use <code>(localdb)\mssqllocaldb</code> for local development</text>
+                                }
+                            </span>
+                        </div>
+                    </div>
+                    <div class="am-alert am-alert-warning am-mt-3">
+                        <strong>Note:</strong> Changing the provider or connection string requires an application restart
+                        to take effect. Existing data will not be migrated automatically.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Appearance -->
+            <div class="am-card">
+                <div class="am-card-header">
+                    <h2 class="am-card-title">Appearance</h2>
+                    <span class="am-badge">Theme</span>
+                </div>
+                <div class="am-card-body">
+                    <p class="am-text-muted am-mb-3">
+                        Choose the colour scheme for the Auth Manager UI. Your preference is saved in the browser
+                        and overrides the server-side default. Use the toggle in the sidebar footer to switch on the fly.
+                    </p>
+                    <div class="am-theme-picker">
+                        <button class="am-theme-btn @(_currentTheme == "dark" ? "am-theme-btn-active" : "")"
+                                @onclick='() => SetTheme("dark")'>
+                            <span class="am-theme-icon">🌙</span>
+                            <span>Dark</span>
+                        </button>
+                        <button class="am-theme-btn @(_currentTheme == "light" ? "am-theme-btn-active" : "")"
+                                @onclick='() => SetTheme("light")'>
+                            <span class="am-theme-icon">☀️</span>
+                            <span>Light</span>
+                        </button>
+                        <button class="am-theme-btn @(_currentTheme == "system" ? "am-theme-btn-active" : "")"
+                                @onclick='() => SetTheme("system")'>
+                            <span class="am-theme-icon">💻</span>
+                            <span>System</span>
+                        </button>
+                    </div>
+                    <p class="am-text-muted am-mt-2" style="font-size:0.8rem">
+                        Current: <strong>@(_currentTheme == "system" ? "System default" : _currentTheme == "dark" ? "Dark mode" : "Light mode")</strong>
+                    </p>
+                </div>
+            </div>
+
         </div>
 
         <div class="am-form-aside">
@@ -255,9 +335,11 @@ else
                         Existing passwords are not affected.
                     </p>
                     <p class="am-text-muted am-mt-2">
-                        Lockout settings are applied to <strong>ASP.NET Identity's LockoutOptions</strong> at startup
-                        via <code>AddAuthManager()</code>. Runtime changes are stored in memory and visible in the UI;
-                        restart the app to persist them permanently via <code>appsettings.json</code>.
+                        Lockout settings are applied to <strong>ASP.NET Identity's LockoutOptions</strong>.
+                        Runtime changes are persisted to the internal database and apply immediately.
+                    </p>
+                    <p class="am-text-muted am-mt-2">
+                        Database provider changes require an <strong>application restart</strong> to take effect.
                     </p>
                 </div>
             </div>
@@ -272,6 +354,13 @@ else
     private bool _saving;
     private bool _saved;
     private string[] _errors = [];
+
+    // DB settings — read from options, editable here
+    private string _dbProvider         = "SQLite";
+    private string _dbConnectionString = "Data Source=authmanager.db";
+
+    // Theme — loaded from JS localStorage
+    private string _currentTheme = "system";
 
     // Bridge TimeSpan ↔ numeric form fields
     private int _lockoutMinutes
@@ -294,8 +383,32 @@ else
     {
         _pw  = SecurityService.GetPasswordPolicy();
         _sec = SecurityService.GetSecurityPolicy();
+
+        var opts          = Options.Value;
+        _dbProvider       = opts.InternalDatabaseProvider;
+        _dbConnectionString = opts.InternalDatabaseConnectionString;
+
         _loading = false;
         return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _currentTheme = await JS.InvokeAsync<string?>("authManager.getTheme") ?? "system";
+            StateHasChanged();
+        }
+    }
+
+    private async Task SetTheme(string theme)
+    {
+        _currentTheme = theme;
+        if (theme == "system")
+            await JS.InvokeVoidAsync("authManager.clearTheme");
+        else
+            await JS.InvokeVoidAsync("authManager.setTheme", theme);
+        StateHasChanged();
     }
 
     private async Task SaveAll()
@@ -338,11 +451,12 @@ else
                     ["MaxFailedLoginAttempts"]     = _sec.MaxFailedLoginAttempts,
                     ["LockoutDurationMinutes"]     = _lockoutMinutes,
                     ["MaxConcurrentSessions"]      = _sec.MaxConcurrentSessions,
+                    ["DatabaseProvider"]           = _dbProvider,
                 },
                 Success = true
             });
 
-            ToastService.Instance.Success("Security settings saved.");
+            ToastService.Instance.Success("Security settings saved. Restart the app to apply database changes.");
             _saved = true;
         }
         catch (Exception ex)
@@ -359,6 +473,8 @@ else
     {
         _pw  = new PasswordPolicyOptions();
         _sec = new SecurityPolicyOptions();
+        _dbProvider         = "SQLite";
+        _dbConnectionString = "Data Source=authmanager.db";
         _saved = false;
         _errors = [];
         ToastService.Instance.Info("Defaults loaded. Click Save to apply.");

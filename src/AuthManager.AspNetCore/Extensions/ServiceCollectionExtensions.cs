@@ -1,10 +1,13 @@
 using AuthManager.Core.Options;
 using AuthManager.Core.Services;
+using AuthManager.AspNetCore.Data;
 using AuthManager.AspNetCore.Services;
 using AuthManager.AspNetCore.Seeding;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace AuthManager.AspNetCore.Extensions;
 
@@ -25,22 +28,6 @@ public static class ServiceCollectionExtensions
     ///   builder.Services.AddIdentity&lt;ApplicationUser, IdentityRole&gt;()
     ///                   .AddEntityFrameworkStores&lt;AppDbContext&gt;();
     /// </summary>
-    /// <example>
-    /// builder.Services.AddDbContext&lt;AppDbContext&gt;(o => o.UseSqlite("Data Source=app.db"));
-    ///
-    /// builder.Services.AddIdentity&lt;ApplicationUser, IdentityRole&gt;()
-    ///                 .AddEntityFrameworkStores&lt;AppDbContext&gt;()
-    ///                 .AddDefaultTokenProviders();
-    ///
-    /// builder.Services.AddAuthManager&lt;ApplicationUser&gt;(options =>
-    /// {
-    ///     options.RoutePrefix    = "authmanager";
-    ///     options.DefaultTheme   = AuthManagerTheme.Dark;
-    ///     options.SeedSuperAdmin = true;
-    /// });
-    ///
-    /// app.MapAuthManager();
-    /// </example>
     public static IServiceCollection AddAuthManager<TUser>(
         this IServiceCollection services,
         Action<AuthManagerOptions>? configure = null)
@@ -60,14 +47,37 @@ public static class ServiceCollectionExtensions
         if (configure != null)
             optBuilder.Configure(configure);
 
-        // Core singletons
-        services.TryAddSingleton<LogAggregationService>();
-        services.TryAddSingleton<ILogAggregationService>(sp => sp.GetRequiredService<LogAggregationService>());
-        services.TryAddSingleton<IAuditService, InMemoryAuditService>();
-        services.TryAddSingleton<ISessionService, InMemorySessionService>();
-        services.TryAddSingleton<ISecurityPolicyService, SecurityPolicyService>();
+        // ── AuthManager's own internal database (SQLite by default) ──────────
+        // Registered with AddDbContextFactory so singleton services can create
+        // short-lived scopes without holding an open connection.
+        services.AddDbContextFactory<AuthManagerDbContext>((sp, opts) =>
+        {
+            var authOpts = sp.GetService<IOptions<AuthManagerOptions>>()?.Value
+                           ?? new AuthManagerOptions();
 
-        // Scoped (one per Blazor circuit)
+            var cs       = authOpts.InternalDatabaseConnectionString;
+            var provider = authOpts.InternalDatabaseProvider;
+
+            if (provider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+                opts.UseSqlServer(cs);
+            else
+                opts.UseSqlite(cs);
+        });
+
+        // Ensure the schema exists on first use (no migrations required)
+        services.AddHostedService<AuthManagerDbInitialiser>();
+
+        // ── Core singletons ──────────────────────────────────────────────────
+        services.TryAddSingleton<LogAggregationService>();
+        services.TryAddSingleton<ILogAggregationService>(
+            sp => sp.GetRequiredService<LogAggregationService>());
+
+        // DB-backed audit, security-policy, and session services
+        services.TryAddSingleton<IAuditService, PersistentAuditService>();
+        services.TryAddSingleton<ISessionService, PersistentSessionService>();
+        services.TryAddSingleton<ISecurityPolicyService, PersistentSecurityPolicyService>();
+
+        // ── Scoped (one per Blazor circuit) ──────────────────────────────────
         services.TryAddScoped<IUserManagementService, UserManagementService<TUser>>();
         services.TryAddScoped<IRoleManagementService, RoleManagementService<TRole>>();
         services.TryAddScoped<IOAuthProviderService, OAuthProviderService>();
@@ -84,13 +94,13 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpContextAccessor();
 
-        // Apply PasswordPolicy and SecurityPolicy to ASP.NET Identity options at startup
-        services.PostConfigure<Microsoft.AspNetCore.Identity.PasswordOptions>(opts =>
+        // Apply PasswordPolicy and SecurityPolicy to ASP.NET Identity at startup
+        services.PostConfigure<PasswordOptions>(opts =>
         {
-            using var sp = services.BuildServiceProvider();
-            var authOpts = sp.GetService<Microsoft.Extensions.Options.IOptions<AuthManagerOptions>>()?.Value;
+            using var sp     = services.BuildServiceProvider();
+            var authOpts     = sp.GetService<IOptions<AuthManagerOptions>>()?.Value;
             if (authOpts is null) return;
-            var pp = authOpts.PasswordPolicy;
+            var pp           = authOpts.PasswordPolicy;
             opts.RequiredLength         = pp.MinimumLength;
             opts.RequireUppercase       = pp.RequireUppercase;
             opts.RequireLowercase       = pp.RequireLowercase;
@@ -98,12 +108,12 @@ public static class ServiceCollectionExtensions
             opts.RequireNonAlphanumeric = pp.RequireNonAlphanumeric;
         });
 
-        services.PostConfigure<Microsoft.AspNetCore.Identity.LockoutOptions>(opts =>
+        services.PostConfigure<LockoutOptions>(opts =>
         {
-            using var sp = services.BuildServiceProvider();
-            var authOpts = sp.GetService<Microsoft.Extensions.Options.IOptions<AuthManagerOptions>>()?.Value;
+            using var sp     = services.BuildServiceProvider();
+            var authOpts     = sp.GetService<IOptions<AuthManagerOptions>>()?.Value;
             if (authOpts is null) return;
-            var sec = authOpts.SecurityPolicy;
+            var sec          = authOpts.SecurityPolicy;
             opts.AllowedForNewUsers      = sec.EnableBruteForceDetection;
             opts.MaxFailedAccessAttempts = sec.MaxFailedLoginAttempts;
             opts.DefaultLockoutTimeSpan  = sec.LockoutDuration;

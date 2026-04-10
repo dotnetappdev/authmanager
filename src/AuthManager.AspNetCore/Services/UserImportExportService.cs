@@ -9,7 +9,7 @@ namespace AuthManager.AspNetCore.Services;
 
 /// <summary>
 /// CSV and JSON import/export for users.
-/// Equivalent to Keycloak partial import/export and Firebase <c>importUsers</c>.
+/// Equivalent to bulk CSV/JSON user import/export and Firebase <c>importUsers</c>.
 /// </summary>
 public sealed class UserImportExportService<TUser> : IUserImportExportService
     where TUser : IdentityUser, new()

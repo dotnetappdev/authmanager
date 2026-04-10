@@ -24,7 +24,7 @@ public interface IUserManagementService
     Task<bool> SendConfirmationEmailAsync(string userId, CancellationToken ct = default);
     Task<DashboardStats> GetDashboardStatsAsync(CancellationToken ct = default);
 
-    // ── Required Actions (Keycloak-style) ────────────────────────────────────
+    // ── Required Actions ────────────────────────────────────
 
     /// <summary>
     /// Add a required action that the user must complete on their next sign-in

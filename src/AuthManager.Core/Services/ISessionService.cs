@@ -4,7 +4,7 @@ namespace AuthManager.Core.Services;
 
 /// <summary>
 /// Tracks and manages active user sessions.
-/// Equivalent to Keycloak's "Sessions" admin panel.
+/// Equivalent to the Active Sessions admin panel.
 /// </summary>
 public interface ISessionService
 {

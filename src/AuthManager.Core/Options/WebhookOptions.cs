@@ -2,7 +2,7 @@ namespace AuthManager.Core.Options;
 
 /// <summary>
 /// HTTP webhook configuration — fire-and-forget HTTP POSTs when auth events occur.
-/// Inspired by Firebase Auth blocking functions and Keycloak event listeners.
+/// Inspired by Firebase Auth blocking functions and auth event listeners.
 ///
 /// Each registered endpoint receives a signed JSON payload:
 /// <code>

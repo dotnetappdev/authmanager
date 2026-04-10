@@ -3,18 +3,20 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <PackageId>DotNetAuthManager</PackageId>
-    <Description>A Keycloak-style ASP.NET Identity management UI for .NET 8/9/10. Full CRUD for users, roles, claims, JWT, OAuth providers, and log viewing — accessible at /authmanager.</Description>
-    <PackageTags>authentication;identity;aspnetcore;blazor;admin;management;jwt;oauth;keycloak;serilog</PackageTags>
+    <Description>Drop-in ASP.NET Identity management UI for .NET 8/9/10. Full CRUD for users, roles, claims, JWT, OAuth providers, sessions, audit log, and more — accessible at /authmanager.</Description>
+    <PackageTags>authentication;identity;aspnetcore;blazor;admin;management;jwt;oauth;serilog;sqlite</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
-  <!-- No EF Core provider dependency — the host app brings its own DbContext.
-       AuthManager only needs the Identity abstractions (UserManager/RoleManager). -->
+  <!-- AuthManager ships its own internal SQLite DB for audit/sessions/settings persistence.
+       SQLite requires no external server. SqlServer is also supported for enterprise deployments. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="8.0.0" />

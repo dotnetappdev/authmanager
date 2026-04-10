@@ -24,8 +24,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 // ── 1. DbContext ──────────────────────────────────────────────────────────────
+// Uses SQL Server LocalDB by default (comes with Visual Studio — no separate install).
+// To use SQLite instead, replace UseSqlServer with UseSqlite and swap the connection
+// string key to "DefaultSQLite" in appsettings.json.
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Default")!));
 
 // ── 2. ASP.NET Identity ───────────────────────────────────────────────────────
 builder.Services
