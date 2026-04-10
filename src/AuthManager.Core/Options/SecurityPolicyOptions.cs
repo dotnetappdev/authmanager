@@ -1,7 +1,7 @@
 namespace AuthManager.Core.Options;
 
 /// <summary>
-/// Security hardening settings — maps to Keycloak's "Brute Force Detection" and
+/// Security hardening settings — maps to account lockout and
 /// "Sessions" configuration panels.
 /// </summary>
 public sealed class SecurityPolicyOptions

@@ -3,8 +3,8 @@ using AuthManager.Core.Models;
 namespace AuthManager.Core.Services;
 
 /// <summary>
-/// Bulk user import and export — equivalent to Keycloak's partial import/export
-/// and Firebase's <c>importUsers</c> / <c>listUsers</c> APIs.
+/// Bulk user import and export via CSV and JSON.
+/// Supports importing from files and exporting filtered user sets.
 /// </summary>
 public interface IUserImportExportService
 {

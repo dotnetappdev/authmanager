@@ -2,22 +2,52 @@
 @rendermode InteractiveServer
 @inject IUserManagementService UserService
 @inject IRoleManagementService RoleService
+@inject IEntityNamingService Naming
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IImpersonationService ImpersonationService
+@inject IOptions<AuthManagerOptions> Options
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthState
 
 <PageTitle>Users — Auth Manager</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
     <div>
-        <MudText Typo="Typo.h4">Users</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Manage user accounts and permissions</MudText>
+        <MudText Typo="Typo.h4">@Naming.GetUsersDisplayName()</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Manage @Naming.GetUsersDisplayName().ToLower() and permissions</MudText>
     </div>
     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.PersonAdd"
                OnClick="OpenCreateDialog">
-        New User
+        New @Naming.GetUserDisplayName()
     </MudButton>
 </MudStack>
+
+@if (_selectedItems.Count > 0)
+{
+    <MudPaper Elevation="0" Class="am-card-border pa-2 mb-2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @_selectedItems.Count selected
+            </MudText>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
+                       StartIcon="@Icons.Material.Filled.Lock"
+                       OnClick="BulkLockAsync">Lock All</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.LockOpen"
+                       OnClick="BulkUnlockAsync">Unlock All</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
+                       StartIcon="@Icons.Material.Filled.Password"
+                       OnClick="BulkForcePasswordResetAsync">Force Password Reset</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="BulkDeleteAsync">Delete Selected</MudButton>
+        </MudStack>
+    </MudPaper>
+}
 
 <MudCard Elevation="0" Class="am-card-border">
     <MudCardContent Class="pa-0">
@@ -29,6 +59,8 @@
                      Striped="false"
                      Bordered="false"
                      RowsPerPage="25"
+                     MultiSelection="true"
+                     SelectedItemsChanged="OnSelectedItemsChanged"
                      QuickFilter="@QuickFilter"
                      SortMode="SortMode.Single"
                      Class="am-data-grid">
@@ -147,6 +179,10 @@
                                                Title="Lock"
                                                OnClick="@(() => LockUser(context.Item))" />
                             }
+                            <MudIconButton Icon="@Icons.Material.Filled.SupervisedUserCircle" Size="Size.Small"
+                                           Color="Color.Secondary" Variant="Variant.Text"
+                                           Title="Sign in as this user"
+                                           OnClick="@(() => Impersonate(context.Item))" />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                            Color="Color.Error" Variant="Variant.Text"
                                            Title="Delete"
@@ -163,9 +199,9 @@
             <NoRecordsContent>
                 <MudStack AlignItems="AlignItems.Center" Class="pa-8">
                     <MudIcon Icon="@Icons.Material.Filled.PeopleOutline" Size="Size.Large" Color="Color.Secondary" />
-                    <MudText Typo="Typo.h6" Color="Color.Secondary">No users found</MudText>
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">No @Naming.GetUsersDisplayName().ToLower() found</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        @(string.IsNullOrEmpty(_searchText) ? "Create the first user to get started." : "Try adjusting your search.")
+                        @(string.IsNullOrEmpty(_searchText) ? $"Create the first {Naming.GetUserDisplayName().ToLower()} to get started." : "Try adjusting your search.")
                     </MudText>
                 </MudStack>
             </NoRecordsContent>
@@ -175,10 +211,12 @@
 
 @code {
     private MudDataGrid<UserDto> _grid = default!;
-    private List<RoleDto> _roles = [];
-    private string _searchText = "";
-    private string _roleFilter = "";
+    private List<RoleDto>        _roles = [];
+    private HashSet<UserDto>     _selectedItems = [];
+    private string _searchText  = "";
+    private string _roleFilter  = "";
     private string _statusFilter = "";
+    private string _currentUserId = "";
 
     private Func<UserDto, bool> QuickFilter => x =>
         string.IsNullOrWhiteSpace(_searchText)
@@ -188,6 +226,17 @@
     protected override async Task OnInitializedAsync()
     {
         _roles = await RoleService.GetRolesAsync();
+
+        var authState  = await AuthState.GetAuthenticationStateAsync();
+        _currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                      ?? authState.User.FindFirst("sub")?.Value
+                      ?? "";
+    }
+
+    private void OnSelectedItemsChanged(HashSet<UserDto> items)
+    {
+        _selectedItems = items;
+        StateHasChanged();
     }
 
     private async Task<GridData<UserDto>> LoadServerData(GridState<UserDto> state)
@@ -268,6 +317,76 @@
         {
             Snackbar.Add(string.Join(", ", errors), Severity.Error);
         }
+    }
+
+    // ── Bulk actions ─────────────────────────────────────────────────────────
+
+    private async Task BulkLockAsync()
+    {
+        foreach (var user in _selectedItems.ToList())
+            await UserService.LockUserAsync(user.Id);
+        Snackbar.Add($"{_selectedItems.Count} user(s) locked.", Severity.Success);
+        _selectedItems.Clear();
+        await _grid.ReloadServerData();
+    }
+
+    private async Task BulkUnlockAsync()
+    {
+        foreach (var user in _selectedItems.ToList())
+            await UserService.UnlockUserAsync(user.Id);
+        Snackbar.Add($"{_selectedItems.Count} user(s) unlocked.", Severity.Success);
+        _selectedItems.Clear();
+        await _grid.ReloadServerData();
+    }
+
+    private async Task BulkForcePasswordResetAsync()
+    {
+        foreach (var user in _selectedItems.ToList())
+            await UserService.AddRequiredActionAsync(user.Id, "UpdatePassword");
+        Snackbar.Add($"{_selectedItems.Count} user(s) flagged for password reset.", Severity.Success);
+        _selectedItems.Clear();
+        await _grid.ReloadServerData();
+    }
+
+    private async Task BulkDeleteAsync()
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Selected Users",
+            $"Delete {_selectedItems.Count} selected user(s)? This cannot be undone.",
+            yesText: "Delete All", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        int deleted = 0;
+        var errors  = new List<string>();
+        foreach (var user in _selectedItems.ToList())
+        {
+            var (ok, errs) = await UserService.DeleteUserAsync(user.Id);
+            if (ok) deleted++;
+            else    errors.AddRange(errs);
+        }
+
+        if (deleted > 0)
+            Snackbar.Add($"{deleted} user(s) deleted.", Severity.Success);
+        if (errors.Count > 0)
+            Snackbar.Add(string.Join("; ", errors.Distinct()), Severity.Error);
+
+        _selectedItems.Clear();
+        await _grid.ReloadServerData();
+    }
+
+    // ── Impersonation ─────────────────────────────────────────────────────────
+
+    private async Task Impersonate(UserDto user)
+    {
+        if (string.IsNullOrEmpty(_currentUserId))
+        {
+            Snackbar.Add("Cannot determine current admin user ID.", Severity.Error);
+            return;
+        }
+
+        var token  = await ImpersonationService.CreateTokenAsync(_currentUserId, user.Id);
+        var prefix = Options.Value.RoutePrefix.Trim('/');
+        Nav.NavigateTo($"/{prefix}/api/impersonate/{token}", forceLoad: true);
     }
 
     private static string GetInitials(string name) =>

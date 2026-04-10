@@ -1,9 +1,10 @@
+@using AuthManagerSample.BlazorWebApp.Identity
 @page "/account/logout"
 @* SSR for HttpContext access *@
 @attribute [ExcludeFromInteractiveRouting]
 
 @using Microsoft.AspNetCore.Identity
-@inject SignInManager<IdentityUser> SignInManager
+@inject SignInManager<ApplicationUser> SignInManager
 @inject NavigationManager Navigation
 
 @code {

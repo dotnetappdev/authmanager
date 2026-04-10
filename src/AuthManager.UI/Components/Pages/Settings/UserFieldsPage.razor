@@ -1,0 +1,421 @@
+@page "/authmanager/userfields"
+@rendermode InteractiveServer
+@inject IUserFieldService FieldService
+@inject IAuditService AuditService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>User Fields — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">User Field Definitions</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Define custom fields that appear on every user record — stored as <code>custom:fieldId</code> claims
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialog">
+        Add Field
+    </MudButton>
+</MudStack>
+
+<MudCard Elevation="0" Class="am-card-border">
+    <MudCardContent Class="pa-0">
+        <MudDataGrid T="UserFieldDefinition"
+                     Items="_fields"
+                     @ref="_grid"
+                     Dense="true"
+                     Hover="true"
+                     Filterable="true"
+                     FilterMode="DataGridFilterMode.ColumnFilterRow"
+                     ShowColumnOptions="true"
+                     SortMode="SortMode.Single"
+                     Loading="_loading"
+                     RowsPerPage="25"
+                     Class="am-data-grid">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_searchText" Placeholder="Search fields..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium" Immediate="true" DebounceInterval="300"
+                              Class="mt-0" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </ToolBarContent>
+
+            <Columns>
+                <PropertyColumn T="UserFieldDefinition" TProperty="string" Property="x => x.DisplayName"
+                                Title="Display Name" Sortable="true">
+                    <CellTemplate>
+                        <div>
+                            <MudText Typo="Typo.body2" Class="font-weight-medium">@context.Item.DisplayName</MudText>
+                            @if (!string.IsNullOrWhiteSpace(context.Item.HelpText))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Item.HelpText</MudText>
+                            }
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <PropertyColumn T="UserFieldDefinition" TProperty="string" Property="x => x.FieldId"
+                                Title="Field ID / Claim" Sortable="true">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ma-0 font-mono">
+                            custom:@context.Item.FieldId
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <TemplateColumn T="UserFieldDefinition" Title="Type" Sortable="true"
+                                SortBy="x => x.FieldType.ToString()">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Color="@GetTypeBadgeColor(context.Item.FieldType)"
+                                 Variant="Variant.Filled" Class="ma-0">
+                            @GetTypeIcon(context.Item.FieldType) @context.Item.FieldType
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="UserFieldDefinition" Title="Required" Sortable="true"
+                                SortBy="x => x.IsRequired">
+                    <CellTemplate>
+                        @if (context.Item.IsRequired)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Class="ma-0">Required</MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Optional</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="UserFieldDefinition" Title="Visible" Sortable="true"
+                                SortBy="x => x.IsVisible">
+                    <CellTemplate>
+                        @if (context.Item.IsVisible)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Class="ma-0">Visible</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ma-0">Hidden</MudChip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="UserFieldDefinition" Title="Actions" Sortable="false" Filterable="false">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           Color="Color.Primary" Variant="Variant.Text"
+                                           Title="Edit"
+                                           OnClick="@(() => OpenEditDialog(context.Item))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           Color="Color.Error" Variant="Variant.Text"
+                                           Title="Delete"
+                                           OnClick="@(() => ConfirmDelete(context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+
+            <PagerContent>
+                <MudDataGridPager T="UserFieldDefinition" />
+            </PagerContent>
+
+            <NoRecordsContent>
+                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                    <MudIcon Icon="@Icons.Material.Filled.DynamicForm" Size="Size.Large" Color="Color.Secondary" />
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">No custom fields yet</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Add fields to collect structured data — department, job title, employee ID, and more.
+                    </MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenCreateDialog" Class="mt-2">
+                        Add Your First Field
+                    </MudButton>
+                </MudStack>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+<!-- Add / Edit Dialog -->
+@if (_dialogOpen)
+{
+    <div class="am-modal-backdrop" @onclick="CloseDialog">
+        <div class="am-modal" @onclick:stopPropagation="true">
+            <div class="am-modal-header">
+                <h2 class="am-modal-title">@(_isEditing ? "Edit Field" : "New Custom Field")</h2>
+                <button class="am-modal-close" @onclick="CloseDialog">×</button>
+            </div>
+            <div class="am-modal-body">
+                <div class="am-form-grid">
+                    <div class="am-form-group">
+                        <label class="am-label">Display Name <span class="am-required">*</span></label>
+                        <input class="am-input" type="text" @bind="_editField.DisplayName"
+                               placeholder="e.g. Department" @oninput="AutoSlug" />
+                        <span class="am-input-hint">Label shown in the user edit form</span>
+                    </div>
+                    <div class="am-form-group">
+                        <label class="am-label">Field ID <span class="am-required">*</span></label>
+                        <input class="am-input" type="text" @bind="_editField.FieldId"
+                               placeholder="e.g. department"
+                               disabled="@_isEditing" />
+                        <span class="am-input-hint">
+                            Claim stored as <code>custom:@(_editField.FieldId ?? "…")</code>.
+                            @if (_isEditing) { <text>Cannot be changed after creation.</text> }
+                        </span>
+                    </div>
+                </div>
+
+                <div class="am-form-group">
+                    <label class="am-label">Field Type <span class="am-required">*</span></label>
+                    <select class="am-input" @bind="_editFieldTypeStr">
+                        @foreach (var t in Enum.GetValues<UserFieldType>())
+                        {
+                            <option value="@t">@GetTypeIcon(t) @t — @GetTypeDescription(t)</option>
+                        }
+                    </select>
+                </div>
+
+                @if (_editField.FieldType == UserFieldType.Select)
+                {
+                    <div class="am-form-group">
+                        <label class="am-label">Options <span class="am-required">*</span></label>
+                        <textarea class="am-input" rows="3"
+                                  @bind="_editField.SelectOptions"
+                                  placeholder="Engineering|Marketing|Sales|HR"></textarea>
+                        <span class="am-input-hint">Separate options with a pipe character <code>|</code></span>
+                    </div>
+                }
+
+                <div class="am-form-grid">
+                    <div class="am-form-group">
+                        <label class="am-label">Placeholder</label>
+                        <input class="am-input" type="text" @bind="_editField.Placeholder"
+                               placeholder="e.g. Enter department name" />
+                    </div>
+                    <div class="am-form-group">
+                        <label class="am-label">Default Value</label>
+                        <input class="am-input" type="text" @bind="_editField.DefaultValue"
+                               placeholder="e.g. Engineering" />
+                    </div>
+                </div>
+
+                <div class="am-form-group">
+                    <label class="am-label">Help Text</label>
+                    <input class="am-input" type="text" @bind="_editField.HelpText"
+                           placeholder="Short description shown below the input" />
+                </div>
+
+                <div class="am-toggle-list am-mt-3">
+                    <div class="am-toggle-item">
+                        <div class="am-toggle-info">
+                            <div class="am-toggle-label">Required</div>
+                            <div class="am-toggle-desc">Validation error if left empty when saving the user</div>
+                        </div>
+                        <label class="am-switch">
+                            <input type="checkbox" @bind="_editField.IsRequired" />
+                            <span class="am-switch-slider"></span>
+                        </label>
+                    </div>
+                    <div class="am-toggle-item">
+                        <div class="am-toggle-info">
+                            <div class="am-toggle-label">Visible</div>
+                            <div class="am-toggle-desc">Show this field in the user edit form</div>
+                        </div>
+                        <label class="am-switch">
+                            <input type="checkbox" @bind="_editField.IsVisible" />
+                            <span class="am-switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                @if (_dialogError is not null)
+                {
+                    <div class="am-alert am-alert-error am-mt-3">@_dialogError</div>
+                }
+            </div>
+            <div class="am-modal-footer">
+                <button class="am-btn am-btn-ghost" @onclick="CloseDialog">Cancel</button>
+                <button class="am-btn am-btn-primary" @onclick="SaveField" disabled="@_saving">
+                    @if (_saving) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
+                    @(_isEditing ? "Save Changes" : "Create Field")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private MudDataGrid<UserFieldDefinition> _grid = default!;
+    private List<UserFieldDefinition> _fields = [];
+    private bool _loading = true;
+    private string _searchText = "";
+
+    // Dialog state
+    private bool _dialogOpen;
+    private bool _isEditing;
+    private bool _saving;
+    private string? _dialogError;
+    private UserFieldDefinition _editField = new();
+
+    private string _editFieldTypeStr
+    {
+        get => _editField.FieldType.ToString();
+        set => _editField.FieldType = Enum.TryParse<UserFieldType>(value, out var t) ? t : UserFieldType.Text;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _fields = await FieldService.GetAllFieldDefinitionsAsync();
+        _loading = false;
+    }
+
+    private void OpenCreateDialog()
+    {
+        _editField   = new UserFieldDefinition { IsVisible = true };
+        _isEditing   = false;
+        _dialogError = null;
+        _dialogOpen  = true;
+    }
+
+    private void OpenEditDialog(UserFieldDefinition field)
+    {
+        _editField = new UserFieldDefinition
+        {
+            FieldId       = field.FieldId,
+            DisplayName   = field.DisplayName,
+            FieldType     = field.FieldType,
+            IsRequired    = field.IsRequired,
+            Placeholder   = field.Placeholder,
+            DefaultValue  = field.DefaultValue,
+            SelectOptions = field.SelectOptions,
+            IsVisible     = field.IsVisible,
+            HelpText      = field.HelpText,
+        };
+        _isEditing   = true;
+        _dialogError = null;
+        _dialogOpen  = true;
+    }
+
+    private void CloseDialog()
+    {
+        _dialogOpen = false;
+        _saving     = false;
+    }
+
+    private void AutoSlug(ChangeEventArgs e)
+    {
+        if (_isEditing) return;
+        var raw = e.Value?.ToString() ?? string.Empty;
+        _editField.FieldId = System.Text.RegularExpressions.Regex.Replace(
+            raw.ToLowerInvariant().Trim().Replace(' ', '_'), @"[^a-z0-9_]", string.Empty);
+    }
+
+    private async Task SaveField()
+    {
+        _dialogError = null;
+
+        if (string.IsNullOrWhiteSpace(_editField.DisplayName))
+        { _dialogError = "Display name is required."; return; }
+
+        if (string.IsNullOrWhiteSpace(_editField.FieldId))
+        { _dialogError = "Field ID is required."; return; }
+
+        if (_editField.FieldType == UserFieldType.Select &&
+            string.IsNullOrWhiteSpace(_editField.SelectOptions))
+        { _dialogError = "At least one option is required for Select fields."; return; }
+
+        _saving = true;
+        try
+        {
+            await FieldService.SaveFieldAsync(_editField);
+            await AuditService.RecordAsync(new AuditEntry
+            {
+                Action     = AuditActions.UserAttributeSet,
+                EntityType = "UserFieldDefinition",
+                EntityId   = _editField.FieldId,
+                EntityName = _editField.DisplayName,
+                NewValues  = new Dictionary<string, object?>
+                {
+                    ["FieldType"]  = _editField.FieldType.ToString(),
+                    ["IsRequired"] = _editField.IsRequired,
+                    ["IsVisible"]  = _editField.IsVisible,
+                },
+                Success    = true
+            });
+
+            _fields = await FieldService.GetAllFieldDefinitionsAsync();
+            Snackbar.Add($"Field \"{_editField.DisplayName}\" saved.", Severity.Success);
+            CloseDialog();
+        }
+        catch (Exception ex)
+        {
+            _dialogError = ex.Message;
+        }
+        finally { _saving = false; }
+    }
+
+    private async Task ConfirmDelete(UserFieldDefinition field)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Field?",
+            $"Delete \"{field.DisplayName}\"? The field definition will be removed from the edit form, but existing custom:{field.FieldId} claims on users are not deleted.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (confirm != true) return;
+
+        await FieldService.DeleteFieldAsync(field.FieldId);
+        await AuditService.RecordAsync(new AuditEntry
+        {
+            Action     = AuditActions.UserAttributeRemoved,
+            EntityType = "UserFieldDefinition",
+            EntityId   = field.FieldId,
+            EntityName = field.DisplayName,
+            Success    = true
+        });
+        Snackbar.Add($"Field \"{field.DisplayName}\" deleted.", Severity.Info);
+        _fields = await FieldService.GetAllFieldDefinitionsAsync();
+    }
+
+    private static Color GetTypeBadgeColor(UserFieldType t) => t switch
+    {
+        UserFieldType.Boolean  => Color.Success,
+        UserFieldType.Date or UserFieldType.DateTime => Color.Info,
+        UserFieldType.Select   => Color.Warning,
+        UserFieldType.Number   => Color.Info,
+        UserFieldType.Email    => Color.Primary,
+        _                      => Color.Default
+    };
+
+    private static string GetTypeIcon(UserFieldType t) => t switch
+    {
+        UserFieldType.Text      => "Aa",
+        UserFieldType.TextArea  => "¶",
+        UserFieldType.Email     => "✉",
+        UserFieldType.Phone     => "📞",
+        UserFieldType.Url       => "🔗",
+        UserFieldType.Number    => "123",
+        UserFieldType.Boolean   => "☑",
+        UserFieldType.Date      => "📅",
+        UserFieldType.DateTime  => "🕐",
+        UserFieldType.Select    => "▼",
+        _                       => "?"
+    };
+
+    private static string GetTypeDescription(UserFieldType t) => t switch
+    {
+        UserFieldType.Text      => "Single-line text",
+        UserFieldType.TextArea  => "Multi-line text",
+        UserFieldType.Email     => "Email address",
+        UserFieldType.Phone     => "Phone number",
+        UserFieldType.Url       => "Website URL",
+        UserFieldType.Number    => "Integer or decimal",
+        UserFieldType.Boolean   => "On/Off toggle",
+        UserFieldType.Date      => "Date picker",
+        UserFieldType.DateTime  => "Date + time picker",
+        UserFieldType.Select    => "Drop-down options",
+        _                       => string.Empty
+    };
+}

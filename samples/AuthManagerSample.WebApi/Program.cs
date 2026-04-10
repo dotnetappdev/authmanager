@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using AuthManagerSample.WebApi.Data;
 using AuthManagerSample.WebApi.Endpoints;
+using AuthManagerSample.WebApi.Identity;
 using AuthManagerSample.WebApi.Services;
 using Serilog;
 using Serilog.Events;
@@ -24,12 +25,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 // ── 1. DbContext ──────────────────────────────────────────────────────────────
+// Uses SQL Server LocalDB by default (comes with Visual Studio — no separate install).
+// To use SQLite instead, replace UseSqlServer with UseSqlite and swap the connection
+// string key to "DefaultSQLite" in appsettings.json.
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Default")!));
 
 // ── 2. ASP.NET Identity ───────────────────────────────────────────────────────
 builder.Services
-    .AddIdentity<IdentityUser, IdentityRole>(o =>
+    .AddIdentity<ApplicationUser, IdentityRole>(o =>
     {
         o.User.RequireUniqueEmail = true;
     })
@@ -70,7 +74,7 @@ builder.Services.AddSingleton<TokenService>();
 
 // ── 5. AuthManager on top of Identity ────────────────────────────────────────
 //       No DB configuration — it uses the AppDbContext + Identity you set up above.
-builder.Services.AddAuthManager<IdentityUser>(options =>
+builder.Services.AddAuthManager<ApplicationUser>(options =>
 {
     options.RoutePrefix    = "authmanager";
     options.Title          = "Web API — Auth Manager";

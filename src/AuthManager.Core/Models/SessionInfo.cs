@@ -3,7 +3,7 @@ namespace AuthManager.Core.Models;
 /// <summary>
 /// Represents a tracked user session (browser/device sign-in).
 /// Displayed in the user detail page "Active Sessions" panel,
-/// equivalent to Keycloak's session list.
+/// displayed in the Active Sessions panel.
 /// </summary>
 public sealed class SessionInfo
 {
@@ -32,7 +32,7 @@ public sealed class SessionInfo
 
 /// <summary>
 /// Required actions that will be enforced on the user's next sign-in.
-/// Equivalent to Keycloak's "Required User Actions".
+/// Equivalent to the Required Actions panel.
 /// </summary>
 public enum RequiredUserAction
 {

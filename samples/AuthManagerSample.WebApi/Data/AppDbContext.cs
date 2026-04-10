@@ -1,14 +1,26 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using AuthManagerSample.WebApi.Identity;
 
 namespace AuthManagerSample.WebApi.Data;
 
 /// <summary>
-/// The host app's DbContext — AuthManager uses this directly via UserManager/RoleManager.
-/// AuthManager never owns a database; it layers on top of whatever you bring.
+/// The host app's DbContext. AuthManager layers on top via UserManager/RoleManager.
 /// </summary>
-public sealed class AppDbContext : IdentityDbContext<IdentityUser>
+public sealed class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        builder.Entity<ApplicationUser>(e =>
+        {
+            e.Property(u => u.FirstName).HasMaxLength(100);
+            e.Property(u => u.LastName).HasMaxLength(100);
+            e.Property(u => u.ProfilePictureUrl).HasMaxLength(500);
+        });
+    }
 }
+

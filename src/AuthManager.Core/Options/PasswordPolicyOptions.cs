@@ -1,7 +1,7 @@
 namespace AuthManager.Core.Options;
 
 /// <summary>
-/// Password complexity and rotation policy — equivalent to Keycloak's "Password Policy" tab.
+/// Password complexity and rotation policy — equivalent to the Password Policy settings UI.
 ///
 /// These settings are applied to the ASP.NET Identity <c>PasswordOptions</c> automatically
 /// when <c>AddAuthManager()</c> is called. You do NOT need to repeat them in

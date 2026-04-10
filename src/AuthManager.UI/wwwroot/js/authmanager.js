@@ -7,6 +7,10 @@ window.authManager = {
         localStorage.setItem('am-theme', theme);
         document.documentElement.setAttribute('data-theme', theme);
     },
+    clearTheme() {
+        localStorage.removeItem('am-theme');
+        document.documentElement.removeAttribute('data-theme');
+    },
     prefersDarkMode() {
         return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
     },

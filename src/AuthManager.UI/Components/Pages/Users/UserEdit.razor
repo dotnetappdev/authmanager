@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @inject IUserManagementService UserService
 @inject IRoleManagementService RoleService
+@inject IUserFieldService FieldService
 @inject NavigationManager Nav
 
 <PageTitle>@(IsCreate ? "Create User" : "Edit User") — Auth Manager</PageTitle>
@@ -120,7 +121,7 @@ else
                     <div class="am-card-body">
                         <p class="am-text-muted">
                             Assign actions the user <strong>must complete</strong> the next time they sign in —
-                            equivalent to Keycloak's Required User Actions.
+                            per-user actions enforced on next sign-in.
                         </p>
                         <div class="am-toggle-list am-mt-2">
                             @foreach (var action in _allRequiredActions)
@@ -154,36 +155,79 @@ else
                 </div>
             }
 
-            <!-- Custom Attributes (edit mode only) -->
+            <!-- Custom Fields (edit mode only) -->
             @if (!IsCreate)
             {
                 <div class="am-card">
                     <div class="am-card-header">
-                        <h2 class="am-card-title">Custom Attributes</h2>
-                        <button class="am-btn am-btn-sm am-btn-ghost" @onclick="AddAttributeRow">+ Add Attribute</button>
+                        <h2 class="am-card-title">Custom Fields</h2>
+                        <a href="/authmanager/userfields" class="am-btn am-btn-sm am-btn-ghost">Manage Fields</a>
                     </div>
                     <div class="am-card-body">
-                        <p class="am-text-muted">
-                            Custom key/value metadata attached to this user.
-                            Stored as <code>custom:key</code> claims and available in JWT tokens.
-                        </p>
-                        @if (_customAttributes.Count == 0)
+                        @if (_fieldDefinitions.Count == 0)
                         {
-                            <p class="am-text-muted">No custom attributes. Click "Add Attribute" to add one.</p>
+                            <p class="am-text-muted">
+                                No custom fields defined yet.
+                                <a href="/authmanager/userfields" class="am-link">Add field definitions</a>
+                                to collect structured data from this user.
+                            </p>
                         }
-                        @foreach (var (attr, index) in _customAttributes.Select((a, i) => (a, i)))
+                        else
                         {
-                            <div class="am-claim-row">
-                                <input class="am-input" placeholder="Key (e.g. department)" @bind="attr.Key" />
-                                <input class="am-input" placeholder="Value" @bind="attr.Value" />
-                                <button class="am-btn am-btn-sm am-btn-danger am-btn-icon" @onclick="@(() => RemoveAttribute(index))">×</button>
+                            <div class="am-form-grid">
+                                @foreach (var field in _fieldDefinitions.Where(f => f.IsVisible))
+                                {
+                                    <div class="am-form-group">
+                                        <label class="am-label">
+                                            @field.DisplayName
+                                            @if (field.IsRequired) { <span class="am-required">*</span> }
+                                        </label>
+                                        @if (field.FieldType == UserFieldType.TextArea)
+                                        {
+                                            <textarea class="am-input" rows="3"
+                                                      placeholder="@field.Placeholder"
+                                                      value="@GetFieldValue(field.FieldId)"
+                                                      @oninput="e => SetFieldValue(field.FieldId, e.Value?.ToString() ?? string.Empty)"></textarea>
+                                        }
+                                        else if (field.FieldType == UserFieldType.Boolean)
+                                        {
+                                            <label class="am-switch">
+                                                <input type="checkbox"
+                                                       checked="@(GetFieldValue(field.FieldId) == "true")"
+                                                       @onchange="e => SetFieldValue(field.FieldId, ((bool)e.Value!).ToString().ToLower())" />
+                                                <span class="am-switch-slider"></span>
+                                            </label>
+                                        }
+                                        else if (field.FieldType == UserFieldType.Select)
+                                        {
+                                            <select class="am-input"
+                                                    value="@GetFieldValue(field.FieldId)"
+                                                    @onchange="e => SetFieldValue(field.FieldId, e.Value?.ToString() ?? string.Empty)">
+                                                <option value="">— Select —</option>
+                                                @foreach (var opt in field.GetSelectOptions())
+                                                {
+                                                    <option value="@opt">@opt</option>
+                                                }
+                                            </select>
+                                        }
+                                        else
+                                        {
+                                            <input class="am-input"
+                                                   type="@GetFieldInputType(field.FieldType)"
+                                                   placeholder="@field.Placeholder"
+                                                   value="@GetFieldValue(field.FieldId)"
+                                                   @oninput="e => SetFieldValue(field.FieldId, e.Value?.ToString() ?? string.Empty)" />
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(field.HelpText))
+                                        {
+                                            <span class="am-input-hint">@field.HelpText</span>
+                                        }
+                                    </div>
+                                }
                             </div>
-                        }
-                        @if (_customAttributes.Count > 0)
-                        {
-                            <button class="am-btn am-btn-secondary am-mt-2" @onclick="SaveAttributes" disabled="@_savingAttributes">
+                            <button class="am-btn am-btn-secondary am-mt-3" @onclick="SaveCustomFields" disabled="@_savingAttributes">
                                 @if (_savingAttributes) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
-                                Save Attributes
+                                Save Custom Fields
                             </button>
                         }
                     </div>
@@ -276,15 +320,10 @@ else
     private string[] _errors = [];
     private string _newPassword = "";
 
-    // Custom Attributes (stored as custom:key claims)
-    private List<AttributeRow> _customAttributes = [];
+    // Custom Fields (stored as custom:fieldId claims)
+    private List<UserFieldDefinition> _fieldDefinitions = [];
+    private Dictionary<string, string> _fieldValues = [];
     private bool _savingAttributes;
-
-    private sealed class AttributeRow
-    {
-        public string Key { get; set; } = string.Empty;
-        public string Value { get; set; } = string.Empty;
-    }
 
     // Required Actions
     private HashSet<string> _requiredActions = [];
@@ -330,15 +369,13 @@ else
                 var actions = await UserService.GetRequiredActionsAsync(UserId!);
                 _requiredActions = [.. actions];
 
-                // Load custom attributes from custom:* claims
-                _customAttributes = _user.Claims
-                    .Where(c => c.Type.StartsWith("custom:", StringComparison.OrdinalIgnoreCase))
-                    .Select(c => new AttributeRow
-                    {
-                        Key   = c.Type["custom:".Length..],
-                        Value = c.Value
-                    })
-                    .ToList();
+                // Load field definitions and populate values from existing claims
+                _fieldDefinitions = await FieldService.GetAllFieldDefinitionsAsync();
+                _fieldValues = _fieldDefinitions.ToDictionary(
+                    f => f.FieldId,
+                    f => _user.Claims
+                             .FirstOrDefault(c => c.Type.Equals(f.ClaimType, StringComparison.OrdinalIgnoreCase))
+                             ?.Value ?? f.DefaultValue ?? string.Empty);
             }
         }
 
@@ -445,28 +482,47 @@ else
         }
     }
 
-    private void AddAttributeRow() => _customAttributes.Add(new AttributeRow());
-    private void RemoveAttribute(int index) => _customAttributes.RemoveAt(index);
+    private string GetFieldValue(string fieldId) =>
+        _fieldValues.TryGetValue(fieldId, out var v) ? v : string.Empty;
 
-    private async Task SaveAttributes()
+    private void SetFieldValue(string fieldId, string value) =>
+        _fieldValues[fieldId] = value;
+
+    private static string GetFieldInputType(UserFieldType type) => type switch
+    {
+        UserFieldType.Email    => "email",
+        UserFieldType.Phone    => "tel",
+        UserFieldType.Url      => "url",
+        UserFieldType.Number   => "number",
+        UserFieldType.Date     => "date",
+        UserFieldType.DateTime => "datetime-local",
+        _                      => "text"
+    };
+
+    private async Task SaveCustomFields()
     {
         _savingAttributes = true;
         _errors = [];
 
         try
         {
-            // Remove all existing custom: claims
             var user = await UserService.GetUserByIdAsync(UserId!);
             if (user is null) return;
 
-            foreach (var claim in user.Claims.Where(c => c.Type.StartsWith("custom:", StringComparison.OrdinalIgnoreCase)))
-                await UserService.RemoveClaimAsync(UserId!, claim);
+            // For each visible defined field: remove old claim then write new value
+            foreach (var field in _fieldDefinitions.Where(f => f.IsVisible))
+            {
+                var existing = user.Claims.FirstOrDefault(
+                    c => c.Type.Equals(field.ClaimType, StringComparison.OrdinalIgnoreCase));
+                if (existing is not null)
+                    await UserService.RemoveClaimAsync(UserId!, existing);
 
-            // Add the current set
-            foreach (var attr in _customAttributes.Where(a => !string.IsNullOrWhiteSpace(a.Key)))
-                await UserService.AddClaimAsync(UserId!, new ClaimDto($"custom:{attr.Key.Trim()}", attr.Value));
+                var value = GetFieldValue(field.FieldId);
+                if (!string.IsNullOrEmpty(value))
+                    await UserService.AddClaimAsync(UserId!, new ClaimDto(field.ClaimType, value));
+            }
 
-            ToastService.Instance.Success("Custom attributes saved.");
+            ToastService.Instance.Success("Custom fields saved.");
         }
         finally
         {

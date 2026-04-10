@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
+using AuthManagerSample.WebApi.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using AuthManagerSample.WebApi.Models;
@@ -17,14 +18,14 @@ namespace AuthManagerSample.WebApi.Services;
 /// </summary>
 public sealed class TokenService
 {
-    private readonly UserManager<IdentityUser> _users;
+    private readonly UserManager<ApplicationUser> _users;
     private readonly JwtOptions _opts;
     private readonly SymmetricSecurityKey _signingKey;
 
     // In-memory refresh token store: token → userId
     private readonly ConcurrentDictionary<string, string> _refreshTokens = new();
 
-    public TokenService(UserManager<IdentityUser> users, IOptions<JwtOptions> opts)
+    public TokenService(UserManager<ApplicationUser> users, IOptions<JwtOptions> opts)
     {
         _users = users;
         _opts  = opts.Value;
@@ -63,7 +64,7 @@ public sealed class TokenService
 
     // ── internals ─────────────────────────────────────────────────────────────
 
-    private async Task<TokenResponse> BuildTokenPairAsync(IdentityUser user)
+    private async Task<TokenResponse> BuildTokenPairAsync(ApplicationUser user)
     {
         var roles  = await _users.GetRolesAsync(user);
         var claims = await _users.GetClaimsAsync(user);

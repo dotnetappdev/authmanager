@@ -22,8 +22,8 @@ public sealed class UserDto
     public List<ClaimDto> Claims { get; set; } = [];
 
     /// <summary>
-    /// Custom user attributes (Keycloak-style).
-    /// Stored as claims with a "custom:" prefix and surfaced here for easy access.
+    /// Custom user attributes stored as claims with a "custom:" prefix.
+    /// Surfaced here for easy access.
     /// The key is the attribute name (without prefix), the value is its current value.
     /// </summary>
     public Dictionary<string, string> CustomAttributes { get; set; } = [];

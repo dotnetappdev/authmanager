@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using AuthManagerSample.BlazorWebApp.Components;
 using AuthManagerSample.BlazorWebApp.Data;
+using AuthManagerSample.BlazorWebApp.Identity;
 using Serilog;
 using Serilog.Events;
 
@@ -25,12 +26,15 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 
 // ── 2. DbContext ──────────────────────────────────────────────────────────────
+// Uses SQL Server LocalDB by default (comes with Visual Studio — no separate install).
+// To use SQLite instead, replace UseSqlServer with UseSqlite and swap the connection
+// string key to "DefaultSQLite" in appsettings.json.
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Default")!));
 
 // ── 3. ASP.NET Identity ───────────────────────────────────────────────────────
 builder.Services
-    .AddIdentity<IdentityUser, IdentityRole>(o =>
+    .AddIdentity<ApplicationUser, IdentityRole>(o =>
     {
         o.User.RequireUniqueEmail = true;
         o.SignIn.RequireConfirmedAccount = false; // set true in production
@@ -52,7 +56,7 @@ builder.Services.AddCascadingAuthenticationState();
 
 // ── 4. AuthManager on top of Identity ────────────────────────────────────────
 //       AddRazorComponents() above is idempotent — AuthManager won't re-register it.
-builder.Services.AddAuthManager<IdentityUser>(options =>
+builder.Services.AddAuthManager<ApplicationUser>(options =>
 {
     options.RoutePrefix    = "authmanager";
     options.Title          = "Blazor App — Auth Manager";

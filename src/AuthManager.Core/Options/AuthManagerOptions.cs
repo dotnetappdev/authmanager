@@ -92,14 +92,14 @@ public sealed class AuthManagerOptions
     /// <summary>
     /// Password complexity and rotation policy.
     /// Applied to ASP.NET Identity's <c>PasswordOptions</c> automatically.
-    /// Equivalent to Keycloak's "Password Policy" realm tab.
+    /// Configurable at runtime via /authmanager/security.
     /// </summary>
     public PasswordPolicyOptions PasswordPolicy { get; set; } = new();
 
     /// <summary>
     /// Account lockout and brute-force detection settings.
     /// Applied to ASP.NET Identity's <c>LockoutOptions</c> automatically.
-    /// Equivalent to Keycloak's "Brute Force Detection" realm tab.
+    /// Configurable at runtime via /authmanager/security.
     /// </summary>
     public SecurityPolicyOptions SecurityPolicy { get; set; } = new();
 
@@ -108,6 +108,33 @@ public sealed class AuthManagerOptions
     /// Fire-and-forget signed HTTP POSTs on auth events.
     /// </summary>
     public WebhookOptions Webhooks { get; set; } = new();
+
+    /// <summary>
+    /// Singular display name for the user entity shown throughout the admin UI.
+    /// E.g. "User" (default), "Member", "Customer", "Employee".
+    /// Overridable at runtime via /authmanager/settings.
+    /// </summary>
+    public string UserEntityDisplayName { get; set; } = "User";
+
+    /// <summary>
+    /// Plural display name for the user entity.
+    /// E.g. "Users" (default), "Members", "Customers", "Employees".
+    /// </summary>
+    public string UserEntityPluralDisplayName { get; set; } = "Users";
+
+    /// <summary>
+    /// Connection string for AuthManager's own internal database
+    /// (stores audit entries, sessions, and settings overrides).
+    /// Defaults to a local <c>authmanager.db</c> SQLite file.
+    /// </summary>
+    public string InternalDatabaseConnectionString { get; set; } = "Data Source=authmanager.db";
+
+    /// <summary>
+    /// Database provider for AuthManager's own internal data store.
+    /// Supported values: <c>"SQLite"</c> (default, no install needed) or <c>"SqlServer"</c>.
+    /// Configurable at runtime via the Security Settings UI.
+    /// </summary>
+    public string InternalDatabaseProvider { get; set; } = "SQLite";
 }
 
 /// <summary>

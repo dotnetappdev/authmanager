@@ -1,7 +1,7 @@
 namespace AuthManager.Core.Options;
 
 /// <summary>
-/// Schema-driven custom user attributes — equivalent to Keycloak's "User Attributes" tab.
+/// Schema-driven custom user attributes — equivalent to the User Attributes panel.
 ///
 /// Define attribute schemas here; AuthManager stores the values as user claims
 /// with a <c>custom:</c> prefix (e.g. <c>custom:department</c>).
