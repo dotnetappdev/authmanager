@@ -1,0 +1,181 @@
+@page "/authmanager/signin-history"
+@rendermode InteractiveServer
+@inject ISignInHistoryService HistoryService
+@inject IEntityNamingService Naming
+
+<PageTitle>Sign-in History — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Sign-in History</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Review sign-in attempts for all @Naming.GetUsersDisplayName().ToLower()
+        </MudText>
+    </div>
+</MudStack>
+
+<MudCard Elevation="0" Class="am-card-border">
+    <MudCardContent Class="pa-0">
+        <MudDataGrid T="SignInAttempt"
+                     ServerData="LoadServerData"
+                     @ref="_grid"
+                     Dense="true"
+                     Hover="true"
+                     Filterable="true"
+                     FilterMode="DataGridFilterMode.ColumnFilterRow"
+                     ShowColumnOptions="true"
+                     SortMode="SortMode.Single"
+                     RowsPerPage="50"
+                     Class="am-data-grid">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_searchText"
+                              Placeholder="Search by username or email..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium"
+                              Immediate="true"
+                              DebounceInterval="400"
+                              Class="mt-0"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              OnKeyUp="OnSearchChanged" />
+                <MudSpacer />
+                <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Class="ml-2">
+                    <MudButton Color="@(_succeededFilter == null ? Color.Primary : Color.Default)"
+                               OnClick="@(() => SetFilter(null))">All</MudButton>
+                    <MudButton Color="@(_succeededFilter == true ? Color.Success : Color.Default)"
+                               OnClick="@(() => SetFilter(true))">Succeeded</MudButton>
+                    <MudButton Color="@(_succeededFilter == false ? Color.Error : Color.Default)"
+                               OnClick="@(() => SetFilter(false))">Failed</MudButton>
+                </MudButtonGroup>
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
+                               OnClick="@(() => _grid.ReloadServerData())" Title="Refresh" Class="ml-1" />
+            </ToolBarContent>
+
+            <Columns>
+                <PropertyColumn T="SignInAttempt" TProperty="DateTimeOffset" Property="x => x.Timestamp"
+                                Title="Timestamp" Sortable="true" Filterable="false">
+                    <CellTemplate>
+                        <MudTooltip Text="@context.Item.Timestamp.ToString("yyyy-MM-dd HH:mm:ss UTC")">
+                            <MudText Typo="Typo.body2">@context.Item.Timestamp.ToString("MMM dd, HH:mm")</MudText>
+                        </MudTooltip>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <TemplateColumn T="SignInAttempt" Title="User" Sortable="false">
+                    <CellTemplate>
+                        <div>
+                            <MudText Typo="Typo.body2" Class="font-weight-medium">
+                                @(context.Item.UserName ?? context.Item.Email ?? "Unknown")
+                            </MudText>
+                            @if (!string.IsNullOrEmpty(context.Item.UserId))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @context.Item.UserId[..Math.Min(8, context.Item.UserId.Length)]…
+                                </MudText>
+                            }
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="SignInAttempt" Title="Result" Sortable="false" Filterable="false">
+                    <CellTemplate>
+                        @if (context.Item.Succeeded)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success"
+                                     Icon="@Icons.Material.Filled.CheckCircle"
+                                     Variant="Variant.Text">Success</MudChip>
+                        }
+                        else
+                        {
+                            <MudTooltip Text="@(context.Item.FailureReason ?? "Unknown reason")">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error"
+                                         Icon="@Icons.Material.Filled.Cancel"
+                                         Variant="Variant.Text">
+                                    Failed
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="SignInAttempt" Title="IP Address" Sortable="false">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            @(context.Item.IpAddress ?? "—")
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="SignInAttempt" Title="User Agent" Sortable="false">
+                    <CellTemplate>
+                        @if (!string.IsNullOrEmpty(context.Item.UserAgent))
+                        {
+                            <MudTooltip Text="@context.Item.UserAgent">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @Truncate(context.Item.UserAgent, 50)
+                                </MudText>
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">—</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+
+            <PagerContent>
+                <MudDataGridPager T="SignInAttempt" />
+            </PagerContent>
+
+            <NoRecordsContent>
+                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                    <MudIcon Icon="@Icons.Material.Filled.Login" Size="Size.Large" Color="Color.Secondary" />
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">No sign-in history yet</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Sign-in attempts will be recorded here once users start logging in.
+                    </MudText>
+                </MudStack>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private MudDataGrid<SignInAttempt> _grid = default!;
+    private string _searchText = "";
+    private bool?  _succeededFilter;
+
+    private async Task<GridData<SignInAttempt>> LoadServerData(GridState<SignInAttempt> state)
+    {
+        // Use searchText to filter by userId/username when provided (server-side page)
+        var result = await HistoryService.GetHistoryAsync(
+            page:      state.Page + 1,
+            pageSize:  state.PageSize,
+            userId:    null,
+            succeeded: _succeededFilter);
+
+        // Apply client-side text filter on current page results
+        var items = string.IsNullOrWhiteSpace(_searchText)
+            ? result.Items
+            : result.Items.Where(e =>
+                (e.UserName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (e.Email?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (e.UserId?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+              .ToList();
+
+        return new GridData<SignInAttempt> { Items = items, TotalItems = result.TotalCount };
+    }
+
+    private async Task SetFilter(bool? value)
+    {
+        _succeededFilter = value;
+        await _grid.ReloadServerData();
+    }
+
+    private async Task OnSearchChanged(KeyboardEventArgs _) => await _grid.ReloadServerData();
+
+    private static string Truncate(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..maxLength] + "…";
+}

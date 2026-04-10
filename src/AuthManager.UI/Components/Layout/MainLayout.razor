@@ -1,7 +1,10 @@
 @inherits LayoutComponentBase
 @inject IJSRuntime JS
 @inject IOptions<AuthManagerOptions> Options
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
 @implements IAsyncDisposable
+@using Microsoft.AspNetCore.Components.Authorization
 
 <MudThemeProvider @ref="_themeProvider" Theme="_theme" @bind-IsDarkMode="_isDark" />
 <MudPopoverProvider />
@@ -12,6 +15,13 @@
     <NavMenu IsDark="_isDark" OnThemeToggle="ToggleTheme" />
 
     <MudMainContent Class="am-main-content">
+        @if (_isImpersonating)
+        {
+            <MudAlert Severity="Severity.Warning" Class="rounded-0 mb-0" Style="position:sticky;top:0;z-index:1300;">
+                Impersonating <strong>@_impersonatedUser</strong> as SuperAdmin —
+                <MudLink Href="@_exitImpersonationUrl" Color="Color.Inherit" Underline="Underline.Always">Exit Impersonation</MudLink>
+            </MudAlert>
+        }
         <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="am-container">
             @Body
         </MudContainer>
@@ -20,8 +30,26 @@
 
 @code {
     private MudThemeProvider _themeProvider = default!;
-    private bool _isDark;
+    private bool   _isDark;
     private MudTheme _theme = AuthManagerThemeProvider.Build();
+
+    private bool   _isImpersonating;
+    private string _impersonatedUser    = "";
+    private string _exitImpersonationUrl = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user      = authState.User;
+
+        if (user.FindFirst("am:impersonating")?.Value == "true")
+        {
+            _isImpersonating     = true;
+            _impersonatedUser    = user.Identity?.Name ?? "Unknown";
+            var prefix           = Options.Value.RoutePrefix.Trim('/');
+            _exitImpersonationUrl = $"/{prefix}/api/exit-impersonation";
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

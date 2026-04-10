@@ -1,0 +1,217 @@
+@page "/authmanager/health"
+@rendermode InteractiveServer
+@inject ISystemHealthService HealthService
+@implements IAsyncDisposable
+
+<PageTitle>System Health — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">System Health</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Real-time overview of authentication infrastructure
+        </MudText>
+    </div>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        @if (_report is not null)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Last checked: @_report.GeneratedAt.ToString("HH:mm:ss")
+            </MudText>
+        }
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                       Color="Color.Default"
+                       OnClick="RefreshAsync"
+                       Title="Refresh now"
+                       Disabled="_loading" />
+    </MudStack>
+</MudStack>
+
+@if (_loading && _report is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+
+@if (_report is not null)
+{
+    <!-- Overall status banner -->
+    <MudAlert Severity="@GetAlertSeverity(_report.OverallStatus)"
+              Class="mb-4"
+              Icon="@GetStatusIcon(_report.OverallStatus)">
+        <strong>@GetStatusText(_report.OverallStatus)</strong> —
+        @GetStatusDescription(_report.OverallStatus)
+    </MudAlert>
+
+    <!-- Key metrics row -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Lock"
+                                 Color="@(_report.LockedOutUsers > 0 ? Color.Warning : Color.Success)"
+                                 Size="Size.Large" />
+                        <MudText Typo="Typo.h4">@_report.LockedOutUsers</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Locked-out Users</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Devices"
+                                 Color="Color.Info"
+                                 Size="Size.Large" />
+                        <MudText Typo="Typo.h4">@_report.ActiveSessions</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Active Sessions</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Cancel"
+                                 Color="@(_report.RecentSignInFailures > 10 ? Color.Error : Color.Success)"
+                                 Size="Size.Large" />
+                        <MudText Typo="Typo.h4">@_report.RecentSignInFailures</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Sign-in Failures (1h)</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Warning"
+                                 Color="@(_report.UnconfirmedEmailUsers > 0 ? Color.Warning : Color.Success)"
+                                 Size="Size.Large" />
+                        <MudText Typo="Typo.h4">@_report.UnconfirmedEmailUsers</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Unconfirmed Emails</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Health check cards -->
+    <MudText Typo="Typo.h6" Class="mb-2">Health Checks</MudText>
+    <MudGrid>
+        @foreach (var check in _report.Checks)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@GetCheckIcon(check.Status)"
+                                         Color="@GetCheckColor(check.Status)"
+                                         Size="Size.Medium" />
+                                <MudText Typo="Typo.subtitle2">@check.Name</MudText>
+                            </MudStack>
+                            <MudChip T="string"
+                                     Size="Size.Small"
+                                     Color="@GetCheckColor(check.Status)"
+                                     Variant="Variant.Outlined">
+                                @check.Status.ToString()
+                            </MudChip>
+                        </MudStack>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1">
+                            @check.Description
+                        </MudText>
+                        @if (!string.IsNullOrEmpty(check.Detail))
+                        {
+                            <MudText Typo="Typo.caption">@check.Detail</MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private SystemHealthReport? _report;
+    private bool                _loading;
+    private Timer?              _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        // Auto-refresh every 30 seconds
+        _timer = new Timer(async _ =>
+        {
+            await RefreshAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            _report = await HealthService.GetHealthAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static Severity GetAlertSeverity(HealthStatus status) => status switch
+    {
+        HealthStatus.Critical => Severity.Error,
+        HealthStatus.Warning  => Severity.Warning,
+        _                     => Severity.Success,
+    };
+
+    private static string GetStatusIcon(HealthStatus status) => status switch
+    {
+        HealthStatus.Critical => Icons.Material.Filled.Error,
+        HealthStatus.Warning  => Icons.Material.Filled.Warning,
+        _                     => Icons.Material.Filled.CheckCircle,
+    };
+
+    private static string GetStatusText(HealthStatus status) => status switch
+    {
+        HealthStatus.Critical => "Critical",
+        HealthStatus.Warning  => "Warning",
+        _                     => "All Systems Healthy",
+    };
+
+    private static string GetStatusDescription(HealthStatus status) => status switch
+    {
+        HealthStatus.Critical => "One or more critical issues require immediate attention.",
+        HealthStatus.Warning  => "Some items need attention but the system is operational.",
+        _                     => "All health checks are passing.",
+    };
+
+    private static Color GetCheckColor(HealthStatus status) => status switch
+    {
+        HealthStatus.Critical => Color.Error,
+        HealthStatus.Warning  => Color.Warning,
+        _                     => Color.Success,
+    };
+
+    private static string GetCheckIcon(HealthStatus status) => status switch
+    {
+        HealthStatus.Critical => Icons.Material.Filled.Error,
+        HealthStatus.Warning  => Icons.Material.Filled.Warning,
+        _                     => Icons.Material.Filled.CheckCircle,
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_timer is not null)
+            await _timer.DisposeAsync();
+    }
+}

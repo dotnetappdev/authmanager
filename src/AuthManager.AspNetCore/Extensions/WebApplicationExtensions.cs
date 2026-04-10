@@ -1,5 +1,6 @@
 using AuthManager.AspNetCore.Seeding;
 using AuthManager.Core.Options;
+using AuthManager.Core.Services;
 using AuthManager.UI.Components;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -141,5 +142,21 @@ public static class WebApplicationExtensions
         .WithName("AuthManager.Health")
         .WithTags("AuthManager")
         .ExcludeFromDescription();
+
+        // Redeem impersonation token — navigates to app root on success
+        api.MapGet("impersonate/{token}", async (string token, IImpersonationService svc, HttpContext ctx) =>
+        {
+            var ok = await svc.RedeemTokenAsync(token, ctx);
+            return Results.Redirect(ok ? "/" : $"/{options.RoutePrefix}");
+        }).AllowAnonymous().ExcludeFromDescription();
+
+        // Exit impersonation — returns admin to the authmanager UI
+        api.MapGet("exit-impersonation", async (IImpersonationService svc, HttpContext ctx) =>
+        {
+            var originalAdmin = ctx.User.FindFirst("am:original_admin")?.Value;
+            if (!string.IsNullOrEmpty(originalAdmin))
+                await svc.ExitImpersonationAsync(originalAdmin, ctx);
+            return Results.Redirect($"/{options.RoutePrefix}");
+        }).AllowAnonymous().ExcludeFromDescription();
     }
 }

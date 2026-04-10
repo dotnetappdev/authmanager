@@ -1,8 +1,8 @@
+using AuthManager.AspNetCore.Data;
+using AuthManager.AspNetCore.Seeding;
+using AuthManager.AspNetCore.Services;
 using AuthManager.Core.Options;
 using AuthManager.Core.Services;
-using AuthManager.AspNetCore.Data;
-using AuthManager.AspNetCore.Services;
-using AuthManager.AspNetCore.Seeding;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -79,12 +79,17 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IUserFieldService, UserFieldService>();
         services.TryAddSingleton<IEntityNamingService, EntityNamingService>();
 
+        // Sign-in history — singleton (uses IDbContextFactory)
+        services.TryAddSingleton<ISignInHistoryService, SignInHistoryService>();
+
         // ── Scoped (one per Blazor circuit) ──────────────────────────────────
         services.TryAddScoped<IUserManagementService, UserManagementService<TUser>>();
         services.TryAddScoped<IRoleManagementService, RoleManagementService<TRole>>();
         services.TryAddScoped<IOAuthProviderService, OAuthProviderService>();
         services.TryAddScoped<IJwtConfigService, JwtConfigService>();
         services.TryAddScoped<IUserImportExportService, UserImportExportService<TUser>>();
+        services.TryAddScoped<IImpersonationService, ImpersonationService<TUser>>();
+        services.TryAddScoped<ISystemHealthService, SystemHealthService>();
 
         // Webhook dispatcher — requires HttpClient
         services.TryAddScoped<IWebhookService, WebhookService>();

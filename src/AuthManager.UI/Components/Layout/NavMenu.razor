@@ -21,6 +21,9 @@
         <MudNavLink Href="@Prefix()" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
             Dashboard
         </MudNavLink>
+        <MudNavLink Href="@Prefix("health")" Icon="@Icons.Material.Filled.MonitorHeart">
+            System Health
+        </MudNavLink>
 
         <MudText Typo="Typo.overline" Class="am-nav-section-label">Identity</MudText>
         <MudNavLink Href="@Prefix("users")" Icon="@Icons.Material.Filled.People">
@@ -63,6 +66,9 @@
         </MudNavLink>
         <MudNavLink Href="@Prefix("audit")" Icon="@Icons.Material.Filled.History">
             Audit Log
+        </MudNavLink>
+        <MudNavLink Href="@Prefix("signin-history")" Icon="@Icons.Material.Filled.Login">
+            Sign-in History
         </MudNavLink>
     </MudNavMenu>
 

@@ -12,10 +12,12 @@ public sealed class AuthManagerDbContext : DbContext
 {
     public AuthManagerDbContext(DbContextOptions<AuthManagerDbContext> options) : base(options) { }
 
-    public DbSet<AuthManagerSettingRecord>    Settings            { get; set; } = default!;
-    public DbSet<AuditEntryRecord>            AuditEntries        { get; set; } = default!;
-    public DbSet<AuthManagerSessionRecord>    Sessions            { get; set; } = default!;
+    public DbSet<AuthManagerSettingRecord>    Settings             { get; set; } = default!;
+    public DbSet<AuditEntryRecord>            AuditEntries         { get; set; } = default!;
+    public DbSet<AuthManagerSessionRecord>    Sessions             { get; set; } = default!;
     public DbSet<UserFieldDefinitionRecord>   UserFieldDefinitions { get; set; } = default!;
+    public DbSet<SignInAttemptRecord>         SignInAttempts        { get; set; } = default!;
+    public DbSet<ImpersonationTokenRecord>    ImpersonationTokens  { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -64,6 +66,30 @@ public sealed class AuthManagerDbContext : DbContext
             e.Property(x => x.SelectOptions).HasMaxLength(2048);
             e.Property(x => x.HelpText).HasMaxLength(512);
             e.HasIndex(x => x.SortOrder);
+        });
+
+        b.Entity<SignInAttemptRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedOnAdd();
+            e.Property(x => x.UserId).HasMaxLength(450);
+            e.Property(x => x.UserName).HasMaxLength(256);
+            e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.FailureReason).HasMaxLength(64);
+            e.Property(x => x.IpAddress).HasMaxLength(45);
+            e.Property(x => x.UserAgent).HasMaxLength(512);
+            e.HasIndex(x => x.Timestamp).IsDescending();
+            e.HasIndex(x => new { x.UserId, x.Timestamp });
+            e.HasIndex(x => new { x.Succeeded, x.Timestamp });
+        });
+
+        b.Entity<ImpersonationTokenRecord>(e =>
+        {
+            e.HasKey(x => x.Token);
+            e.Property(x => x.Token).HasMaxLength(64);
+            e.Property(x => x.AdminUserId).HasMaxLength(450);
+            e.Property(x => x.TargetUserId).HasMaxLength(450);
+            e.HasIndex(x => x.ExpiresAt);
         });
     }
 }
@@ -126,4 +152,27 @@ public sealed class UserFieldDefinitionRecord
     public bool IsVisible { get; set; } = true;
     public string? HelpText { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>Persisted sign-in attempt row.</summary>
+public sealed class SignInAttemptRecord
+{
+    public long Id { get; set; }
+    public string UserId { get; set; } = string.Empty;
+    public string? UserName { get; set; }
+    public string? Email { get; set; }
+    public bool Succeeded { get; set; }
+    public string? FailureReason { get; set; }
+    public string? IpAddress { get; set; }
+    public string? UserAgent { get; set; }
+    public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>One-time impersonation token record.</summary>
+public sealed class ImpersonationTokenRecord
+{
+    public string Token { get; set; } = string.Empty;
+    public string AdminUserId { get; set; } = string.Empty;
+    public string TargetUserId { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAt { get; set; }
 }

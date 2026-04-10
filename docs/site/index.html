@@ -123,6 +123,26 @@ app.<span class="fn">MapAuthManager</span>();   <span class="cmt">// → /authma
         <p>Assign per-user required actions: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms — enforced automatically on next sign-in.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-icon blue">🔐</div>
+        <h3>Sign-in History</h3>
+        <p>Every login attempt recorded — success, failure, reason, IP, user agent. Filterable grid. Per-user and global failure rate queries for custom brute-force logic.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon amber">🎭</div>
+        <h3>User Impersonation</h3>
+        <p>"Sign in as" any user in one click. Cryptographic one-time token, sticky exit banner, automatic audit trail. Ideal for support and QA workflows.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon green">💚</div>
+        <h3>System Health Dashboard</h3>
+        <p>Real-time green/yellow/red health checks: DB connectivity, locked users, sign-in failure rate, JWT config, OAuth setup. Auto-refreshes every 30s.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon purple">☑️</div>
+        <h3>Bulk User Actions</h3>
+        <p>Multi-select users and apply bulk operations: Lock All, Unlock All, Force Password Reset, Delete Selected. Manage entire cohorts in seconds.</p>
+      </div>
+      <div class="feature-card">
         <div class="feature-icon sky">🏷️</div>
         <h3>Typed Custom Fields</h3>
         <p>Define structured field definitions — Text, Email, Number, Boolean, Date, Select, and more. Values stored as <code>custom:fieldId</code> claims. No DB migration needed.</p>

@@ -14,7 +14,7 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 
 | Area | Capability |
 |------|-----------|
-| **Users** | Full CRUD via MudBlazor DataGrid · Lock/unlock · Password reset · 2FA toggle · Role assignment · Claims editor |
+| **Users** | Full CRUD via MudBlazor DataGrid · Bulk actions (lock, unlock, force reset, delete) · Lock/unlock · Password reset · 2FA toggle · Role assignment · Claims editor |
 | **Roles** | Create / edit / delete · Assign claims to roles |
 | **Claims** | User and role claims management with type reference |
 | **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
@@ -22,13 +22,16 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 | **Display Settings** | Rename "User"/"Users" to match your domain · Changes reflected across all pages immediately |
 | **Security Settings** | Password Policy UI (length, complexity, history, expiry) · Brute Force Detection (max attempts, lockout duration) · Registration Policy |
 | **Active Sessions** | View all tracked sessions · Revoke individual, per-user, or all sessions at once |
+| **Sign-in History** | Every login attempt recorded (success + failure + reason) · Filterable grid by result · Per-user failure count queries |
+| **User Impersonation** | "Sign in as" any user with one click · Cryptographic one-time token · Sticky banner + one-click exit · Full audit trail |
+| **System Health** | Real-time health dashboard · DB connectivity · Locked/unconfirmed user counts · Sign-in failure rate · JWT/OAuth config status · Auto-refresh |
 | **JWT** | Configure issuer, audience, expiry, algorithm · Test token generator |
 | **OAuth** | Google, Microsoft, Apple, GitHub, custom OIDC providers |
 | **Logs** | Real-time Serilog viewer with filtering, search, live mode |
 | **Audit** | Every change recorded — who, what, when, from where |
 | **Import / Export** | Bulk CSV and JSON user import/export |
 | **Webhooks** | Signed HTTP POST events to external endpoints on auth actions |
-| **Themes** | BookIt dark palette + clean light palette · OS preference auto-detect |
+| **Themes** | Dark / light / system palette · OS preference auto-detect |
 | **Source Gen** | Scaffolds ApplicationUser, DbContext & wiring if Identity is missing |
 
 ---
@@ -239,6 +242,75 @@ Manage field definitions in code or via the UI:
 
 ---
 
+## Sign-in History
+
+Every login attempt — success and failure — is automatically recorded in AuthManager's internal database. Call one line from your login handler:
+
+```csharp
+// In your login endpoint / SignIn action
+await signInHistoryService.RecordAsync(new SignInAttempt
+{
+    UserId        = user.Id,
+    UserName      = user.UserName,
+    Succeeded     = result.Succeeded,
+    FailureReason = result.IsLockedOut ? "LockedOut" : result.IsNotAllowed ? "NotAllowed" : "InvalidPassword",
+    IpAddress     = HttpContext.Connection.RemoteIpAddress?.ToString(),
+    UserAgent     = Request.Headers.UserAgent,
+});
+```
+
+The **Sign-in History** page (`/authmanager/signin-history`) shows a filterable DataGrid with one-click views of "All / Succeeded / Failed". Failed attempts show the reason (wrong password, locked out, user not found) as a tooltip. Available programmatically:
+
+```csharp
+// Recent failure count for a specific user (e.g. for custom brute-force logic)
+var failures = await signInHistoryService.GetRecentFailureCountAsync(userId, TimeSpan.FromMinutes(15));
+
+// Global failure spike detection
+var globalFailures = await signInHistoryService.GetTotalFailuresAsync(TimeSpan.FromHours(1));
+```
+
+---
+
+## User Impersonation
+
+Admins can **sign in as any user** directly from the user list — ideal for debugging, support, and QA. Click the impersonate button on any user row:
+
+1. AuthManager generates a cryptographic one-time token (valid 2 minutes) stored in the internal DB.
+2. The admin is navigated to a secure redemption endpoint.
+3. `SignInManager.SignInWithClaimsAsync` signs the browser session in as the target user with extra claims: `am:impersonating=true` and `am:original_admin={adminId}`.
+4. A **yellow sticky banner** appears across the entire admin UI: *"You are impersonating {username} — Exit Impersonation"*.
+5. Clicking Exit redeems the original admin's identity and redirects back to `/authmanager`.
+
+Every impersonation start and exit is recorded in the audit log.
+
+```csharp
+// You can also trigger impersonation programmatically
+var token = await impersonationService.CreateTokenAsync(adminUserId, targetUserId);
+// Navigate to: /{prefix}/api/impersonate/{token}
+```
+
+> **Security note:** Only users with the SuperAdmin role can access the admin UI and therefore trigger impersonation. The one-time token expires after 2 minutes and is deleted on redemption.
+
+---
+
+## System Health Dashboard
+
+The health dashboard (`/authmanager/health`) gives an at-a-glance view of your identity system's status — green, yellow, or red for each check:
+
+| Check | Healthy | Warning | Critical |
+|-------|---------|---------|----------|
+| Internal database | Connected | — | Cannot connect |
+| Locked-out users | 0 | 1–4 | 5+ |
+| Unconfirmed emails | 0 | 1–9 | 10+ |
+| Sign-in failures (last hour) | 0–4 | 5–19 | 20+ |
+| Active sessions | — | — | — (informational) |
+| JWT configured | Issuer set | — | No issuer set |
+| OAuth providers | Any enabled | — | None enabled (informational) |
+
+The overall status banner shows **Healthy / Warning / Critical** based on the worst check. The page auto-refreshes every 30 seconds.
+
+---
+
 ## Entity Display Names
 
 Rename the "User"/"Users" concept to match your domain — "Member", "Customer", "Employee", "Player" — via **Settings → Display Settings** (`/authmanager/settings`) or in code:
@@ -364,6 +436,8 @@ All routes are prefixed with `options.RoutePrefix` (default `authmanager`).
 | `/authmanager/users` | User List | Paginated MudBlazor DataGrid — search, filter by role/status, lock, unlock, delete |
 | `/authmanager/users/create` | Create User | Create new user with username, email, password, role assignment and initial claims |
 | `/authmanager/users/{id}` | Edit User | Edit user details, account settings, reset password, required actions, custom fields, claims, roles |
+| `/authmanager/api/impersonate/{token}` | Impersonation | Redeems a one-time impersonation token and signs the browser in as the target user |
+| `/authmanager/api/exit-impersonation` | Exit Impersonation | Restores the original admin's session and redirects to `/authmanager` |
 | `/authmanager/roles` | Role List | All roles with user counts; create, edit, delete |
 | `/authmanager/roles/create` | Create Role | Create a new role and attach initial claims |
 | `/authmanager/roles/{id}` | Edit Role | Rename role, add/remove role-level claims |
@@ -374,6 +448,8 @@ All routes are prefixed with `options.RoutePrefix` (default `authmanager`).
 | `/authmanager/security` | Security Settings | Password policy, lockout/brute-force settings, registration policy, theme picker, internal database config |
 | `/authmanager/userfields` | User Field Definitions | Add, edit, reorder, and delete typed custom field definitions |
 | `/authmanager/settings` | Display Settings | Rename the user entity (singular/plural), view role list, view current SuperAdmin role |
+| `/authmanager/signin-history` | Sign-in History | All login attempts — success/failure, failure reason, IP, user agent; filterable by result |
+| `/authmanager/health` | System Health | Real-time health checks — DB, locked users, failure rate, JWT/OAuth config; auto-refreshes |
 | `/authmanager/logs` | Log Viewer | Real-time Serilog log viewer with level filter, search, and live-update toggle |
 | `/authmanager/audit` | Audit Log | Paginated audit trail — action, entity, actor, timestamp, old/new values |
 
