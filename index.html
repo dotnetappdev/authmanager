@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>DotNetAuthManager — Keycloak-style identity management for ASP.NET Core</title>
-<meta name="description" content="Drop-in Keycloak-style identity management UI for .NET 8, 9 and 10. CRUD users, roles, claims, JWT and OAuth — accessible at /authmanager."/>
+<title>DotNetAuthManager — Enterprise identity management for ASP.NET Core</title>
+<meta name="description" content="Drop-in enterprise identity management UI for .NET 8, 9 and 10. CRUD users, roles, claims, JWT, OAuth, sessions, password policy, required actions, webhooks, and audit log — accessible at /authmanager."/>
 <link rel="stylesheet" href="assets/css/site.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -36,7 +36,8 @@
     <h1 class="hero-title">Identity management<br/><span class="gradient-text">the way Aspire does it</span></h1>
     <p class="hero-sub">
       Drop a NuGet package in. Use your existing DbContext. Call two methods.<br/>
-      Full Keycloak-style CRUD for users, roles, claims, JWT &amp; OAuth — at <code>/authmanager</code>.
+      Full-featured admin UI — users, roles, sessions, password policy, required actions,
+      JWT, OAuth, webhooks, and audit log — all at <code>/authmanager</code>.
     </p>
     <div class="hero-cta">
       <a href="#quickstart" class="btn-primary">Get Started →</a>
@@ -105,6 +106,36 @@ app.<span class="fn">MapAuthManager</span>();   <span class="cmt">// → /authma
         <div class="feature-icon teal">📜</div>
         <h3>Audit Log</h3>
         <p>Every change made through the UI is recorded — who, what, when, from where.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon red">🔒</div>
+        <h3>Security Settings</h3>
+        <p>Configure password policy (length, complexity, history, expiry) and brute-force lockout (max attempts, duration, session limits) — live at runtime without redeployment.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon amber">🖥️</div>
+        <h3>Active Sessions</h3>
+        <p>View all live user sessions with IP, device, and timestamps. Revoke individual sessions, all sessions per user, or everything at once.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon lime">✅</div>
+        <h3>Required Actions</h3>
+        <p>Assign per-user required actions: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms — enforced automatically on next sign-in.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon sky">🏷️</div>
+        <h3>Custom User Attributes</h3>
+        <p>Store arbitrary key/value attributes per user via <code>custom:*</code> claims. Manage them from the Users → Edit panel or programmatically.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon violet">📦</div>
+        <h3>Bulk Import / Export</h3>
+        <p>Import users from CSV or JSON. Export any role-filtered user set. Ideal for migrations and data pipelines.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon pink">🔔</div>
+        <h3>Webhooks</h3>
+        <p>Fire signed HTTP POST events to your own endpoints on any auth action — user created, locked out, password reset, 2FA toggled, and more.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon indigo">🌙</div>
@@ -191,8 +222,43 @@ app.<span class="fn">Run</span>();</pre>
   </div>
 </section>
 
+<!-- ===== SAMPLES ===== -->
+<section class="section" id="samples">
+  <div class="section-inner">
+    <h2 class="section-title">Sample Apps</h2>
+    <p class="section-sub">Five runnable samples — from a minimal API to a full Blazor Web App with login, registration, and a rich profile page.</p>
+    <div class="packages-grid">
+      <div class="package-card">
+        <div class="pkg-name">AuthManagerSample.WebApi</div>
+        <div class="pkg-desc">.NET 10 REST API with JWT authentication, refresh tokens, role-protected routes, and AuthManager at <code>/authmanager</code>.</div>
+        <div class="pkg-badge">.NET 10</div>
+      </div>
+      <div class="package-card">
+        <div class="pkg-name">AuthManagerSample.BlazorWebApp</div>
+        <div class="pkg-desc">.NET 10 Blazor Web App (SSR + interactive) with MudBlazor, cookie auth, login/register, profile page (roles, required actions, custom attributes), and admin panel.</div>
+        <div class="pkg-badge">.NET 10</div>
+      </div>
+      <div class="package-card">
+        <div class="pkg-name">AuthManagerSample.Mvc</div>
+        <div class="pkg-desc">Classic ASP.NET Core MVC application with Identity and the AuthManager admin UI embedded.</div>
+        <div class="pkg-badge">MVC</div>
+      </div>
+      <div class="package-card">
+        <div class="pkg-name">AuthManagerSample.MinimalApi</div>
+        <div class="pkg-desc">Minimal API sample demonstrating the simplest possible integration.</div>
+        <div class="pkg-badge">Minimal</div>
+      </div>
+      <div class="package-card">
+        <div class="pkg-name">AuthManagerSample.BlazorServer</div>
+        <div class="pkg-desc">Blazor Server application with AuthManager wired up and the dashboard accessible.</div>
+        <div class="pkg-badge">Blazor</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ===== NUGET ===== -->
-<section class="section" id="nuget">
+<section class="section section-dark" id="nuget">
   <div class="section-inner">
     <h2 class="section-title">Publishing to NuGet</h2>
     <p class="section-sub">Pack locally, test, then push to NuGet.org or GitHub Packages.</p>
@@ -266,7 +332,7 @@ dotnet nuget push ./nupkg/DotNetAuthManager.*.nupkg \
 </section>
 
 <!-- ===== PACKAGES ===== -->
-<section class="section section-dark" id="packages">
+<section class="section" id="packages">
   <div class="section-inner">
     <h2 class="section-title">NuGet Packages</h2>
     <p class="section-sub">One package covers everything. The source generator is optional.</p>
