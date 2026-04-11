@@ -40,12 +40,26 @@ public sealed class SuperAdminSeeder<TUser, TRole> : IHostedService
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<TUser>>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<TRole>>();
 
-        await DefaultSuperUserHelper.EnsureAsync(
-            userManager, roleManager, _logger,
-            opts.SuperAdminRole,
-            opts.SeedSuperAdminEmail,
-            opts.SeedSuperAdminPassword,
-            opts.RoutePrefix);
+        try
+        {
+            await DefaultSuperUserHelper.EnsureAsync(
+                userManager, roleManager, _logger,
+                opts.SuperAdminRole,
+                opts.SeedSuperAdminEmail,
+                opts.SeedSuperAdminPassword,
+                opts.RoutePrefix);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "[DotNetAuthManager] SuperAdmin seeding failed. " +
+                "This usually means the Identity tables (AspNetRoles, AspNetUsers, …) do not exist yet. " +
+                "Ensure you call db.Database.EnsureCreated() or db.Database.MigrateAsync() on your " +
+                "AppDbContext BEFORE calling app.Run(). " +
+                "Example: using (var scope = app.Services.CreateScope()) " +
+                "{ var db = scope.ServiceProvider.GetRequiredService<AppDbContext>(); " +
+                "db.Database.EnsureCreated(); }");
+        }
     }
 
     public Task StopAsync(CancellationToken ct) => Task.CompletedTask;

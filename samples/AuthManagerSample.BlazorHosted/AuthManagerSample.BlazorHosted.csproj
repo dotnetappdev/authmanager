@@ -8,14 +8,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AuthManager.AspNetCore\AuthManager.AspNetCore.csproj" />
-    <ProjectReference Include="..\..\src\AuthManager.UI\AuthManager.UI.csproj" />
-    <ProjectReference Include="..\..\src\AuthManager.Core\AuthManager.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0" />
     <PackageReference Include="MudBlazor" Version="7.15.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
   </ItemGroup>
 </Project>

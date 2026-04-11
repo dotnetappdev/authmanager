@@ -1,10 +1,16 @@
 @page "/"
-@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
 
-<h3>Welcome to AuthManager Hosted Sample</h3>
+<PageTitle>Home</PageTitle>
 
-<p>This sample demonstrates hosting the AuthManager UI inside a Blazor Server app.</p>
-
-<p>
-    <a href="/authmanager">Open AuthManager UI</a>
-</p>
+<MudStack AlignItems="AlignItems.Center" Class="mt-8">
+    <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Large" Color="Color.Primary" Style="font-size:64px" />
+    <MudText Typo="Typo.h4">Blazor Hosted Sample</MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary">
+        This Blazor app has DotNetAuthManager embedded at <code>/authmanager</code>.
+    </MudText>
+    <MudButton Href="/authmanager" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+               StartIcon="@Icons.Material.Filled.OpenInBrowser">
+        Open Auth Manager
+    </MudButton>
+</MudStack>

@@ -104,14 +104,27 @@ builder.Services.AddAuthManager<ApplicationUser>(options =>
 });
 ```
 
-### 4. Create the default SuperAdmin and run
+### 4. Create the database and default SuperAdmin, then run
+
+> **⚠️ Required step:** Your app's `DbContext` must have its schema created before AuthManager
+> can seed the SuperAdmin role and user. Call `EnsureCreated()` (or `MigrateAsync()` if you use
+> EF migrations) right after `builder.Build()`.
 
 **Option A — explicit call (recommended):**
 
 ```csharp
 var app = builder.Build();
 
-// Creates the SuperAdmin role + user on first run. Idempotent — safe to leave in.
+// ── Step 1: ensure Identity tables exist ─────────────────────────────────
+// Must run BEFORE app.Run() so the Identity tables exist when AuthManager starts.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();        // or: await db.Database.MigrateAsync();
+}
+
+// ── Step 2: seed the SuperAdmin role + user on first run ──────────────────
+// Idempotent — safe to leave in production.
 await app.CreateDefaultSuperUserAsync<ApplicationUser>(
     email:    "superadmin@example.com",
     password: "SuperAdmin@123456!"
@@ -138,6 +151,14 @@ builder.Services.AddAuthManager<ApplicationUser>(options =>
 });
 
 var app = builder.Build();
+
+// ── Required: create Identity tables before app.Run() ────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();        // or: await db.Database.MigrateAsync();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapAuthManager();

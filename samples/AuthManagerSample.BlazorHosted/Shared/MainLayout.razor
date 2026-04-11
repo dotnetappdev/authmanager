@@ -1,54 +1,22 @@
 @inherits LayoutComponentBase
 @using MudBlazor
-@inject NavigationManager Navigation
 
-@code {
-    private bool _darkMode = true;
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
-    private MudTheme _theme => _darkMode ? _dark : _light;
-
-    private readonly MudTheme _dark = new MudTheme
-    {
-        Palette = new Palette
-        {
-            Primary = "#3f51b5",
-            Secondary = "#26a69a",
-            Background = "#121212",
-            AppbarBackground = "#1f1b24",
-            TextPrimary = "rgba(255,255,255,0.95)"
-        }
-    };
-
-    private readonly MudTheme _light = new MudTheme
-    {
-        Palette = new Palette
-        {
-            Primary = "#512DA8",
-            Secondary = "#26a69a",
-            Background = "#f5f5f5",
-            AppbarBackground = "#512DA8",
-            TextPrimary = "rgba(0,0,0,0.87)"
-        }
-    };
-
-    private void ToggleTheme()
-    {
-        _darkMode = !_darkMode;
-        // TODO: persist to localStorage or user preference
-        StateHasChanged();
-    }
-}
-
-<MudThemeProvider Theme="@_theme">
-    <MudLayout>
-        <MudAppBar Elevation="1">
-            <MudText Typo="Typo.h6">AuthManager Hosted Sample</MudText>
-            <MudSpacer />
-            <MudIconButton Icon="@(_darkMode ? Icons.Material.Filled.DarkMode : Icons.Material.Filled.LightMode)" OnClick="ToggleTheme" />
-        </MudAppBar>
-
-        <MudMainContent>
+<MudLayout>
+    <MudAppBar Elevation="0" Color="Color.Primary">
+        <MudText Typo="Typo.h6" Class="ml-3">Blazor Hosted Sample</MudText>
+        <MudSpacer />
+        <MudButton Href="/authmanager" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Shield">
+            Auth Manager
+        </MudButton>
+    </MudAppBar>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="pt-8">
             @Body
-        </MudMainContent>
-    </MudLayout>
-</MudThemeProvider>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
