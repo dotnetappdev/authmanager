@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "AuthManagerSample.Mvc": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:50656;http://localhost:50657"
+    }
+  }
+}

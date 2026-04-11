@@ -100,7 +100,7 @@ else
     </div>
 }
 
-<Modal @ref="_modal" Title="Configure @_editingProvider?.DisplayName" Size="Modal.ModalSize.Large">
+<Modal @ref="_modal" Title="@($"Configure {_editingProvider?.DisplayName}")" Size="Modal.ModalSize.Large">
     <ChildContent>
         @if (_editingProvider != null)
         {
@@ -128,7 +128,7 @@ else
     </ChildContent>
     <FooterContent>
         <div class="am-modal-actions">
-            <button class="am-btn am-btn-ghost" @onclick="@(_modal?.Close)">Cancel</button>
+            <button class="am-btn am-btn-ghost" @onclick="@(() => _modal?.Close())">Cancel</button>
             <button class="am-btn am-btn-primary" @onclick="SaveProvider">Save</button>
         </div>
     </FooterContent>

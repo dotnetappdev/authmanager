@@ -36,6 +36,33 @@ public static class WebApplicationExtensions
         var options = app.Services.GetRequiredService<IOptions<AuthManagerOptions>>().Value;
         var prefix = options.RoutePrefix.Trim('/');
 
+        // 0. First-run setup redirect — runs before auth so unauthenticated users
+        //    reach the wizard when setup is not yet complete.
+        app.Use(async (ctx, next) =>
+        {
+            var path      = ctx.Request.Path.Value ?? "";
+            var setupPath = $"/{prefix}/setup";
+            var isSetup   = path.Equals(setupPath, StringComparison.OrdinalIgnoreCase)
+                         || path.StartsWith(setupPath + "/", StringComparison.OrdinalIgnoreCase);
+            var isPanel   = path.StartsWith($"/{prefix}", StringComparison.OrdinalIgnoreCase)
+                         && !path.Contains("/_blazor", StringComparison.OrdinalIgnoreCase)
+                         && !path.Contains("/api/", StringComparison.OrdinalIgnoreCase);
+
+            if (isSetup || isPanel)
+            {
+                var svc = ctx.RequestServices.GetService<ISetupService>();
+                if (svc is not null)
+                {
+                    var done = await svc.IsSetupCompleteAsync();
+                    if (!done && !isSetup)
+                    { ctx.Response.Redirect(setupPath); return; }
+                    if (done && isSetup)
+                    { ctx.Response.Redirect($"/{prefix}/"); return; }
+                }
+            }
+            await next();
+        });
+
         // 1. Serve static web assets from the RCL (_content/DotNetAuthManager.UI/*)
         app.UseStaticFiles();
 

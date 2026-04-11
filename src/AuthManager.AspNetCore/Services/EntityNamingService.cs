@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AuthManager.AspNetCore.Data;
 using AuthManager.Core.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using AuthManager.Core.Options;
 

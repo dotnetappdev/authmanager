@@ -1,4 +1,16 @@
+README.md
+==========
+
+This repository contains AuthManager — an identity administration toolkit.
+
+Docs & Demo
+-----------
+
+- GitHub Pages site source: `docs/site` (Jekyll). See [docs/site/authmanager.md](docs/site/authmanager.md) for the feature walkthrough.
+- WebApi sample README with quick curl examples: `samples/AuthManagerSample.WebApi/README.md`
 # DotNetAuthManager
+
+[Property Setup & Build Notes](PROPERTY_SETUP.md) • [Guided Setup](GUIDED_SETUP.md)
 
 [![NuGet](https://img.shields.io/nuget/v/DotNetAuthManager.svg)](https://www.nuget.org/packages/DotNetAuthManager)
 [![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4)](https://dotnet.microsoft.com)

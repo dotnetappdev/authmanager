@@ -36,11 +36,11 @@
                                      ShowColumnOptions="false"
                                      RowsPerPage="15"
                                      Loading="_usersLoading"
-                                     RowClass="@(u => _selectedUserId == u.Id ? "mud-selected-item" : "")"
+                                     RowClassFunc="@((u, _) => _selectedUserId == u.Id ? "mud-selected-item" : "")"
                                      RowClick="OnRowClick"
                                      Class="am-data-grid">
                             <ToolBarContent>
-                                <MudTextField @bind-Value="_userSearch" Placeholder="Search @Naming.GetUsersDisplayName().ToLower()..."
+                                <MudTextField @bind-Value="_userSearch" Placeholder="@($"Search {Naming.GetUsersDisplayName().ToLower()}...")"
                                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                                               Immediate="true" DebounceInterval="300"
                                               Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-0" />

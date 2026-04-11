@@ -1,0 +1,304 @@
+@page "/authmanager/groups"
+@rendermode InteractiveServer
+@inject IGroupService GroupService
+@inject IRoleManagementService RoleService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Groups — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Groups</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Assign roles in bulk — add users to a group and they inherit all its roles
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.GroupAdd"
+               OnClick="OpenCreate">
+        New Group
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_groups.Any())
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent>
+            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">No groups yet</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Groups let you assign a bundle of roles to many users at once —
+                    like Keycloak's realm roles groups.
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenCreate" Class="mt-2">
+                    Create your first group
+                </MudButton>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>
+}
+else
+{
+    <MudGrid Spacing="3">
+        @foreach (var group in _groups)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Elevation="0" Class="am-card-border am-group-card">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                                @group.Name[0].ToString().ToUpper()
+                            </MudAvatar>
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Class="font-weight-medium">@group.Name</MudText>
+                            @if (!string.IsNullOrEmpty(group.Description))
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@group.Description</MudText>
+                            }
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                <MudMenuItem OnClick="@(() => OpenEdit(group))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-2" />Edit
+                                </MudMenuItem>
+                                <MudMenuItem OnClick="@(() => OpenMembers(group))">
+                                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-2" />Members
+                                </MudMenuItem>
+                                <MudDivider />
+                                <MudMenuItem OnClick="@(() => DeleteGroup(group))" Style="color:var(--mud-palette-error)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Class="mr-2" />Delete
+                                </MudMenuItem>
+                            </MudMenu>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent Class="pt-0">
+                        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" Class="mb-2">
+                            @foreach (var role in group.Roles)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">@role</MudChip>
+                            }
+                            @if (!group.Roles.Any())
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">No roles assigned</MudText>
+                            }
+                        </MudStack>
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @group.MemberCount member@(group.MemberCount == 1 ? "" : "s")
+                            </MudText>
+                            <MudSpacer />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @group.CreatedAt.ToString("MMM dd, yyyy")
+                            </MudText>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+<!-- ── Create / Edit Dialog ────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_editingGroup is null ? "New Group" : $"Edit — {_editingGroup.Name}")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_form.Name" Label="Group Name" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Placeholder="e.g. Administrators" Required="true" />
+            <MudTextField @bind-Value="_form.Description" Label="Description" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Placeholder="What this group is for" Lines="2" />
+            <div>
+                <MudText Typo="Typo.body2" Class="mb-2 font-weight-medium">Roles</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+                    Members will automatically receive these roles
+                </MudText>
+                @foreach (var role in _availableRoles)
+                {
+                    var r = role;
+                    var selected = _form.Roles.Contains(r);
+                    <MudCheckBox Value="selected"
+                                 ValueChanged="@((bool v) => ToggleRole(r, v))"
+                                 Color="Color.Primary"
+                                 Label="@r" />
+                }
+            </div>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showDialog = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="SaveGroup" Disabled="_saving">
+            @(_saving ? "Saving…" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- ── Members Dialog ────────────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showMembers" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Members — @_membersGroup?.Name</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_membersLoading)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (!_members.Any())
+        {
+            <MudAlert Severity="Severity.Info">No members yet. Assign users to this group from the Users page.</MudAlert>
+        }
+        else
+        {
+            <MudList T="UserDto" Dense="true">
+                @foreach (var m in _members)
+                {
+                    <MudListItem T="UserDto" Value="m">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small">@m.UserName[..1].ToUpper()</MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.body2">@m.UserName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@m.Email</MudText>
+                            </div>
+                            <MudSpacer />
+                            <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
+                                           Size="Size.Small" Color="Color.Error"
+                                           Title="Remove from group"
+                                           OnClick="@(() => RemoveMember(m))" />
+                        </MudStack>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showMembers = false)">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<GroupDto> _groups = [];
+    private List<string>   _availableRoles = [];
+    private List<UserDto>  _members = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showDialog;
+    private bool _showMembers;
+    private bool _membersLoading;
+    private GroupDto? _editingGroup;
+    private GroupDto? _membersGroup;
+    private readonly GroupFormModel _form = new();
+
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        var roles = await RoleService.GetRolesAsync();
+        _availableRoles = roles.Select(r => r.Name).ToList();
+        _loading = false;
+    }
+
+    private async Task Reload()
+        => _groups = await GroupService.GetGroupsAsync();
+
+    private void OpenCreate()
+    {
+        _editingGroup = null;
+        _form.Name        = "";
+        _form.Description = "";
+        _form.Roles       = [];
+        _showDialog       = true;
+    }
+
+    private void OpenEdit(GroupDto group)
+    {
+        _editingGroup     = group;
+        _form.Name        = group.Name;
+        _form.Description = group.Description ?? "";
+        _form.Roles       = [.. group.Roles];
+        _showDialog       = true;
+    }
+
+    private async Task OpenMembers(GroupDto group)
+    {
+        _membersGroup   = group;
+        _showMembers    = true;
+        _membersLoading = true;
+        _members = await GroupService.GetGroupMembersAsync(group.Id);
+        _membersLoading = false;
+    }
+
+    private void ToggleRole(string role, bool add)
+    {
+        if (add) { if (!_form.Roles.Contains(role)) _form.Roles.Add(role); }
+        else     _form.Roles.Remove(role);
+    }
+
+    private async Task SaveGroup()
+    {
+        _saving = true;
+        (bool ok, string[] errors) result;
+
+        if (_editingGroup is null)
+            result = await GroupService.CreateGroupAsync(new CreateGroupDto
+                { Name = _form.Name, Description = _form.Description, Roles = _form.Roles });
+        else
+            result = await GroupService.UpdateGroupAsync(_editingGroup.Id, new UpdateGroupDto
+                { Name = _form.Name, Description = _form.Description, Roles = _form.Roles });
+
+        _saving = false;
+        if (result.ok)
+        {
+            _showDialog = false;
+            Snackbar.Add(_editingGroup is null ? "Group created." : "Group updated.", Severity.Success);
+            await Reload();
+        }
+        else
+        {
+            foreach (var e in result.errors)
+                Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private async Task DeleteGroup(GroupDto group)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Group",
+            $"Delete '{group.Name}'? Members will not be deleted, but will lose associated roles.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors) = await GroupService.DeleteGroupAsync(group.Id);
+        if (ok) { Snackbar.Add("Group deleted.", Severity.Success); await Reload(); }
+        else    foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task RemoveMember(UserDto user)
+    {
+        if (_membersGroup is null) return;
+        await GroupService.RemoveUserFromGroupAsync(_membersGroup.Id, user.Id);
+        _members.Remove(user);
+        Snackbar.Add($"{user.UserName} removed from group.", Severity.Success);
+        await Reload();
+    }
+
+    private sealed class GroupFormModel
+    {
+        public string       Name        { get; set; } = "";
+        public string       Description { get; set; } = "";
+        public List<string> Roles       { get; set; } = [];
+    }
+}

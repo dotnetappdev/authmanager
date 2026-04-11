@@ -12,7 +12,6 @@ public static class AuthManagerThemeProvider
     {
         PaletteLight = BuildLightPalette(),
         PaletteDark = BuildDarkPalette(),
-        Typography = BuildTypography(),
         LayoutProperties = new LayoutProperties
         {
             DrawerWidthLeft = "260px",
@@ -101,25 +100,4 @@ public static class AuthManagerThemeProvider
         OverlayLight = "rgba(22, 27, 46, 0.6)"
     };
 
-    private static Typography BuildTypography() => new()
-    {
-        Default = new DefaultTypography
-        {
-            FontFamily = ["Inter", "Roboto", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-            FontSize = "0.875rem",
-            FontWeight = "400",
-            LineHeight = "1.5",
-            LetterSpacing = "normal"
-        },
-        H1 = new H1Typography { FontSize = "2rem", FontWeight = "700", LineHeight = "1.2" },
-        H2 = new H2Typography { FontSize = "1.5rem", FontWeight = "600", LineHeight = "1.3" },
-        H3 = new H3Typography { FontSize = "1.25rem", FontWeight = "600", LineHeight = "1.4" },
-        H4 = new H4Typography { FontSize = "1.125rem", FontWeight = "600", LineHeight = "1.4" },
-        H5 = new H5Typography { FontSize = "1rem", FontWeight = "600", LineHeight = "1.5" },
-        H6 = new H6Typography { FontSize = "0.875rem", FontWeight = "600", LineHeight = "1.5" },
-        Body1 = new Body1Typography { FontSize = "0.875rem", FontWeight = "400", LineHeight = "1.5" },
-        Body2 = new Body2Typography { FontSize = "0.8125rem", FontWeight = "400", LineHeight = "1.5" },
-        Caption = new CaptionTypography { FontSize = "0.75rem", FontWeight = "400", LineHeight = "1.4" },
-        Button = new ButtonTypography { FontSize = "0.875rem", FontWeight = "500", TextTransform = "none" }
-    };
 }

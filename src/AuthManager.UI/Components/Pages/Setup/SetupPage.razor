@@ -1,0 +1,448 @@
+@page "/authmanager/setup"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@layout SetupLayout
+@rendermode InteractiveServer
+@inject ISetupService SetupService
+@inject NavigationManager Nav
+
+<PageTitle>Setup — Auth Manager</PageTitle>
+
+<!-- ── Step indicator ─────────────────────────────────────────────────────── -->
+<div class="am-wizard-steps">
+    @for (int i = 1; i <= TotalSteps; i++)
+    {
+        var step = i;
+        <div class="am-wizard-step @(step < _step ? "am-wizard-step-done" : step == _step ? "am-wizard-step-active" : "")">
+            <div class="am-wizard-step-circle">
+                @if (step < _step)
+                {
+                    <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+                        <path d="M3 8 L6.5 11.5 L13 5" stroke="currentColor" stroke-width="2"
+                              stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                }
+                else
+                {
+                    @step
+                }
+            </div>
+            <span class="am-wizard-step-label">@StepLabel(step)</span>
+        </div>
+        @if (step < TotalSteps)
+        {
+            <div class="am-wizard-step-line @(step < _step ? "am-wizard-step-line-done" : "")"></div>
+        }
+    }
+</div>
+
+<!-- ── Card ───────────────────────────────────────────────────────────────── -->
+<div class="am-wizard-card">
+
+    @if (_globalErrors.Length > 0)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">
+            <ul class="mb-0 pl-4">
+                @foreach (var e in _globalErrors)
+                { <li>@e</li> }
+            </ul>
+        </MudAlert>
+    }
+
+    <!-- ── Step 1: Welcome ──────────────────────────────────────────────── -->
+    @if (_step == 1)
+    {
+        <div class="am-wizard-step-body">
+            <div class="am-wizard-icon am-wizard-icon-welcome">
+                <svg viewBox="0 0 24 24" fill="none" width="32" height="32">
+                    <path d="M12 2L14.5 9H22L16 13.5L18.5 20.5L12 16L5.5 20.5L8 13.5L2 9H9.5Z"
+                          fill="currentColor" />
+                </svg>
+            </div>
+            <h2 class="am-wizard-title">Welcome to Auth Manager</h2>
+            <p class="am-wizard-subtitle">
+                Your Keycloak-style identity management panel for ASP.NET Core.
+                This wizard takes about 2 minutes — let's get you set up.
+            </p>
+
+            <div class="am-wizard-field">
+                <label class="am-wizard-label">Panel Title</label>
+                <MudTextField @bind-Value="_dto.AppTitle"
+                              Placeholder="Auth Manager"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              HelperText="Shown in the sidebar header — e.g. 'Acme Corp Admin'" />
+            </div>
+
+            <div class="am-wizard-feature-grid">
+                @foreach (var feat in _features)
+                {
+                    <div class="am-wizard-feature">
+                        <span class="am-wizard-feature-icon">@feat.Icon</span>
+                        <div>
+                            <div class="am-wizard-feature-title">@feat.Title</div>
+                            <div class="am-wizard-feature-desc">@feat.Desc</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- ── Step 2: Admin Account ────────────────────────────────────────── -->
+    @if (_step == 2)
+    {
+        <div class="am-wizard-step-body">
+            <div class="am-wizard-icon am-wizard-icon-admin">
+                <svg viewBox="0 0 24 24" fill="none" width="32" height="32">
+                    <circle cx="12" cy="8" r="4" fill="currentColor" />
+                    <path d="M4 20C4 16.686 7.582 14 12 14C16.418 14 20 16.686 20 20"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    <circle cx="19" cy="9" r="3" fill="#34D399" />
+                    <path d="M17.5 9 L18.5 10 L20.5 8" stroke="white"
+                          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <h2 class="am-wizard-title">Create your admin account</h2>
+            <p class="am-wizard-subtitle">
+                This becomes your SuperAdmin — the only account that can access
+                this management panel.
+            </p>
+
+            <div class="am-wizard-fields">
+                <div class="am-wizard-field">
+                    <label class="am-wizard-label">Email Address <span class="am-wizard-required">*</span></label>
+                    <MudTextField @bind-Value="_dto.AdminEmail"
+                                  InputType="InputType.Email"
+                                  Placeholder="admin@yourcompany.com"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Error="@(!string.IsNullOrEmpty(_emailError))"
+                                  ErrorText="@_emailError"
+                                  @onblur="ValidateEmail" />
+                </div>
+
+                <div class="am-wizard-field">
+                    <label class="am-wizard-label">Username <span class="am-wizard-hint">(optional)</span></label>
+                    <MudTextField @bind-Value="_dto.AdminUserName"
+                                  Placeholder="@(_dto.AdminEmail.Contains('@') ? _dto.AdminEmail.Split('@')[0] : "admin")"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  HelperText="Leave blank to derive from email" />
+                </div>
+
+                <div class="am-wizard-field">
+                    <label class="am-wizard-label">Password <span class="am-wizard-required">*</span></label>
+                    <MudTextField @bind-Value="_dto.AdminPassword"
+                                  InputType="@(_showPw ? InputType.Text : InputType.Password)"
+                                  Placeholder="At least 8 characters"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPw ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="@(() => _showPw = !_showPw)"
+                                  Error="@(!string.IsNullOrEmpty(_pwError))"
+                                  ErrorText="@_pwError" />
+                    @if (!string.IsNullOrEmpty(_dto.AdminPassword))
+                    {
+                        <div class="am-pw-strength">
+                            <div class="am-pw-strength-bar">
+                                <div class="am-pw-strength-fill am-pw-strength-@PasswordStrengthClass"
+                                     style="width: @(PasswordScore * 25)%"></div>
+                            </div>
+                            <span class="am-pw-strength-label am-pw-strength-@PasswordStrengthClass">
+                                @PasswordStrengthLabel
+                            </span>
+                        </div>
+                    }
+                </div>
+
+                <div class="am-wizard-field">
+                    <label class="am-wizard-label">Confirm Password <span class="am-wizard-required">*</span></label>
+                    <MudTextField @bind-Value="_dto.AdminPasswordConfirm"
+                                  InputType="@(_showPwConfirm ? InputType.Text : InputType.Password)"
+                                  Placeholder="Re-enter your password"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPwConfirm ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="@(() => _showPwConfirm = !_showPwConfirm)"
+                                  Error="@(!string.IsNullOrEmpty(_pwConfirmError))"
+                                  ErrorText="@_pwConfirmError" />
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ── Step 3: Security Policy ──────────────────────────────────────── -->
+    @if (_step == 3)
+    {
+        <div class="am-wizard-step-body">
+            <div class="am-wizard-icon am-wizard-icon-security">
+                <svg viewBox="0 0 24 24" fill="none" width="32" height="32">
+                    <path d="M12 2L4 6V12C4 16.4 7.4 20.5 12 22C16.6 20.5 20 16.4 20 12V6L12 2Z"
+                          fill="currentColor" />
+                    <path d="M9 12 L11 14 L15 10" stroke="white" stroke-width="2"
+                          stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <h2 class="am-wizard-title">Security policy</h2>
+            <p class="am-wizard-subtitle">
+                Configure password requirements and brute-force protection.
+                You can adjust these later in Security Settings.
+            </p>
+
+            <div class="am-wizard-section">
+                <div class="am-wizard-section-title">Password Requirements</div>
+                <div class="am-wizard-fields">
+                    <div class="am-wizard-field">
+                        <label class="am-wizard-label">Minimum length</label>
+                        <MudSlider @bind-Value="_dto.MinPasswordLength"
+                                   Min="4" Max="32" Step="1"
+                                   Color="Color.Primary">
+                            @_dto.MinPasswordLength characters
+                        </MudSlider>
+                    </div>
+
+                    <div class="am-wizard-toggles">
+                        <div class="am-wizard-toggle">
+                            <MudCheckBox @bind-Value="_dto.RequireUppercase" Color="Color.Primary"
+                                         Label="Require uppercase letter (A–Z)" />
+                        </div>
+                        <div class="am-wizard-toggle">
+                            <MudCheckBox @bind-Value="_dto.RequireLowercase" Color="Color.Primary"
+                                         Label="Require lowercase letter (a–z)" />
+                        </div>
+                        <div class="am-wizard-toggle">
+                            <MudCheckBox @bind-Value="_dto.RequireDigit" Color="Color.Primary"
+                                         Label="Require digit (0–9)" />
+                        </div>
+                        <div class="am-wizard-toggle">
+                            <MudCheckBox @bind-Value="_dto.RequireSpecialChar" Color="Color.Primary"
+                                         Label="Require special character (!, &#64;, #...)" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="am-wizard-section">
+                <div class="am-wizard-section-title">Brute-Force Protection</div>
+                <div class="am-wizard-fields">
+                    <div class="am-wizard-toggle">
+                        <MudCheckBox @bind-Value="_dto.EnableBruteForce" Color="Color.Primary"
+                                     Label="Lock account after repeated failed logins" />
+                    </div>
+
+                    @if (_dto.EnableBruteForce)
+                    {
+                        <div class="am-wizard-field-row">
+                            <div class="am-wizard-field">
+                                <label class="am-wizard-label">Max failed attempts</label>
+                                <MudNumericField @bind-Value="_dto.MaxFailedAttempts"
+                                                 Min="1" Max="20"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" />
+                            </div>
+                            <div class="am-wizard-field">
+                                <label class="am-wizard-label">Lockout duration (minutes)</label>
+                                <MudNumericField @bind-Value="_dto.LockoutDurationMinutes"
+                                                 Min="1" Max="10080"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" />
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ── Step 4: Complete ─────────────────────────────────────────────── -->
+    @if (_step == 4)
+    {
+        <div class="am-wizard-step-body am-wizard-complete">
+            <div class="am-wizard-success-ring">
+                <svg viewBox="0 0 80 80" fill="none" width="80" height="80">
+                    <circle cx="40" cy="40" r="36" stroke="#34D399" stroke-width="3" />
+                    <path d="M25 40 L35 50 L55 30" stroke="#34D399" stroke-width="4"
+                          stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <h2 class="am-wizard-title">Auth Manager is ready!</h2>
+            <p class="am-wizard-subtitle">
+                Your admin account has been created and your security policy is live.
+                Sign in with <strong>@_dto.AdminEmail</strong> to get started.
+            </p>
+
+            <div class="am-wizard-summary">
+                <div class="am-wizard-summary-row">
+                    <span>Panel title</span><strong>@_dto.AppTitle</strong>
+                </div>
+                <div class="am-wizard-summary-row">
+                    <span>Admin email</span><strong>@_dto.AdminEmail</strong>
+                </div>
+                <div class="am-wizard-summary-row">
+                    <span>SuperAdmin role</span><strong>SuperAdmin</strong>
+                </div>
+                <div class="am-wizard-summary-row">
+                    <span>Min password length</span><strong>@_dto.MinPasswordLength characters</strong>
+                </div>
+                <div class="am-wizard-summary-row">
+                    <span>Brute-force protection</span>
+                    <strong>@(_dto.EnableBruteForce ? $"Enabled ({_dto.MaxFailedAttempts} attempts)" : "Disabled")</strong>
+                </div>
+            </div>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+                       FullWidth="true" Class="mt-4"
+                       Href="/authmanager" Style="font-weight:600;">
+                Sign in to Auth Manager →
+            </MudButton>
+        </div>
+    }
+
+    <!-- ── Navigation ───────────────────────────────────────────────────── -->
+    @if (_step < 4)
+    {
+        <div class="am-wizard-nav">
+            @if (_step > 1)
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="Back" Disabled="_saving">
+                    Back
+                </MudButton>
+            }
+            else
+            {
+                <span></span>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       EndIcon="@(_step == 3 ? Icons.Material.Filled.Check : Icons.Material.Filled.ArrowForward)"
+                       OnClick="Next"
+                       Disabled="_saving">
+                @if (_saving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Setting up…</span>
+                }
+                else
+                {
+                    @(_step == 3 ? "Finish Setup" : "Next")
+                }
+            </MudButton>
+        </div>
+    }
+
+</div>
+
+@code {
+    private const int TotalSteps = 4;
+    private int  _step  = 1;
+    private bool _saving;
+    private bool _showPw;
+    private bool _showPwConfirm;
+    private string[] _globalErrors = [];
+    private string   _emailError = "";
+    private string   _pwError = "";
+    private string   _pwConfirmError = "";
+
+    private readonly SetupWizardDto _dto = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await SetupService.IsSetupCompleteAsync())
+            Nav.NavigateTo("/authmanager/", true);
+    }
+
+    private static string StepLabel(int step) => step switch
+    {
+        1 => "Welcome",
+        2 => "Admin Account",
+        3 => "Security",
+        4 => "Complete",
+        _ => ""
+    };
+
+    private async Task Next()
+    {
+        _globalErrors = [];
+        if (!ValidateStep()) return;
+
+        if (_step == 3)
+        {
+            _saving = true;
+            var (ok, errors) = await SetupService.CompleteSetupAsync(_dto);
+            _saving = false;
+            if (!ok) { _globalErrors = errors; return; }
+        }
+
+        _step++;
+    }
+
+    private void Back() { if (_step > 1) _step--; }
+
+    private bool ValidateStep()
+    {
+        _emailError = _pwError = _pwConfirmError = "";
+
+        if (_step == 2)
+        {
+            var ok = true;
+            if (string.IsNullOrWhiteSpace(_dto.AdminEmail) || !_dto.AdminEmail.Contains('@'))
+            { _emailError = "A valid email address is required."; ok = false; }
+
+            if (string.IsNullOrWhiteSpace(_dto.AdminPassword) || _dto.AdminPassword.Length < 4)
+            { _pwError = "Password must be at least 4 characters."; ok = false; }
+
+            if (_dto.AdminPassword != _dto.AdminPasswordConfirm)
+            { _pwConfirmError = "Passwords do not match."; ok = false; }
+
+            return ok;
+        }
+        return true;
+    }
+
+    private void ValidateEmail()
+    {
+        if (!string.IsNullOrWhiteSpace(_dto.AdminEmail) && !_dto.AdminEmail.Contains('@'))
+            _emailError = "A valid email address is required.";
+        else
+            _emailError = "";
+    }
+
+    // ── Password strength ────────────────────────────────────────────────
+    private int PasswordScore
+    {
+        get
+        {
+            var p = _dto.AdminPassword ?? "";
+            var s = 0;
+            if (p.Length >= 8)  s++;
+            if (p.Length >= 12) s++;
+            if (p.Any(char.IsUpper)     && p.Any(char.IsLower)) s++;
+            if (p.Any(char.IsDigit))    s++;
+            if (p.Any(c => !char.IsLetterOrDigit(c))) s++;
+            return Math.Min(s, 4);
+        }
+    }
+    private string PasswordStrengthClass => PasswordScore switch
+    {
+        1 => "weak", 2 => "fair", 3 => "good", _ => "strong"
+    };
+    private string PasswordStrengthLabel => PasswordScore switch
+    {
+        1 => "Weak", 2 => "Fair", 3 => "Good", _ => "Strong"
+    };
+
+    // ── Feature list shown on step 1 ─────────────────────────────────────
+    private static readonly (string Icon, string Title, string Desc)[] _features =
+    [
+        ("👥", "User Management",    "Full CRUD for users, roles, and claims"),
+        ("🔑", "JWT & OAuth",        "Configure JWT tokens and social login providers"),
+        ("📋", "Audit Log",          "Every admin action tracked with full history"),
+        ("🛡️", "Security Policy",   "Password rules, brute-force detection, MFA"),
+        ("🔗", "Sessions",           "View and revoke live user sessions"),
+        ("📊", "Health Dashboard",   "System metrics, sign-in history, webhooks"),
+    ];
+}

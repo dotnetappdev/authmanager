@@ -1,6 +1,7 @@
 using System.Text;
 using AuthManager.AspNetCore.Extensions;
 using AuthManager.Core.Options;
+using JwtOptions = AuthManagerSample.WebApi.Services.JwtOptions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ using AuthManagerSample.WebApi.Identity;
 using AuthManagerSample.WebApi.Services;
 using Serilog;
 using Serilog.Events;
+using Microsoft.AspNetCore.Authorization;
 
 // ── Bootstrap logger ─────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -25,11 +27,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 // ── 1. DbContext ──────────────────────────────────────────────────────────────
-// Uses SQL Server LocalDB by default (comes with Visual Studio — no separate install).
-// To use SQLite instead, replace UseSqlServer with UseSqlite and swap the connection
-// string key to "DefaultSQLite" in appsettings.json.
-builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlServer(builder.Configuration.GetConnectionString("Default")!));
+// Prefer SQLite for samples to enable zero-config local runs. Falls back to the
+// regular Default connection string if DefaultSQLite is not provided.
+var sqliteConn = builder.Configuration.GetConnectionString("DefaultSQLite");
+if (!string.IsNullOrWhiteSpace(sqliteConn))
+{
+    builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite(sqliteConn));
+}
+else
+{
+    builder.Services.AddDbContext<AppDbContext>(o =>
+        o.UseSqlServer(builder.Configuration.GetConnectionString("Default")!));
+}
 
 // ── 2. ASP.NET Identity ───────────────────────────────────────────────────────
 builder.Services
@@ -162,8 +171,14 @@ app.MapGroup("/api/auth")
    .MapAuthEndpoints();
 
 app.MapGroup("/api/products")
-   .WithTags("Products")
-   .MapProductEndpoints();
+    .WithTags("Products")
+    .MapProductEndpoints();
+
+// Admin endpoints for role/claim management (requires SuperAdmin)
+var admin = app.MapGroup("/api/admin")
+     .WithTags("Admin")
+     .RequireAuthorization(new AuthorizeAttribute { Roles = "SuperAdmin" });
+admin.MapManagementEndpoints();
 
 app.MapGet("/", () => Results.Redirect("/swagger"))
    .ExcludeFromDescription();

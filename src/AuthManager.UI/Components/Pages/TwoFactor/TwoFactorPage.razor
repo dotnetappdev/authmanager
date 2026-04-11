@@ -1,0 +1,261 @@
+@page "/authmanager/2fa"
+@rendermode InteractiveServer
+@inject IUserManagementService UserService
+@inject ISnackbar Snackbar
+
+<PageTitle>Two-Factor Authentication — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Two-Factor Authentication</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Manage TOTP authenticator enrollment across all users
+        </MudText>
+    </div>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else
+{
+    <!-- Stats row -->
+    <MudGrid Spacing="3" Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h3" Color="Color.Primary">@_stats.TotalUsers</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Total Users</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h3" Color="Color.Success">@_stats.Enabled2FA</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">2FA Enabled</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h3" Color="Color.Warning">@_stats.Disabled2FA</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">2FA Disabled</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h3" Color="Color.Info">@_stats.PendingEnroll</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Pending Enrollment</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Filter toolbar -->
+    <MudStack Row="true" Spacing="2" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField T="string" @bind-Value="Search" Label="Search users"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true" DebounceInterval="300"
+                          Style="max-width:320px" />
+            <MudSelect T="string" @bind-Value="StatusFilter" Label="Status"
+                       Variant="Variant.Outlined" Margin="Margin.Dense"
+                       Style="max-width:160px">
+            <MudSelectItem T="string" Value="@("all")">All</MudSelectItem>
+            <MudSelectItem T="string" Value="@("enabled")">2FA On</MudSelectItem>
+            <MudSelectItem T="string" Value="@("disabled")">2FA Off</MudSelectItem>
+        </MudSelect>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="Reload">Refresh</MudButton>
+    </MudStack>
+
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent Class="pa-0">
+            <MudTable T="UserDto" Items="_users" Dense="true" Hover="true"
+                      Elevation="0" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>User</MudTh>
+                    <MudTh>Email</MudTh>
+                    <MudTh>2FA Status</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="User">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small">
+                                @context.UserName[..1].ToUpper()
+                            </MudAvatar>
+                            <MudText Typo="Typo.body2" Class="font-weight-medium">@context.UserName</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Email">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@context.Email</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="2FA Status">
+                        @if (context.TwoFactorEnabled)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success"
+                                     Icon="@Icons.Material.Filled.VerifiedUser"
+                                     Variant="Variant.Filled">Enabled</MudChip>
+                        }
+                        else if (IsPendingEnroll(context))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info"
+                                     Icon="@Icons.Material.Filled.HourglassEmpty"
+                                     Variant="Variant.Outlined">Pending</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default"
+                                     Icon="@Icons.Material.Filled.LockOpen"
+                                     Variant="Variant.Outlined">Disabled</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Actions">
+                        <MudStack Row="true" Spacing="1">
+                            @if (context.TwoFactorEnabled)
+                            {
+                                <MudTooltip Text="Disable 2FA for this user">
+                                    <MudIconButton Icon="@Icons.Material.Filled.LockOpen"
+                                                   Size="Size.Small" Color="Color.Warning"
+                                                   OnClick="@(() => Disable2FA(context))" />
+                                </MudTooltip>
+                                <MudTooltip Text="Reset authenticator key (force re-enrollment)">
+                                    <MudIconButton Icon="@Icons.Material.Filled.RestartAlt"
+                                                   Size="Size.Small" Color="Color.Error"
+                                                   OnClick="@(() => ResetAuthenticator(context))" />
+                                </MudTooltip>
+                            }
+                            else
+                            {
+                                <MudTooltip Text="Require 2FA setup on next sign-in">
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.PhonelinkLock"
+                                               OnClick="@(() => Force2FA(context))">
+                                        Require 2FA
+                                    </MudButton>
+                                </MudTooltip>
+                            }
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Color="Color.Secondary" Class="pa-4">No users match your filter.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+}
+
+@code {
+    private List<UserDto>   _users  = [];
+    private TwoFactorStats  _stats  = new();
+    private bool   _loading = true;
+    private string _searchBacking  = "";
+    private string _statusFilterBacking = "all";
+
+    private string Search
+    {
+        get => _searchBacking;
+        set
+        {
+            if (_searchBacking == value) return;
+            _searchBacking = value;
+            _ = LoadUsers();
+        }
+    }
+
+    private string StatusFilter
+    {
+        get => _statusFilterBacking;
+        set
+        {
+            if (_statusFilterBacking == value) return;
+            _statusFilterBacking = value;
+            _ = LoadUsers();
+        }
+    }
+
+    // Pre-indexed: userId → has ConfigureTOTP pending
+    private HashSet<string> _pendingEnrollIds = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload()
+    {
+        _stats = await UserService.GetTwoFactorStatsAsync();
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        bool? twoFaFilter = StatusFilter switch
+        {
+            "enabled"  => true,
+            "disabled" => false,
+            _          => null
+        };
+
+        var result = await UserService.GetUsersAsync(new UserFilter
+        {
+            SearchTerm       = string.IsNullOrWhiteSpace(Search) ? null : Search,
+            TwoFactorEnabled = twoFaFilter,
+            Page             = 1,
+            PageSize         = 500
+        });
+
+        _users = result.Items;
+
+        // Build pending-enroll index
+        _pendingEnrollIds.Clear();
+        foreach (var u in _users)
+        {
+            var actions = await UserService.GetRequiredActionsAsync(u.Id);
+            if (actions.Contains("ConfigureTOTP"))
+                _pendingEnrollIds.Add(u.Id);
+        }
+        StateHasChanged();
+    }
+
+    private bool IsPendingEnroll(UserDto user) => _pendingEnrollIds.Contains(user.Id);
+
+    private async Task Disable2FA(UserDto user)
+    {
+        var (ok, errors) = await UserService.DisableTwoFactorAsync(user.Id);
+        if (ok) { Snackbar.Add($"2FA disabled for {user.UserName}.", Severity.Success); await Reload(); }
+        else    foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task ResetAuthenticator(UserDto user)
+    {
+        var (ok, errors) = await UserService.ResetAuthenticatorAsync(user.Id);
+        if (ok) { Snackbar.Add($"Authenticator reset for {user.UserName}. They must re-enroll.", Severity.Success); await Reload(); }
+        else    foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task Force2FA(UserDto user)
+    {
+        var (ok, errors) = await UserService.Force2FaEnrollmentAsync(user.Id);
+        if (ok) { Snackbar.Add($"{user.UserName} must configure 2FA on next sign-in.", Severity.Info); await Reload(); }
+        else    foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+}

@@ -35,7 +35,7 @@
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input class="am-search-input" type="search" placeholder="Search log messages..."
-                   @bind="_filter.SearchTerm" @bind:event="oninput" @oninput="OnFilterChanged" />
+                   value="@_filter.SearchTerm" @oninput="OnFilterChanged" />
         </div>
         <div class="am-filter-group">
             <select class="am-select" @bind="_filter.MinLevel" @bind:after="LoadLogs">

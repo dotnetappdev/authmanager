@@ -18,6 +18,10 @@ public sealed class AuthManagerDbContext : DbContext
     public DbSet<UserFieldDefinitionRecord>   UserFieldDefinitions { get; set; } = default!;
     public DbSet<SignInAttemptRecord>         SignInAttempts        { get; set; } = default!;
     public DbSet<ImpersonationTokenRecord>    ImpersonationTokens  { get; set; } = default!;
+    public DbSet<GroupRecord>                 Groups               { get; set; } = default!;
+    public DbSet<GroupMemberRecord>           GroupMembers         { get; set; } = default!;
+    public DbSet<EmailTemplateRecord>         EmailTemplates       { get; set; } = default!;
+    public DbSet<ApiTokenRecord>              ApiTokens            { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -91,7 +95,90 @@ public sealed class AuthManagerDbContext : DbContext
             e.Property(x => x.TargetUserId).HasMaxLength(450);
             e.HasIndex(x => x.ExpiresAt);
         });
+
+        b.Entity<GroupRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.Name).HasMaxLength(128);
+            e.Property(x => x.Description).HasMaxLength(512);
+            e.Property(x => x.RolesJson).HasMaxLength(2048);
+            e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        b.Entity<GroupMemberRecord>(e =>
+        {
+            e.HasKey(x => new { x.GroupId, x.UserId });
+            e.Property(x => x.GroupId).HasMaxLength(64);
+            e.Property(x => x.UserId).HasMaxLength(450);
+            e.HasIndex(x => x.UserId);
+        });
+
+        b.Entity<EmailTemplateRecord>(e =>
+        {
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).HasMaxLength(64);
+            e.Property(x => x.DisplayName).HasMaxLength(128);
+            e.Property(x => x.Subject).HasMaxLength(256);
+        });
+
+        b.Entity<ApiTokenRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.TokenHash).HasMaxLength(128);
+            e.Property(x => x.Name).HasMaxLength(128);
+            e.Property(x => x.UserId).HasMaxLength(450);
+            e.Property(x => x.Prefix).HasMaxLength(8);
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => x.UserId);
+        });
     }
+}
+
+/// <summary>Named group of roles.</summary>
+public sealed class GroupRecord
+{
+    public string   Id          { get; set; } = Guid.NewGuid().ToString("N")[..16];
+    public string   Name        { get; set; } = string.Empty;
+    public string?  Description { get; set; }
+    public string   RolesJson   { get; set; } = "[]";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>User membership in a group.</summary>
+public sealed class GroupMemberRecord
+{
+    public string GroupId  { get; set; } = string.Empty;
+    public string UserId   { get; set; } = string.Empty;
+    public DateTimeOffset JoinedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>Transactional email template stored in the internal DB.</summary>
+public sealed class EmailTemplateRecord
+{
+    public string  Key         { get; set; } = string.Empty;
+    public string  DisplayName { get; set; } = string.Empty;
+    public string  Subject     { get; set; } = string.Empty;
+    public string  BodyHtml    { get; set; } = string.Empty;
+    public string  BodyText    { get; set; } = string.Empty;
+    public bool    IsEnabled   { get; set; } = true;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>Long-lived personal API token (stored as a SHA-256 hash).</summary>
+public sealed class ApiTokenRecord
+{
+    public string  Id         { get; set; } = string.Empty;
+    public string  Prefix     { get; set; } = string.Empty;   // first 8 chars shown to user
+    public string  TokenHash  { get; set; } = string.Empty;   // SHA-256 of the full token
+    public string  Name       { get; set; } = string.Empty;
+    public string  UserId     { get; set; } = string.Empty;
+    public string? Scopes     { get; set; }
+    public bool    IsRevoked  { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? LastUsedAt { get; set; }
+    public DateTimeOffset? ExpiresAt  { get; set; }
 }
 
 /// <summary>Key/value store for serialised settings overrides.</summary>

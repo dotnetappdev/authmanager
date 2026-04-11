@@ -16,7 +16,7 @@
     </div>
     <MudStack Row="true" Spacing="2">
         <MudButton Variant="Variant.Outlined" Color="Color.Warning"
-                   StartIcon="@Icons.Material.Filled.LogoutOutlined"
+                   StartIcon="@Icons.Material.Outlined.Logout"
                    OnClick="RevokeAllSessions"
                    Disabled="@(_totalCount == 0)">
             Revoke All
@@ -134,7 +134,7 @@
                                            Size="Size.Small" Color="Color.Warning" Variant="Variant.Text"
                                            Title="Revoke this session"
                                            OnClick="@(() => RevokeSession(context.Item))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.LogoutOutlined"
+                            <MudIconButton Icon="@Icons.Material.Outlined.Logout"
                                            Size="Size.Small" Color="Color.Error" Variant="Variant.Text"
                                            Title="Revoke all sessions for this user"
                                            OnClick="@(() => RevokeUserSessions(context.Item))" />

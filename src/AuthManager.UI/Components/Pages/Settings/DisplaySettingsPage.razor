@@ -175,8 +175,7 @@
         _singular = NamingService.GetUserDisplayName();
         _plural   = NamingService.GetUsersDisplayName();
 
-        var paged = await RoleService.GetRolesAsync(1, 100);
-        _roles    = paged.Items.ToList();
+        _roles = await RoleService.GetRolesAsync();
     }
 
     private async Task SaveNaming()

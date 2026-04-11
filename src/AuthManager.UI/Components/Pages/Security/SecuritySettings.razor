@@ -90,7 +90,7 @@ else
                         </div>
                         <div class="am-toggle-item">
                             <div class="am-toggle-info">
-                                <div class="am-toggle-label">Require Non-Alphanumeric (!, @, #…)</div>
+                                <div class="am-toggle-label">Require Non-Alphanumeric (!, @@, #…)</div>
                                 <div class="am-toggle-desc">Password must contain at least one special character</div>
                             </div>
                             <label class="am-switch">
@@ -249,7 +249,7 @@ else
                         <div class="am-form-group">
                             <label class="am-label">Connection String</label>
                             <input class="am-input" type="text" @bind="_dbConnectionString"
-                                   placeholder="@(_dbProvider == "SQLite" ? "Data Source=authmanager.db" : "Server=.;Database=AuthManager;Trusted_Connection=true")" />
+                                   placeholder="@DbPlaceholder" />
                             <span class="am-input-hint">
                                 @if (_dbProvider == "SQLite")
                                 {
@@ -358,6 +358,10 @@ else
     // DB settings — read from options, editable here
     private string _dbProvider         = "SQLite";
     private string _dbConnectionString = "Data Source=authmanager.db";
+
+    private string DbPlaceholder => _dbProvider == "SQLite"
+        ? "Data Source=authmanager.db"
+        : "Server=.;Database=AuthManager;Trusted_Connection=true";
 
     // Theme — loaded from JS localStorage
     private string _currentTheme = "system";

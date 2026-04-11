@@ -115,7 +115,7 @@ public static class AuthEndpoints
             UserName:        user.UserName!,
             EmailConfirmed:  user.EmailConfirmed,
             TwoFactorEnabled: user.TwoFactorEnabled,
-            Roles:           roles,
+            Roles:           roles.ToList(),
             RequiredActions: required));
     }
 }

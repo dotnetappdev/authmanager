@@ -1,6 +1,7 @@
 using AuthManager.AspNetCore.Extensions;
 using AuthManager.Core.Options;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;

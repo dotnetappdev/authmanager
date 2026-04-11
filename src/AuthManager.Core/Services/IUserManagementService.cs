@@ -41,6 +41,26 @@ public interface IUserManagementService
     /// Returns an empty list if the user has none.
     /// </summary>
     Task<List<string>> GetRequiredActionsAsync(string userId, CancellationToken ct = default);
+
+    // ── Two-Factor Authentication ─────────────────────────────
+
+    /// <summary>Disable 2FA for the given user. Their authenticator key is NOT cleared.</summary>
+    Task<(bool Success, string[] Errors)> DisableTwoFactorAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reset the TOTP authenticator key. The user must re-enroll on their next sign-in.
+    /// Also sets the "ConfigureTOTP" required action.
+    /// </summary>
+    Task<(bool Success, string[] Errors)> ResetAuthenticatorAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Force-require 2FA setup for the given user.
+    /// Adds the "ConfigureTOTP" required action without disabling any existing 2FA.
+    /// </summary>
+    Task<(bool Success, string[] Errors)> Force2FaEnrollmentAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>Return users grouped by their 2FA status for the admin overview.</summary>
+    Task<TwoFactorStats> GetTwoFactorStatsAsync(CancellationToken ct = default);
 }
 
 /// <summary>
@@ -56,6 +76,14 @@ public sealed class DashboardStats
     public int TotalClaims { get; set; }
     public int RecentLogins { get; set; }
     public List<UserActivityEntry> RecentActivity { get; set; } = [];
+}
+
+public sealed class TwoFactorStats
+{
+    public int TotalUsers   { get; set; }
+    public int Enabled2FA   { get; set; }
+    public int Disabled2FA  { get; set; }
+    public int PendingEnroll { get; set; }  // users with ConfigureTOTP required action
 }
 
 public sealed class UserActivityEntry

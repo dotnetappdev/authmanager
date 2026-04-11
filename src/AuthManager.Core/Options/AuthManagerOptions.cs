@@ -123,6 +123,11 @@ public sealed class AuthManagerOptions
     public string UserEntityPluralDisplayName { get; set; } = "Users";
 
     /// <summary>
+    /// Email notification settings — SMTP relay, sender info, and event triggers.
+    /// </summary>
+    public EmailNotificationOptions Email { get; set; } = new();
+
+    /// <summary>
     /// Connection string for AuthManager's own internal database
     /// (stores audit entries, sessions, and settings overrides).
     /// Defaults to a local <c>authmanager.db</c> SQLite file.

@@ -1,0 +1,150 @@
+@page "/authmanager/totp-challenge"
+@attribute [AllowAnonymous]
+@layout SetupLayout
+@rendermode InteractiveServer
+@inject ITotpChallengeService TotpService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Two-Factor Authentication</PageTitle>
+
+<div style="width:100%;max-width:420px">
+    <MudStack Spacing="4">
+        <MudStack AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.PhonelinkLock" Color="Color.Primary" Style="font-size:3rem" />
+            <MudText Typo="Typo.h5">Two-Factor Authentication</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                Open your authenticator app and enter the 6-digit code shown for this account.
+            </MudText>
+        </MudStack>
+
+        <MudCard Elevation="0" Class="am-card-border">
+            <MudCardContent>
+                <MudStack Spacing="3">
+                    <!-- Code input — large digits for easy reading -->
+                    <div style="text-align:center">
+                        <MudTextField @bind-Value="_code"
+                                      Label="Authenticator Code"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      InputType="InputType.Number"
+                                      Style="font-size:1.5rem;letter-spacing:0.3rem;text-align:center;max-width:220px"
+                                      Placeholder="000000"
+                                      MaxLength="6"
+                                      Immediate="true"
+                                      @onkeydown="OnKeyDown"
+                                      AutoFocus="true" />
+                    </div>
+
+                    @if (_error is not null)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+                    }
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               FullWidth="true" Size="Size.Large"
+                               OnClick="Verify" Disabled="@(_verifying || _code.Length < 6)">
+                        @if (_verifying)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <span>Verifying…</span>
+                        }
+                        else
+                        {
+                            <span>Verify</span>
+                        }
+                    </MudButton>
+                </MudStack>
+            </MudCardContent>
+        </MudCard>
+
+        <!-- Recovery code fallback -->
+        <MudExpansionPanels Elevation="0" Class="am-card-border">
+            <MudExpansionPanel Text="Can't access your authenticator app?">
+                <MudStack Spacing="2" Class="pa-2">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Enter one of your recovery codes instead. Each code can only be used once.
+                    </MudText>
+                    <MudTextField @bind-Value="_recoveryCode"
+                                  Label="Recovery Code"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Placeholder="abcd1-efgh2"
+                                  Style="font-family:monospace" />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning"
+                               FullWidth="true" OnClick="UseRecoveryCode"
+                               Disabled="@(_verifying || string.IsNullOrWhiteSpace(_recoveryCode))">
+                        Use Recovery Code
+                    </MudButton>
+                </MudStack>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">
+            The code changes every 30 seconds. Make sure your device clock is accurate.
+        </MudText>
+    </MudStack>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private string _code         = "";
+    private string _recoveryCode = "";
+    private bool   _verifying;
+    private string? _error;
+
+    private async Task Verify()
+    {
+        if (_code.Length < 6) return;
+        _verifying = true;
+        _error     = null;
+
+        var result = await TotpService.VerifyTotpAsync(_code);
+
+        switch (result)
+        {
+            case TotpResult.Success:
+                Nav.NavigateTo(ReturnUrl ?? "/", forceLoad: true);
+                return;
+            case TotpResult.LockedOut:
+                _error = "Your account has been locked after too many failed attempts. Contact an administrator.";
+                break;
+            default:
+                _error = "Invalid code. Please try again — the code changes every 30 seconds.";
+                break;
+        }
+
+        _verifying = false;
+    }
+
+    private async Task UseRecoveryCode()
+    {
+        if (string.IsNullOrWhiteSpace(_recoveryCode)) return;
+        _verifying = true;
+        _error     = null;
+
+        var result = await TotpService.VerifyRecoveryCodeAsync(_recoveryCode.Trim());
+
+        switch (result)
+        {
+            case TotpResult.Success:
+                Snackbar.Add("Signed in using a recovery code. Consider generating new recovery codes.", Severity.Warning);
+                Nav.NavigateTo(ReturnUrl ?? "/", forceLoad: true);
+                return;
+            case TotpResult.LockedOut:
+                _error = "Account locked.";
+                break;
+            default:
+                _error = "Invalid recovery code.";
+                break;
+        }
+
+        _verifying = false;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Verify();
+    }
+}

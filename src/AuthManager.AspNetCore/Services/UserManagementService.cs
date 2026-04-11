@@ -364,6 +364,69 @@ internal sealed class UserManagementService<TUser> : IUserManagementService
             .ToList();
     }
 
+    public async Task<(bool Success, string[] Errors)> DisableTwoFactorAsync(
+        string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        var result = await _userManager.SetTwoFactorEnabledAsync(user, false);
+        if (!result.Succeeded)
+            return (false, result.Errors.Select(e => e.Description).ToArray());
+
+        _logger.LogInformation("2FA disabled for user {UserId}.", userId);
+        return (true, []);
+    }
+
+    public async Task<(bool Success, string[] Errors)> ResetAuthenticatorAsync(
+        string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        // Disable 2FA and reset the key
+        await _userManager.SetTwoFactorEnabledAsync(user, false);
+        var result = await _userManager.ResetAuthenticatorKeyAsync(user);
+        if (!result.Succeeded)
+            return (false, result.Errors.Select(e => e.Description).ToArray());
+
+        // Force re-enrollment on next sign-in
+        await AddRequiredActionAsync(userId, "ConfigureTOTP", ct);
+
+        _logger.LogInformation("2FA authenticator reset for user {UserId}.", userId);
+        return (true, []);
+    }
+
+    public async Task<(bool Success, string[] Errors)> Force2FaEnrollmentAsync(
+        string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        await AddRequiredActionAsync(userId, "ConfigureTOTP", ct);
+        _logger.LogInformation("Forced 2FA enrollment for user {UserId}.", userId);
+        return (true, []);
+    }
+
+    public async Task<TwoFactorStats> GetTwoFactorStatsAsync(CancellationToken ct = default)
+    {
+        var users = await _userManager.Users.ToListAsync(ct);
+        var pending = 0;
+        foreach (var u in users)
+        {
+            var claims = await _userManager.GetClaimsAsync(u);
+            if (claims.Any(c => c.Type == RequiredActionClaimType && c.Value == "ConfigureTOTP"))
+                pending++;
+        }
+        return new TwoFactorStats
+        {
+            TotalUsers    = users.Count,
+            Enabled2FA    = users.Count(u => u.TwoFactorEnabled),
+            Disabled2FA   = users.Count(u => !u.TwoFactorEnabled),
+            PendingEnroll = pending
+        };
+    }
+
     public async Task<DashboardStats> GetDashboardStatsAsync(CancellationToken ct = default)
     {
         var now = DateTimeOffset.UtcNow;

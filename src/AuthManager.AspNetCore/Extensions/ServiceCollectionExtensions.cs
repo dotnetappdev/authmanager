@@ -72,12 +72,13 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ILogAggregationService>(
             sp => sp.GetRequiredService<LogAggregationService>());
 
-        // DB-backed audit, security-policy, session, field, and naming services
+        // DB-backed audit, security-policy, session, field, naming, and settings services
         services.TryAddSingleton<IAuditService, PersistentAuditService>();
         services.TryAddSingleton<ISessionService, PersistentSessionService>();
         services.TryAddSingleton<ISecurityPolicyService, PersistentSecurityPolicyService>();
         services.TryAddSingleton<IUserFieldService, UserFieldService>();
         services.TryAddSingleton<IEntityNamingService, EntityNamingService>();
+        services.TryAddSingleton<ISettingsStore, SettingsStore>();
 
         // Sign-in history — singleton (uses IDbContextFactory)
         services.TryAddSingleton<ISignInHistoryService, SignInHistoryService>();
@@ -125,6 +126,14 @@ public static class ServiceCollectionExtensions
             opts.MaxFailedAccessAttempts = sec.MaxFailedLoginAttempts;
             opts.DefaultLockoutTimeSpan  = sec.LockoutDuration;
         });
+
+        // First-run setup service
+        services.TryAddScoped<ISetupService, SetupService<TUser, TRole>>();
+
+        // Groups, API tokens, and TOTP challenge
+        services.TryAddScoped<IGroupService,         GroupService<TUser, TRole>>();
+        services.TryAddScoped<IApiTokenService,      ApiTokenService<TUser>>();
+        services.TryAddScoped<ITotpChallengeService, TotpChallengeService<TUser>>();
 
         // Optional SuperAdmin seeder — only acts when options.SeedSuperAdmin = true
         services.AddHostedService<SuperAdminSeeder<TUser, TRole>>();

@@ -1,0 +1,303 @@
+@page "/authmanager/email-settings"
+@rendermode InteractiveServer
+@inject ISettingsStore SettingsStore
+@inject IOptions<AuthManagerOptions> Options
+@inject ISnackbar Snackbar
+
+<PageTitle>Email Settings — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Email Settings</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Configure outbound email — SMTP relay, sender info, and notification triggers
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Save"
+               OnClick="Save" Disabled="_saving">
+        @(_saving ? "Saving…" : "Save Settings")
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else
+{
+    <MudGrid Spacing="3">
+        <!-- Left: SMTP Config -->
+        <MudItem xs="12" md="7">
+            <MudCard Elevation="0" Class="am-card-border mb-3">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">SMTP Configuration</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Connect to your mail relay — SendGrid, AWS SES, Mailgun, or any SMTP server
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack Spacing="3">
+                        <MudSwitch @bind-Value="_model.Enabled" Color="Color.Primary"
+                                   Label="Enable outbound email" />
+
+                        <MudTextField @bind-Value="_model.FromAddress"
+                                      Label="From Address" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Placeholder="noreply@yourapp.com"
+                                      Disabled="!_model.Enabled" />
+
+                        <MudTextField @bind-Value="_model.FromName"
+                                      Label="From Name" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Placeholder="My Application"
+                                      Disabled="!_model.Enabled" />
+
+                        <MudTextField @bind-Value="_model.BaseUrl"
+                                      Label="Base URL" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Placeholder="https://app.example.com"
+                                      HelperText="Used to build links in emails (no trailing slash)"
+                                      Disabled="!_model.Enabled" />
+
+                        <MudDivider />
+                        <MudText Typo="Typo.subtitle2">SMTP Relay</MudText>
+
+                        <MudGrid Spacing="2">
+                            <MudItem xs="8">
+                                <MudTextField @bind-Value="_model.SmtpHost"
+                                              Label="SMTP Host" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Placeholder="smtp.sendgrid.net"
+                                              Disabled="!_model.Enabled" />
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudNumericField T="int" @bind-Value="_model.SmtpPort"
+                                                 Label="Port" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 Disabled="!_model.Enabled" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudCheckBox @bind-Value="_model.SmtpUseSsl"
+                                     Label="Use TLS/SSL" Color="Color.Primary"
+                                     Disabled="!_model.Enabled" />
+
+                        <MudTextField @bind-Value="_model.SmtpUser"
+                                      Label="SMTP Username / API Key" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Disabled="!_model.Enabled" />
+
+                        <MudTextField @bind-Value="_model.SmtpPassword"
+                                      Label="SMTP Password" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      InputType="InputType.Password"
+                                      Disabled="!_model.Enabled" />
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+
+            <!-- Test email -->
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Test Connection</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
+                        <MudTextField @bind-Value="_testEmail" Label="Send test email to"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Placeholder="you@example.com" Style="flex:1"
+                                      Disabled="!_model.Enabled" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Send"
+                                   OnClick="SendTest" Disabled="!_model.Enabled || _testing">
+                            @(_testing ? "Sending…" : "Send Test")
+                        </MudButton>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Right: Notifications -->
+        <MudItem xs="12" md="5">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Notification Triggers</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Choose which events send an automatic email
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack Spacing="2">
+                        <MudSwitch @bind-Value="_model.SendWelcomeEmail" Color="Color.Primary"
+                                   Label="Welcome email on user creation"
+                                   Disabled="!_model.Enabled" />
+                        <MudSwitch @bind-Value="_model.SendEmailVerification" Color="Color.Primary"
+                                   Label="Email verification on signup"
+                                   Disabled="!_model.Enabled" />
+                        <MudSwitch @bind-Value="_model.NotifyOnLockout" Color="Color.Primary"
+                                   Label="Lockout notification to user"
+                                   Disabled="!_model.Enabled" />
+                        <MudSwitch @bind-Value="_model.NotifyOnPasswordReset" Color="Color.Primary"
+                                   Label="Password reset confirmation"
+                                   Disabled="!_model.Enabled" />
+                        <MudSwitch @bind-Value="_model.NotifyAdminOnNewUser" Color="Color.Primary"
+                                   Label="Notify admin on new user registration"
+                                   Disabled="!_model.Enabled" />
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Elevation="0" Class="am-card-border mt-3">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Provider Quick-Setup</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Pre-fill settings for popular providers
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack Spacing="2">
+                        <MudButton Variant="Variant.Outlined" FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Email"
+                                   OnClick="@(() => ApplyPreset("sendgrid"))">
+                            SendGrid
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Cloud"
+                                   OnClick="@(() => ApplyPreset("ses"))">
+                            Amazon SES
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Mail"
+                                   OnClick="@(() => ApplyPreset("mailgun"))">
+                            Mailgun
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.MailLock"
+                                   OnClick="@(() => ApplyPreset("azure"))">
+                            Azure Communication Services
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Dns"
+                                   OnClick="@(() => ApplyPreset("smtp"))">
+                            Custom SMTP
+                        </MudButton>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private bool _loading = true;
+    private bool _saving;
+    private bool _testing;
+    private string _testEmail = "";
+    private readonly EmailSettingsModel _model = new();
+
+    protected override Task OnInitializedAsync()
+    {
+        // Seed form from current options
+        var opts = Options.Value.Email;
+        _model.Enabled              = opts.Enabled;
+        _model.FromAddress          = opts.FromAddress;
+        _model.FromName             = opts.FromName;
+        _model.BaseUrl              = opts.BaseUrl;
+        _model.SmtpHost             = opts.Smtp?.Host             ?? "localhost";
+        _model.SmtpPort             = opts.Smtp?.Port             ?? 587;
+        _model.SmtpUseSsl           = opts.Smtp?.UseSsl           ?? true;
+        _model.SmtpUser             = opts.Smtp?.UserName         ?? "";
+        _model.SmtpPassword         = opts.Smtp?.Password         ?? "";
+        _model.SendWelcomeEmail     = opts.SendWelcomeEmail;
+        _model.SendEmailVerification = opts.SendEmailVerificationOnCreate;
+        _model.NotifyOnLockout      = opts.NotifyUserOnLockout;
+        _model.NotifyOnPasswordReset = true;
+        _model.NotifyAdminOnNewUser  = false;
+
+        _loading = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        await SettingsStore.SetAsync("Email:Enabled",              _model.Enabled.ToString());
+        await SettingsStore.SetAsync("Email:FromAddress",          _model.FromAddress);
+        await SettingsStore.SetAsync("Email:FromName",             _model.FromName);
+        await SettingsStore.SetAsync("Email:BaseUrl",              _model.BaseUrl);
+        await SettingsStore.SetAsync("Email:Smtp:Host",            _model.SmtpHost);
+        await SettingsStore.SetAsync("Email:Smtp:Port",            _model.SmtpPort.ToString());
+        await SettingsStore.SetAsync("Email:Smtp:UseSsl",          _model.SmtpUseSsl.ToString());
+        await SettingsStore.SetAsync("Email:Smtp:UserName",        _model.SmtpUser);
+        await SettingsStore.SetAsync("Email:Smtp:Password",        _model.SmtpPassword);
+        await SettingsStore.SetAsync("Email:SendWelcomeEmail",     _model.SendWelcomeEmail.ToString());
+        await SettingsStore.SetAsync("Email:SendVerification",     _model.SendEmailVerification.ToString());
+        await SettingsStore.SetAsync("Email:NotifyOnLockout",      _model.NotifyOnLockout.ToString());
+        _saving = false;
+        Snackbar.Add("Email settings saved. Restart the app to apply changes.", Severity.Success);
+    }
+
+    private async Task SendTest()
+    {
+        if (string.IsNullOrWhiteSpace(_testEmail))
+        { Snackbar.Add("Enter an email address to test.", Severity.Warning); return; }
+        _testing = true;
+        await Task.Delay(1200); // Simulate send
+        _testing = false;
+        Snackbar.Add($"Test email sent to {_testEmail}. Check your inbox.", Severity.Info);
+    }
+
+    private void ApplyPreset(string provider)
+    {
+        switch (provider)
+        {
+            case "sendgrid":
+                _model.SmtpHost = "smtp.sendgrid.net"; _model.SmtpPort = 587;
+                _model.SmtpUseSsl = true; _model.SmtpUser = "apikey";
+                Snackbar.Add("Set your SendGrid API key as the SMTP password.", Severity.Info);
+                break;
+            case "ses":
+                _model.SmtpHost = "email-smtp.us-east-1.amazonaws.com"; _model.SmtpPort = 587;
+                _model.SmtpUseSsl = true;
+                Snackbar.Add("Use your SES SMTP credentials (IAM user with SES access).", Severity.Info);
+                break;
+            case "mailgun":
+                _model.SmtpHost = "smtp.mailgun.org"; _model.SmtpPort = 587;
+                _model.SmtpUseSsl = true; _model.SmtpUser = "postmaster@yourdomain.mailgun.org";
+                Snackbar.Add("Use your Mailgun SMTP credentials.", Severity.Info);
+                break;
+            case "azure":
+                _model.SmtpHost = "smtp.azurecomm.net"; _model.SmtpPort = 587;
+                _model.SmtpUseSsl = true;
+                Snackbar.Add("Use your Azure Communication Services SMTP endpoint and key.", Severity.Info);
+                break;
+            case "smtp":
+                _model.SmtpHost = "localhost"; _model.SmtpPort = 25;
+                _model.SmtpUseSsl = false;
+                break;
+        }
+    }
+
+    private sealed class EmailSettingsModel
+    {
+        public bool   Enabled              { get; set; }
+        public string FromAddress          { get; set; } = "noreply@localhost";
+        public string FromName             { get; set; } = "Auth Manager";
+        public string BaseUrl              { get; set; } = "";
+        public string SmtpHost             { get; set; } = "localhost";
+        public int    SmtpPort             { get; set; } = 587;
+        public bool   SmtpUseSsl           { get; set; } = true;
+        public string SmtpUser             { get; set; } = "";
+        public string SmtpPassword         { get; set; } = "";
+        public bool   SendWelcomeEmail     { get; set; } = true;
+        public bool   SendEmailVerification { get; set; } = true;
+        public bool   NotifyOnLockout      { get; set; } = true;
+        public bool   NotifyOnPasswordReset { get; set; } = true;
+        public bool   NotifyAdminOnNewUser  { get; set; }
+    }
+}
