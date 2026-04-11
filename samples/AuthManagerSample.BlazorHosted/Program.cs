@@ -51,7 +51,7 @@ builder.Services.AddAuthManager<IdentityUser>(options =>
     options.SuperAdminRole = "SuperAdmin";
 
     // Seed the default SuperAdmin on first run.
-    // ⚠️  Set SeedSuperAdmin = false after first login + password change.
+    // NOTE: Set SeedSuperAdmin = false after first login + password change.
     options.SeedSuperAdmin         = true;
     options.SeedSuperAdminEmail    = "superadmin@example.com";
     options.SeedSuperAdminPassword = "SuperAdmin@123456!";
