@@ -1,4 +1,5 @@
 using AuthManager.AspNetCore.Data;
+using MudBlazor.Services;
 using AuthManager.AspNetCore.Seeding;
 using AuthManager.AspNetCore.Services;
 using AuthManager.Core.Options;
@@ -101,6 +102,9 @@ public static class ServiceCollectionExtensions
         // Blazor — idempotent if host already called AddRazorComponents()
         services.AddRazorComponents()
                 .AddInteractiveServerComponents();
+
+        // MudBlazor — required for the admin UI components (idempotent)
+        services.AddMudServices();
 
         services.AddHttpContextAccessor();
 

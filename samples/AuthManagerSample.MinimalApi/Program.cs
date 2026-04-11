@@ -60,6 +60,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 app.MapAuthManager();
 
 app.MapGet("/", () => new { Message = "Visit /authmanager (SuperAdmin only)" });

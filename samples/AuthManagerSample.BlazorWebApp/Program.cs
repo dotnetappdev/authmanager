@@ -91,12 +91,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-// ── AuthManager ───────────────────────────────────────────────────────────────
-app.MapAuthManager();   // → /authmanager (SuperAdmin only)
-
 // ── Blazor app ────────────────────────────────────────────────────────────────
+// Must come BEFORE MapAuthManager() so its ComponentHub data source is detected,
+// preventing duplicate /_blazor SignalR hub endpoints.
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
+
+// ── AuthManager ───────────────────────────────────────────────────────────────
+app.MapAuthManager();   // → /authmanager (SuperAdmin only)
 
 Log.Information("Blazor app running. Visit / for the app, /authmanager for identity management.");
 app.Run();

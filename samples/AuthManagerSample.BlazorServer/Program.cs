@@ -62,10 +62,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapAuthManager();
-
+// ── Blazor pages (host app) ───────────────────────────────────────────────
+// Must come BEFORE MapAuthManager() so its ComponentHub data source is
+// detected by MapAuthManager(), preventing duplicate /_blazor endpoints.
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
+
+app.MapAuthManager();
 
 app.Run();
 
