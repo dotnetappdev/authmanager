@@ -11,6 +11,20 @@ Run the Web API sample (uses SQLite by default):
 dotnet run --project samples/AuthManagerSample.WebApi
 ```
 
+One-command start (recommended)
+
+On Windows (PowerShell):
+
+```powershell
+.\scripts\run-webapi.ps1
+```
+
+On macOS / Linux (bash):
+
+```bash
+./scripts/run-webapi.sh
+```
+
 What this does:
 - Creates `webapi.db` in the sample folder (SQLite).
 - Runs DB creation and seeds a `SuperAdmin` user automatically.
