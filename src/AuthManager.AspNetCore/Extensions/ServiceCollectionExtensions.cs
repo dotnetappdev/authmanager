@@ -91,6 +91,8 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IUserImportExportService, UserImportExportService<TUser>>();
         services.TryAddScoped<IImpersonationService, ImpersonationService<TUser>>();
         services.TryAddScoped<ISystemHealthService, SystemHealthService>();
+        services.TryAddScoped<ISsoService, SsoService>();
+        services.TryAddScoped<IOtpService, OtpService>();
 
         // Webhook dispatcher — requires HttpClient
         services.TryAddScoped<IWebhookService, WebhookService>();
