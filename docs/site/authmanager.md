@@ -37,6 +37,42 @@ dotnet run --project samples/AuthManagerSample.WebApi
 
 3. Visit the Swagger UI: `/swagger` and AuthManager UI: `/authmanager`.
 
+## Run samples (CLI & Visual Studio)
+
+This section explains which sample to run for common scenarios and how to set them up in Visual Studio or via the CLI.
+
+- Web API demo (JWT + AuthManager UI): `samples/AuthManagerSample.WebApi`
+- Blazor Server demo (full UI + AuthManager integrated): `samples/AuthManagerSample.BlazorServer`
+- Blazor WebAssembly (hosted) demo: `samples/AuthManagerSample.BlazorHosted` (client + server)
+- MVC demo: `samples/AuthManagerSample.Mvc`
+- Minimal API demo: `samples/AuthManagerSample.MinimalApi`
+
+CLI (recommended for quick runs):
+
+```bash
+# Run the WebApi sample (creates webapi.db)
+dotnet run --project samples/AuthManagerSample.WebApi
+
+# Run the Blazor Server sample
+dotnet run --project samples/AuthManagerSample.BlazorServer
+```
+
+Visual Studio (Windows):
+
+1. Open `AuthManager.sln`.
+2. Right-click the project you want to run (e.g. `AuthManagerSample.WebApi`) and choose `Set as Startup Project`.
+3. To run multiple projects at once (API + Blazor client), right-click the solution → `Set Startup Projects...` → select `Multiple startup projects` and set `Action` to `Start` for the projects you want.
+
+Ports and launch profiles:
+
+- Each sample has `Properties/launchSettings.json` (or `samples/.../Properties/launchSettings.json`) with example URLs and HTTPS settings. When running from VS these launch profiles determine the listening URLs.
+- When using `dotnet run`, pass `--urls` or set `ASPNETCORE_URLS` to override.
+
+Seeding and first-run tips:
+
+- The WebApi sample seeds a `SuperAdmin` user by default (first-run) using credentials shown in the sample README.
+- If you need to reset the DB: delete the sample's `.db` file (e.g. `samples/AuthManagerSample.WebApi/webapi.db`) and restart — the DB will be recreated and seeded.
+
 ## Admin tasks (examples)
 
 - Seeded SuperAdmin credentials (first-run): `superadmin@example.com` / `SuperAdmin@123456!`
