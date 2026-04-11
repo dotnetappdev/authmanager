@@ -239,7 +239,7 @@ else
         _entityId         = provider.Settings.GetValueOrDefault("ServiceProviderEntityId", "");
         _idpSsoUrl        = provider.Settings.GetValueOrDefault("IdentityProviderSsoUrl", "");
         _acsPath          = provider.Settings.GetValueOrDefault("AssertionConsumerServicePath", "");
-        _emailAttribute   = provider.Settings.GetValueOrDefault("Email Attribute", "");
+        _emailAttribute   = provider.Settings.GetValueOrDefault("EmailAttributeName", "");
 
         _dialogOpen = true;
     }
@@ -261,7 +261,7 @@ else
             ["ServiceProviderEntityId"]      = _entityId,
             ["IdentityProviderSsoUrl"]       = _idpSsoUrl,
             ["AssertionConsumerServicePath"] = _acsPath,
-            ["Email Attribute"]              = _emailAttribute,
+            ["EmailAttributeName"]           = _emailAttribute,
         };
 
         var (ok, errors) = await SsoService.UpdateProviderAsync(new UpdateSsoProviderDto

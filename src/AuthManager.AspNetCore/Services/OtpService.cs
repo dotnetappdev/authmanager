@@ -229,7 +229,7 @@ internal sealed class OtpService : IOtpService
     {
         // Try loading persisted overrides from the settings store first
         await using var db = await _factory.CreateDbContextAsync(ct);
-        var row = await db.Settings.FindAsync([OtpSettingsKey], ct);
+        var row = await db.Settings.FindAsync(new object[] { OtpSettingsKey }, ct);
 
         if (row is null) return _options.CurrentValue.Otp;
 
@@ -291,7 +291,7 @@ internal sealed class OtpService : IOtpService
     private static async Task UpsertSettingAsync(
         AuthManagerDbContext db, string key, string valueJson, CancellationToken ct)
     {
-        var existing = await db.Settings.FindAsync([key], ct);
+        var existing = await db.Settings.FindAsync(new object[] { key }, ct);
         if (existing is null)
             db.Settings.Add(new AuthManagerSettingRecord { Key = key, ValueJson = valueJson });
         else

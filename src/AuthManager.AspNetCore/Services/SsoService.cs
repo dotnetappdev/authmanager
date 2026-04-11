@@ -87,7 +87,7 @@ internal sealed class SsoService : ISsoService
                 ["IdP Certificate"]               = string.IsNullOrEmpty(saml.IdentityProviderCertificate)
                                                         ? "(not configured)"
                                                         : "✓ configured",
-                ["Email Attribute"]               = saml.EmailAttributeName,
+                ["EmailAttributeName"]            = saml.EmailAttributeName,
             }
         });
 
