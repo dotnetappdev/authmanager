@@ -22,6 +22,7 @@ public sealed class AuthManagerDbContext : DbContext
     public DbSet<GroupMemberRecord>           GroupMembers         { get; set; } = default!;
     public DbSet<EmailTemplateRecord>         EmailTemplates       { get; set; } = default!;
     public DbSet<ApiTokenRecord>              ApiTokens            { get; set; } = default!;
+    public DbSet<OtpRecord>                   OtpCodes             { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -132,6 +133,17 @@ public sealed class AuthManagerDbContext : DbContext
             e.Property(x => x.Prefix).HasMaxLength(8);
             e.HasIndex(x => x.TokenHash).IsUnique();
             e.HasIndex(x => x.UserId);
+        });
+
+        b.Entity<OtpRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.UserId).HasMaxLength(450);
+            e.Property(x => x.Purpose).HasMaxLength(64);
+            e.Property(x => x.CodeHash).HasMaxLength(128);
+            e.HasIndex(x => new { x.UserId, x.Purpose });
+            e.HasIndex(x => x.ExpiresAt);
         });
     }
 }
@@ -262,4 +274,32 @@ public sealed class ImpersonationTokenRecord
     public string AdminUserId { get; set; } = string.Empty;
     public string TargetUserId { get; set; } = string.Empty;
     public DateTimeOffset ExpiresAt { get; set; }
+}
+
+/// <summary>
+/// Persisted one-time password (OTP) code record.
+/// The plain-text code is never stored — only its SHA-256 hash.
+/// </summary>
+public sealed class OtpRecord
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..16];
+
+    /// <summary>Identity user ID this code belongs to.</summary>
+    public string UserId { get; set; } = string.Empty;
+
+    /// <summary>Logical purpose: "login", "email-verify", "step-up", etc.</summary>
+    public string Purpose { get; set; } = string.Empty;
+
+    /// <summary>SHA-256 hash of the plain-text OTP code.</summary>
+    public string CodeHash { get; set; } = string.Empty;
+
+    /// <summary>Number of failed verification attempts so far.</summary>
+    public int Attempts { get; set; }
+
+    /// <summary>Whether the code has been successfully used (consumed).</summary>
+    public bool IsUsed { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? UsedAt { get; set; }
 }

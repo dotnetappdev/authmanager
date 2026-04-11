@@ -59,3 +59,55 @@ public sealed class JwtConfigInfo
     public bool ValidateIssuer { get; set; } = true;
     public bool ValidateLifetime { get; set; } = true;
 }
+
+/// <summary>
+/// Service for managing SSO (Single Sign-On) providers —
+/// Entra ID (Azure AD), generic OIDC, and SAML 2.0.
+/// </summary>
+public interface ISsoService
+{
+    /// <summary>Returns the list of all configured SSO providers and their status.</summary>
+    Task<List<SsoProviderInfo>> GetProvidersAsync(CancellationToken ct = default);
+
+    /// <summary>Returns a single provider by key.</summary>
+    Task<SsoProviderInfo?> GetProviderAsync(string key, CancellationToken ct = default);
+
+    /// <summary>Persists updated settings for a provider.</summary>
+    Task<(bool Success, string[] Errors)> UpdateProviderAsync(UpdateSsoProviderDto dto, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Service for generating and verifying one-time passwords (OTP) used in
+/// passwordless login and step-up authentication flows.
+/// </summary>
+public interface IOtpService
+{
+    /// <summary>
+    /// Generate a new OTP code for the given user and purpose.
+    /// If a non-expired code for the same user/purpose already exists and the
+    /// resend cooldown has not elapsed, returns an error.
+    /// </summary>
+    /// <param name="userId">Identity user ID the code belongs to.</param>
+    /// <param name="purpose">
+    /// Logical purpose: "login", "email-verify", "step-up", etc.
+    /// Used to namespace codes so a login code cannot satisfy an email-verify check.
+    /// </param>
+    Task<OtpGenerateResult> GenerateAsync(string userId, string purpose, CancellationToken ct = default);
+
+    /// <summary>
+    /// Verify a code supplied by the user.
+    /// Consumes the code on success. Increments the attempt counter on failure.
+    /// </summary>
+    Task<OtpVerifyResult> VerifyAsync(string userId, string purpose, string code, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the current OTP settings and today's usage statistics.
+    /// </summary>
+    Task<OtpSettingsInfo> GetSettingsAsync(CancellationToken ct = default);
+
+    /// <summary>Persists updated OTP settings.</summary>
+    Task<(bool Success, string[] Errors)> UpdateSettingsAsync(OtpSettingsInfo settings, CancellationToken ct = default);
+
+    /// <summary>Invalidate (expire) all active OTP codes for the specified user.</summary>
+    Task RevokeAllAsync(string userId, CancellationToken ct = default);
+}

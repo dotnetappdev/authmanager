@@ -47,15 +47,28 @@ builder.Services.AddAuthManager<IdentityUser>(options =>
 
 var app = builder.Build();
 
+// ── DB init ───────────────────────────────────────────────────────────────
+// EnsureCreated creates the Identity tables (AspNetUsers, AspNetRoles, …)
+// on the first run. Must run BEFORE app.Run() so that the SuperAdminSeeder
+// hosted service can find the tables when it starts.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+}
+
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapAuthManager();
-
+// ── Blazor pages (host app) ───────────────────────────────────────────────
+// Must come BEFORE MapAuthManager() so its ComponentHub data source is
+// detected by MapAuthManager(), preventing duplicate /_blazor endpoints.
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
+
+app.MapAuthManager();
 
 app.Run();
 

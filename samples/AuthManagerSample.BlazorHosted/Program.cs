@@ -1,56 +1,89 @@
-using AuthManager.Core.Models;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
+using AuthManager.AspNetCore.Extensions;
+using AuthManager.Core.Options;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using AuthManager.AspNetCore;
+using MudBlazor.Services;
+using AuthManagerSample.BlazorHosted;
+using Serilog;
+using Serilog.Events;
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Debug()
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 
-// Use SQLite for the sample demo
-var connection = builder.Configuration.GetConnectionString("Default") ?? "Data Source=authmanager_local.db";
-builder.Services.AddDbContext<AuthManagerDbContext>(options =>
-    options.UseSqlite(connection));
+// ── 1. Blazor setup ───────────────────────────────────────────────────────
+builder.Services.AddRazorComponents()
+                .AddInteractiveServerComponents();
+builder.Services.AddMudServices();
 
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
+// ── 2. Your own DbContext (SQLite — zero install) ─────────────────────────
+var connection = builder.Configuration.GetConnectionString("Default") ?? "Data Source=blazorhosted.db";
+builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite(connection));
 
-// Add AuthManager services (will use defaults)
-builder.Services.AddAuthManager<ApplicationUser>(options =>
+// ── 3. Your own Identity ──────────────────────────────────────────────────
+builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(o =>
 {
-    options.RoutePrefix = "authmanager";
+    o.LoginPath        = "/account/login";
+    o.LogoutPath       = "/account/logout";
+    o.SlidingExpiration = true;
+    o.ExpireTimeSpan   = TimeSpan.FromHours(8);
+});
+
+builder.Services.AddCascadingAuthenticationState();
+
+// ── 4. AuthManager on top ─────────────────────────────────────────────────
+builder.Services.AddAuthManager<IdentityUser>(options =>
+{
+    options.RoutePrefix    = "authmanager";
+    options.Title          = "Blazor Hosted — Auth Manager";
+    options.DefaultTheme   = AuthManagerTheme.Dark;
+    options.SuperAdminRole = "SuperAdmin";
+
+    // Seed the default SuperAdmin on first run.
+    // NOTE: Set SeedSuperAdmin = false after first login + password change.
+    options.SeedSuperAdmin         = true;
+    options.SeedSuperAdminEmail    = "superadmin@example.com";
+    options.SeedSuperAdminPassword = "SuperAdmin@123456!";
 });
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
+// ── DB init ───────────────────────────────────────────────────────────────
+// EnsureCreated creates the Identity tables (AspNetUsers, AspNetRoles, …)
+// on the first run. Must run BEFORE app.Run() so that the SuperAdminSeeder
+// hosted service can find the tables when it starts.
+using (var scope = app.Services.CreateScope())
 {
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
 }
 
 app.UseStaticFiles();
-app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 
-app.MapRazorPages();
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
+app.MapAuthManager();   // → /authmanager (SuperAdmin only)
 
-// Ensure DB created and seed a default SuperAdmin (safe to run multiple times)
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AuthManagerDbContext>();
-    db.Database.Migrate();
+app.MapRazorComponents<App>()
+   .AddInteractiveServerRenderMode();
 
-    // Create default SuperAdmin if missing — use built-in seeder if available
-    try
-    {
-        await app.CreateDefaultSuperUserAsync<ApplicationUser>(
-            email: "superadmin@example.com",
-            password: "SuperAdmin@123456!");
-    }
-    catch { /* ignore seeding errors in sample */ }
-}
-
+Log.Information("Blazor hosted app running. Visit / for the app, /authmanager for identity management.");
 app.Run();
+
+// ── App DbContext ─────────────────────────────────────────────────────────
+public class AppDbContext : IdentityDbContext<IdentityUser>
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+}

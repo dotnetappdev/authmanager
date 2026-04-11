@@ -26,11 +26,11 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 
 // ── 2. DbContext ──────────────────────────────────────────────────────────────
-// Uses SQL Server LocalDB by default (comes with Visual Studio — no separate install).
-// To use SQLite instead, replace UseSqlServer with UseSqlite and swap the connection
-// string key to "DefaultSQLite" in appsettings.json.
+// Uses SQLite by default — zero installation required.
+// To use SQL Server instead, replace UseSqlite with UseSqlServer and swap the
+// connection string key to "Default" (SQL Server LocalDB) in appsettings.json.
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlServer(builder.Configuration.GetConnectionString("Default")!));
+    o.UseSqlite(builder.Configuration.GetConnectionString("DefaultSQLite")!));
 
 // ── 3. ASP.NET Identity ───────────────────────────────────────────────────────
 builder.Services
@@ -91,12 +91,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-// ── AuthManager ───────────────────────────────────────────────────────────────
-app.MapAuthManager();   // → /authmanager (SuperAdmin only)
-
 // ── Blazor app ────────────────────────────────────────────────────────────────
+// Must come BEFORE MapAuthManager() so its ComponentHub data source is detected,
+// preventing duplicate /_blazor SignalR hub endpoints.
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
+
+// ── AuthManager ───────────────────────────────────────────────────────────────
+app.MapAuthManager();   // → /authmanager (SuperAdmin only)
 
 Log.Information("Blazor app running. Visit / for the app, /authmanager for identity management.");
 app.Run();

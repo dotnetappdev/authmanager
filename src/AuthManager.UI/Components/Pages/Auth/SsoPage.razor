@@ -1,0 +1,296 @@
+@page "/authmanager/sso"
+@rendermode InteractiveServer
+@inject ISsoService SsoService
+@inject ISnackbar Snackbar
+
+<PageTitle>SSO Providers — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Single Sign-On (SSO)</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Configure Entra ID (Azure AD), OIDC, and SAML 2.0 enterprise identity providers
+        </MudText>
+    </div>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else
+{
+    <MudGrid Spacing="3">
+        @foreach (var provider in _providers)
+        {
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="0" Class="am-card-border" Style="height:100%">
+                    <MudCardContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                            <MudIcon Icon="@GetIcon(provider.Type)" Color="@(provider.IsEnabled ? Color.Primary : Color.Default)" Size="Size.Large" />
+                            <div style="flex:1">
+                                <MudText Typo="Typo.h6">@provider.DisplayName</MudText>
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                    @if (provider.IsEnabled && provider.IsConfigured)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled"
+                                                 Icon="@Icons.Material.Filled.CheckCircle">Active</MudChip>
+                                    }
+                                    else if (provider.IsConfigured && !provider.IsEnabled)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Configured (Disabled)</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Not Configured</MudChip>
+                                    }
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">@provider.Type</MudChip>
+                                </MudStack>
+                            </div>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Settings"
+                                       OnClick="@(() => OpenEdit(provider))">Configure</MudButton>
+                        </MudStack>
+
+                        @if (provider.Settings.Count > 0)
+                        {
+                            <MudDivider Class="mb-2" />
+                            <MudSimpleTable Dense="true" Elevation="0" Style="background:transparent">
+                                <tbody>
+                                @foreach (var (k, v) in provider.Settings)
+                                {
+                                    @if (!string.IsNullOrEmpty(v))
+                                    {
+                                        <tr>
+                                            <td style="width:40%;color:var(--mud-palette-text-secondary);font-size:.8rem">@k</td>
+                                            <td style="font-size:.8rem;font-family:monospace;word-break:break-all">@v</td>
+                                        </tr>
+                                    }
+                                }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    </MudCardContent>
+
+                    @if (provider.Type == SsoProviderType.EntraId)
+                    {
+                        <MudCardActions>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                                Register your app at
+                                <MudLink Href="https://entra.microsoft.com" Target="_blank" Typo="Typo.caption">
+                                    entra.microsoft.com
+                                </MudLink>
+                            </MudText>
+                        </MudCardActions>
+                    }
+                    else if (provider.Type == SsoProviderType.Saml)
+                    {
+                        <MudCardActions>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                                Download your SP metadata to upload to your IdP
+                            </MudText>
+                        </MudCardActions>
+                    }
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+<!-- ── Edit dialog ───────────────────────────────────────────────────── -->
+<MudDialog @bind-Visible="_dialogOpen" Options="_dialogOptions">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@(_editProvider is null ? Icons.Material.Filled.Settings : GetIcon(_editProvider.Type))"
+                     Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Configure @_editProvider?.DisplayName</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (_editProvider is not null)
+        {
+            <MudStack Spacing="3">
+                <MudSwitch @bind-Value="_editEnabled" Color="Color.Primary"
+                           Label="@($"Enable {_editProvider.DisplayName}")" />
+
+                @if (_editProvider.Type == SsoProviderType.EntraId)
+                {
+                    <MudTextField @bind-Value="_tenantId"
+                                  Label="Tenant ID" Variant="Variant.Outlined"
+                                  HelperText="Your Azure / Entra tenant GUID or domain (e.g. contoso.onmicrosoft.com)" />
+                    <MudTextField @bind-Value="_clientId"
+                                  Label="Application (Client) ID" Variant="Variant.Outlined"
+                                  HelperText="From your Entra ID app registration" />
+                    <MudTextField @bind-Value="_clientSecret"
+                                  Label="Client Secret" Variant="Variant.Outlined"
+                                  InputType="InputType.Password"
+                                  HelperText="Client secret value from the Credentials tab" />
+                    <MudTextField @bind-Value="_authority"
+                                  Label="Authority URL" Variant="Variant.Outlined"
+                                  HelperText="Leave default unless using a national cloud" />
+                    <MudTextField @bind-Value="_callbackPath"
+                                  Label="Callback Path" Variant="Variant.Outlined"
+                                  HelperText="Must match a Redirect URI in the app registration" />
+                    <MudTextField @bind-Value="_additionalScopes"
+                                  Label="Additional Scopes" Variant="Variant.Outlined"
+                                  HelperText="Space-separated, e.g. User.Read GroupMember.Read.All" />
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        To enable group-to-role sync, add <strong>GroupMember.Read.All</strong> scope and
+                        enable the <strong>groups</strong> claim in the app manifest token configuration.
+                    </MudAlert>
+                }
+                else if (_editProvider.Type == SsoProviderType.Oidc)
+                {
+                    <MudTextField @bind-Value="_authority"
+                                  Label="Authority / Issuer URL" Variant="Variant.Outlined"
+                                  HelperText="OIDC discovery document root (without /.well-known/...)" />
+                    <MudTextField @bind-Value="_clientId"
+                                  Label="Client ID" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_clientSecret"
+                                  Label="Client Secret" Variant="Variant.Outlined"
+                                  InputType="InputType.Password" />
+                    <MudTextField @bind-Value="_callbackPath"
+                                  Label="Callback Path" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_additionalScopes"
+                                  Label="Additional Scopes" Variant="Variant.Outlined"
+                                  HelperText="Space-separated scopes beyond openid profile email" />
+                }
+                else if (_editProvider.Type == SsoProviderType.Saml)
+                {
+                    <MudTextField @bind-Value="_entityId"
+                                  Label="Service Provider Entity ID" Variant="Variant.Outlined"
+                                  HelperText="Usually your app's base URL, e.g. https://myapp.com" />
+                    <MudTextField @bind-Value="_idpSsoUrl"
+                                  Label="IdP SSO URL" Variant="Variant.Outlined"
+                                  HelperText="Single Sign-On service URL from the IdP metadata" />
+                    <MudTextField @bind-Value="_acsPath"
+                                  Label="ACS Path" Variant="Variant.Outlined"
+                                  HelperText="Assertion Consumer Service path, e.g. /saml/acs" />
+                    <MudTextField @bind-Value="_emailAttribute"
+                                  Label="Email Attribute Name" Variant="Variant.Outlined"
+                                  HelperText="Attribute name in SAML assertion carrying user email" />
+                    <MudAlert Severity="Severity.Warning" Dense="true">
+                        Upload your IdP X.509 certificate via <strong>appsettings.json</strong>
+                        (AuthManager:Sso:Saml:IdentityProviderCertificate) — it is too large
+                        to store securely through the UI.
+                    </MudAlert>
+                }
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => _dialogOpen = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveProvider"
+                   Disabled="_saving">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Save
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<SsoProviderInfo> _providers = [];
+    private bool _loading = true;
+
+    // Edit state
+    private bool _dialogOpen;
+    private SsoProviderInfo? _editProvider;
+    private bool _editEnabled;
+    private bool _saving;
+
+    // Strongly-typed edit fields (avoids dictionary indexer in Razor)
+    private string _tenantId        = "";
+    private string _clientId        = "";
+    private string _clientSecret    = "";
+    private string _authority       = "";
+    private string _callbackPath    = "";
+    private string _additionalScopes = "";
+    private string _entityId        = "";
+    private string _idpSsoUrl       = "";
+    private string _acsPath         = "";
+    private string _emailAttribute  = "";
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        MaxWidth         = MaxWidth.Small,
+        FullWidth        = true,
+        CloseOnEscapeKey = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _providers = await SsoService.GetProvidersAsync();
+        _loading = false;
+    }
+
+    private void OpenEdit(SsoProviderInfo provider)
+    {
+        _editProvider  = provider;
+        _editEnabled   = provider.IsEnabled;
+
+        // Populate typed fields from the provider's Settings dictionary
+        _tenantId         = provider.Settings.GetValueOrDefault("TenantId", "");
+        _clientId         = provider.Settings.GetValueOrDefault("ClientId", "");
+        _clientSecret     = "";  // never pre-populate secrets
+        _authority        = provider.Settings.GetValueOrDefault("Authority", "");
+        _callbackPath     = provider.Settings.GetValueOrDefault("CallbackPath", "");
+        _additionalScopes = provider.Settings.GetValueOrDefault("AdditionalScopes", "");
+        _entityId         = provider.Settings.GetValueOrDefault("ServiceProviderEntityId", "");
+        _idpSsoUrl        = provider.Settings.GetValueOrDefault("IdentityProviderSsoUrl", "");
+        _acsPath          = provider.Settings.GetValueOrDefault("AssertionConsumerServicePath", "");
+        _emailAttribute   = provider.Settings.GetValueOrDefault("EmailAttributeName", "");
+
+        _dialogOpen = true;
+    }
+
+    private async Task SaveProvider()
+    {
+        if (_editProvider is null) return;
+        _saving = true;
+
+        // Rebuild settings dictionary from typed fields
+        var settings = new Dictionary<string, string>
+        {
+            ["TenantId"]                     = _tenantId,
+            ["ClientId"]                     = _clientId,
+            ["ClientSecret"]                 = _clientSecret,
+            ["Authority"]                    = _authority,
+            ["CallbackPath"]                 = _callbackPath,
+            ["AdditionalScopes"]             = _additionalScopes,
+            ["ServiceProviderEntityId"]      = _entityId,
+            ["IdentityProviderSsoUrl"]       = _idpSsoUrl,
+            ["AssertionConsumerServicePath"] = _acsPath,
+            ["EmailAttributeName"]           = _emailAttribute,
+        };
+
+        var (ok, errors) = await SsoService.UpdateProviderAsync(new UpdateSsoProviderDto
+        {
+            Key      = _editProvider.Key,
+            Enabled  = _editEnabled,
+            Settings = settings
+        });
+
+        _saving = false;
+        _dialogOpen = false;
+
+        if (ok)
+        {
+            Snackbar.Add($"{_editProvider.DisplayName} settings saved.", Severity.Success);
+            _providers = await SsoService.GetProvidersAsync();
+        }
+        else
+        {
+            foreach (var e in errors)
+                Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private static string GetIcon(SsoProviderType type) => type switch
+    {
+        SsoProviderType.EntraId => Icons.Material.Filled.Cloud,
+        SsoProviderType.Oidc    => Icons.Material.Filled.OpenInBrowser,
+        SsoProviderType.Saml    => Icons.Material.Filled.Security,
+        _                       => Icons.Material.Filled.Share
+    };
+}

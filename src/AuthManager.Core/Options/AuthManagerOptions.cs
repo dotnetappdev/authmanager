@@ -140,6 +140,16 @@ public sealed class AuthManagerOptions
     /// Configurable at runtime via the Security Settings UI.
     /// </summary>
     public string InternalDatabaseProvider { get; set; } = "SQLite";
+
+    /// <summary>
+    /// SSO (Single Sign-On) provider configurations — Entra ID, OIDC, SAML 2.0.
+    /// </summary>
+    public SsoOptions Sso { get; set; } = new();
+
+    /// <summary>
+    /// Email / SMS one-time password (OTP) settings for passwordless or step-up authentication.
+    /// </summary>
+    public OtpOptions Otp { get; set; } = new();
 }
 
 /// <summary>
@@ -229,4 +239,190 @@ public sealed class CustomOAuthOptions
     public string AuthorizationEndpoint { get; set; } = string.Empty;
     public string TokenEndpoint { get; set; } = string.Empty;
     public string UserInformationEndpoint { get; set; } = string.Empty;
+}
+
+// ── SSO ─────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// Top-level SSO (Single Sign-On) options.
+/// Supports Microsoft Entra ID (Azure AD), generic OIDC, and SAML 2.0.
+/// </summary>
+public sealed class SsoOptions
+{
+    /// <summary>Microsoft Entra ID (formerly Azure AD) OIDC/SAML integration.</summary>
+    public EntraIdSsoOptions EntraId { get; set; } = new();
+
+    /// <summary>Additional generic OIDC providers (Okta, Auth0, Keycloak, PingIdentity, etc.).</summary>
+    public List<OidcSsoProviderOptions> OidcProviders { get; set; } = [];
+
+    /// <summary>Generic SAML 2.0 identity provider settings.</summary>
+    public SamlSsoOptions Saml { get; set; } = new();
+}
+
+/// <summary>
+/// Microsoft Entra ID (formerly Azure Active Directory) SSO configuration.
+/// Supports both OIDC and SAML 2.0 connection modes.
+/// </summary>
+public sealed class EntraIdSsoOptions
+{
+    /// <summary>Whether the Entra ID SSO integration is active.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Azure / Entra tenant ID.
+    /// Use "common" to allow any Microsoft work/school or personal account,
+    /// "organizations" for work/school only, "consumers" for personal only,
+    /// or a specific GUID / domain for your tenant (recommended for production).
+    /// </summary>
+    public string TenantId { get; set; } = "common";
+
+    /// <summary>Application (client) ID from the Entra ID app registration.</summary>
+    public string ClientId { get; set; } = string.Empty;
+
+    /// <summary>Client secret from the Entra ID app registration credentials.</summary>
+    public string ClientSecret { get; set; } = string.Empty;
+
+    /// <summary>
+    /// OIDC authority URL. Defaults to the standard Entra ID endpoint.
+    /// Override if using a national cloud (e.g. Azure Government).
+    /// </summary>
+    public string Authority { get; set; } = "https://login.microsoftonline.com/{tenantId}/v2.0";
+
+    /// <summary>
+    /// Extra OAuth 2.0 scopes to request in addition to openid/profile/email.
+    /// Example: "User.Read GroupMember.Read.All"
+    /// </summary>
+    public string AdditionalScopes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Map Entra ID security group IDs or names to local Identity roles.
+    /// Key = Entra group object ID, Value = local role name.
+    /// </summary>
+    public Dictionary<string, string> GroupToRoleMapping { get; set; } = [];
+
+    /// <summary>
+    /// When true, the groups claim is requested and group-to-role mapping is applied on sign-in.
+    /// Requires "GroupMember.Read.All" scope and the groups claim enabled in the app manifest.
+    /// </summary>
+    public bool EnableGroupToRoleSync { get; set; }
+
+    /// <summary>
+    /// The callback URL registered in the Entra ID app registration.
+    /// Typically https://yourapp.com/signin-microsoft or /signin-oidc.
+    /// </summary>
+    public string CallbackPath { get; set; } = "/signin-microsoft";
+}
+
+/// <summary>
+/// A generic OIDC SSO provider (Okta, Auth0, Keycloak, PingFederate, etc.).
+/// </summary>
+public sealed class OidcSsoProviderOptions
+{
+    /// <summary>Unique internal key for this provider (used in routes and logs).</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Human-readable label shown in the UI (e.g. "Okta", "Keycloak").</summary>
+    public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>Whether this provider is active.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>OIDC authority / issuer URL (discovery document root).</summary>
+    public string Authority { get; set; } = string.Empty;
+
+    /// <summary>OAuth 2.0 client ID.</summary>
+    public string ClientId { get; set; } = string.Empty;
+
+    /// <summary>OAuth 2.0 client secret.</summary>
+    public string ClientSecret { get; set; } = string.Empty;
+
+    /// <summary>OAuth 2.0 callback path registered with the provider.</summary>
+    public string CallbackPath { get; set; } = string.Empty;
+
+    /// <summary>Space-separated additional scopes (openid profile email are always included).</summary>
+    public string AdditionalScopes { get; set; } = string.Empty;
+
+    /// <summary>Claim type used as the unique user identifier (default: "sub").</summary>
+    public string UserIdClaim { get; set; } = "sub";
+}
+
+/// <summary>
+/// Generic SAML 2.0 identity provider configuration.
+/// </summary>
+public sealed class SamlSsoOptions
+{
+    /// <summary>Whether SAML 2.0 SSO is enabled.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>Your service provider entity ID (usually your app's base URL).</summary>
+    public string ServiceProviderEntityId { get; set; } = string.Empty;
+
+    /// <summary>The identity provider's SSO entry URL (SingleSignOnService Location).</summary>
+    public string IdentityProviderSsoUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Identity provider's X.509 certificate (Base64-encoded DER) for validating assertions.
+    /// </summary>
+    public string IdentityProviderCertificate { get; set; } = string.Empty;
+
+    /// <summary>SAML assertion consumer service (ACS) path registered at the IdP (e.g. /saml/acs).</summary>
+    public string AssertionConsumerServicePath { get; set; } = "/saml/acs";
+
+    /// <summary>Attribute name in the SAML assertion that carries the user's email.</summary>
+    public string EmailAttributeName { get; set; } = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
+
+    /// <summary>Attribute name that carries the unique user identifier (NameID override).</summary>
+    public string NameIdAttributeName { get; set; } = string.Empty;
+}
+
+// ── OTP ──────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// One-time password (OTP) options — email or SMS codes for passwordless login
+/// and step-up / MFA verification flows.
+/// </summary>
+public sealed class OtpOptions
+{
+    /// <summary>Whether email-based OTP is enabled globally.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>Length of the generated numeric code. Default: 6.</summary>
+    public int CodeLength { get; set; } = 6;
+
+    /// <summary>
+    /// How long a code remains valid after generation.
+    /// Default: 10 minutes.
+    /// </summary>
+    public TimeSpan CodeExpiry { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Maximum number of failed verification attempts before the code is invalidated.
+    /// Default: 5.
+    /// </summary>
+    public int MaxAttempts { get; set; } = 5;
+
+    /// <summary>
+    /// Minimum time between code generation requests for the same user/purpose.
+    /// Prevents spam. Default: 60 seconds.
+    /// </summary>
+    public TimeSpan ResendCooldown { get; set; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// When true, each code is alphanumeric (A–Z, 0–9) rather than purely numeric.
+    /// Increases entropy but is harder to type on a phone.
+    /// Default: false.
+    /// </summary>
+    public bool UseAlphanumericCodes { get; set; }
+
+    /// <summary>
+    /// Email subject line used when sending OTP codes.
+    /// Supports {code} and {appName} placeholders.
+    /// </summary>
+    public string EmailSubject { get; set; } = "Your one-time code for {appName}";
+
+    /// <summary>
+    /// Email body template. Supports {code}, {expiry}, and {appName} placeholders.
+    /// </summary>
+    public string EmailBodyTemplate { get; set; } =
+        "Your one-time code is: {code}\n\nThis code expires in {expiry}.\n\nIf you did not request this, please ignore this email.";
 }

@@ -1,0 +1,201 @@
+@page "/authmanager/otp"
+@rendermode InteractiveServer
+@inject IOtpService OtpService
+@inject ISnackbar Snackbar
+
+<PageTitle>OTP Settings — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">One-Time Passwords (OTP)</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Configure email-based OTP for passwordless login and step-up authentication
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Save"
+               OnClick="Save" Disabled="@(_saving || _loading)">
+        @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+        Save Settings
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (_settings is not null)
+{
+    <!-- ── Statistics row ─────────────────────────────────────────────── -->
+    <MudGrid Spacing="3" Class="mb-4">
+        <MudItem xs="6" sm="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h4" Color="Color.Primary">@_settings.TotalIssuedToday</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">Issued today</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h4" Color="Color.Success">@_settings.TotalVerifiedToday</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">Verified today</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h4" Color="Color.Warning">@_settings.TotalExpiredToday</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">Expired today</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h4" Color="Color.Info">@_settings.TotalPending</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">Pending</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Spacing="3">
+        <!-- ── Core settings ──────────────────────────────────────────── -->
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Code Settings</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack Spacing="3">
+                        <MudSwitch @bind-Value="_settings.Enabled" Color="Color.Primary"
+                                   Label="Enable email OTP globally" />
+
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <MudNumericField T="int" @bind-Value="_settings.CodeLength"
+                                            Label="Code Length" Variant="Variant.Outlined"
+                                            Min="4" Max="12" Style="max-width:120px"
+                                            HelperText="4–12 digits" />
+                            <MudSwitch @bind-Value="_settings.UseAlphanumericCodes" Color="Color.Primary"
+                                       Label="Alphanumeric codes" />
+                        </MudStack>
+
+                        <MudNumericField T="int" @bind-Value="_settings.CodeExpiryMinutes"
+                                        Label="Code Expiry (minutes)" Variant="Variant.Outlined"
+                                        Min="1" Max="60"
+                                        HelperText="How long a code stays valid after generation" />
+
+                        <MudNumericField T="int" @bind-Value="_settings.MaxAttempts"
+                                        Label="Max Failed Attempts" Variant="Variant.Outlined"
+                                        Min="1" Max="20"
+                                        HelperText="Code is invalidated after this many wrong entries" />
+
+                        <MudNumericField T="int" @bind-Value="_settings.ResendCooldownSeconds"
+                                        Label="Resend Cooldown (seconds)" Variant="Variant.Outlined"
+                                        Min="10" Max="3600"
+                                        HelperText="Minimum seconds between resend requests per user" />
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- ── Email template ─────────────────────────────────────────── -->
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Email Template</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack Spacing="3">
+                        <MudTextField @bind-Value="_settings.EmailSubject"
+                                      Label="Subject" Variant="Variant.Outlined"
+                                      HelperText="Supports {code} and {appName}" />
+                        <MudTextField @bind-Value="_settings.EmailBodyTemplate"
+                                      Label="Body" Variant="Variant.Outlined"
+                                      Lines="6" AutoGrow="true"
+                                      HelperText="Supports {code}, {expiry}, and {appName}" />
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            Configure your SMTP relay in <strong>Email Settings</strong>
+                            (<a href="/authmanager/email-settings">Email Settings</a>) to
+                            enable email delivery.
+                        </MudAlert>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- ── How-to card ─────────────────────────────────────────────── -->
+        <MudItem xs="12">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Integration Guide</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                        Inject <strong>IOtpService</strong> in your login endpoint or Blazor component:
+                    </MudText>
+                    <pre style="background:var(--mud-palette-background-grey);padding:12px;border-radius:6px;font-size:.8rem;overflow-x:auto">
+// 1. Generate a code and email it to the user
+var result = await otpService.GenerateAsync(user.Id, "login");
+if (result.Success)
+    await emailService.SendAsync(user.Email, subject, body.Replace("{code}", result.PlainCode));
+
+// 2. Verify the code the user entered
+var verify = await otpService.VerifyAsync(user.Id, "login", userEnteredCode);
+if (verify.Success)
+    // sign the user in
+else
+    // show error: verify.Error</pre>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                        Supported purposes: <code>login</code>, <code>email-verify</code>,
+                        <code>step-up</code>, or any custom string.
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private OtpSettingsInfo? _settings;
+    private bool _loading = true;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await OtpService.GetSettingsAsync();
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        if (_settings is null) return;
+        _saving = true;
+
+        var (ok, errors) = await OtpService.UpdateSettingsAsync(_settings);
+
+        _saving = false;
+
+        if (ok)
+            Snackbar.Add("OTP settings saved.", Severity.Success);
+        else
+            foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+}
