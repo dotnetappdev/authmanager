@@ -1,0 +1,332 @@
+@page "/authmanager/clients"
+@rendermode InteractiveServer
+@inject IOAuthClientService ClientService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+
+<PageTitle>Clients — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Clients</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Registered applications that authenticate as themselves — service-to-service auth via the
+            OAuth2 client-credentials grant, the same shape as Keycloak's Clients.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreate">
+        New Client
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_clients.Any())
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent>
+            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                <MudIcon Icon="@Icons.Material.Filled.Apps" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">No clients registered yet</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Register a client for each service that needs to call your APIs on its own behalf —
+                    a background worker, another microservice, a CI/CD pipeline.
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenCreate" Class="mt-2">
+                    Register your first client
+                </MudButton>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>
+}
+else
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent Class="pa-0">
+            <MudTable T="OAuthClientDto" Items="_clients" Dense="true" Hover="true"
+                      Elevation="0" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Client ID</MudTh>
+                    <MudTh>Scopes</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Last Used</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">
+                        <MudText Typo="Typo.body2" Class="font-weight-medium">@context.Name</MudText>
+                        @if (!string.IsNullOrEmpty(context.Description))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Client ID">
+                        <MudText Typo="Typo.caption" Style="font-family:monospace">@context.ClientId</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Scopes">
+                        @if (context.AllowedScopes.Count > 0)
+                        {
+                            @foreach (var s in context.AllowedScopes)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Class="mr-1">@s</MudChip>
+                            }
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">none</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        @if (context.Enabled)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Enabled</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">Disabled</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Last Used">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @(context.LastUsedAt.HasValue ? context.LastUsedAt.Value.ToString("MMM dd, yyyy HH:mm") : "Never")
+                        </MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                            <MudMenuItem OnClick="@(() => OpenEdit(context))">
+                                <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-2" />Edit
+                            </MudMenuItem>
+                            <MudMenuItem OnClick="@(() => RegenerateSecret(context))">
+                                <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Small" Class="mr-2" />Regenerate Secret
+                            </MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem OnClick="@(() => DeleteClient(context))" Style="color:var(--mud-palette-error)">
+                                <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Class="mr-2" />Delete
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+}
+
+<!-- ── Create / Edit Dialog ────────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_editingClient is null ? "New Client" : $"Edit — {_editingClient.Name}")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (_editingClient is null)
+            {
+                <MudTextField @bind-Value="_form.ClientId" Label="Client ID" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Placeholder="e.g. billing-service" Required="true"
+                              HelperText="Stable public identifier — cannot be changed later" />
+            }
+            <MudTextField @bind-Value="_form.Name" Label="Name" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Placeholder="e.g. Billing Service" Required="true" />
+            <MudTextField @bind-Value="_form.Description" Label="Description" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Lines="2" />
+            <MudTextField @bind-Value="_form.Scopes" Label="Allowed scopes (space-separated)" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Placeholder="e.g. read:invoices write:invoices" />
+            @if (_editingClient is not null)
+            {
+                <MudSwitch T="bool" @bind-Value="_form.Enabled" Color="Color.Primary" Label="Enabled" />
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showDialog = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
+            @(_saving ? "Saving…" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- ── Secret Reveal Dialog ──────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showReveal" Options="_revealOpts">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">Copy the client secret now</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Warning" Class="mb-3">
+            This secret will <strong>never be shown again</strong>. Copy it now and store it securely.
+        </MudAlert>
+        <MudPaper Elevation="0" Class="am-card-border pa-3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudText Style="font-family:monospace;word-break:break-all;flex:1">@_rawSecret</MudText>
+                <MudIconButton Icon="@(_copied ? Icons.Material.Filled.Check : Icons.Material.Filled.ContentCopy)"
+                               Color="@(_copied ? Color.Success : Color.Default)"
+                               Size="Size.Small" Title="Copy to clipboard" OnClick="CopySecret" />
+            </MudStack>
+        </MudPaper>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+            Use it with the client_credentials grant:
+            <code>POST /authmanager/api/oauth/token</code> (grant_type=client_credentials, client_id, client_secret).
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="@(() => { _showReveal = false; _rawSecret = null; _copied = false; })">
+            I've saved it — close
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<OAuthClientDto> _clients = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showDialog;
+    private bool _showReveal;
+    private bool _copied;
+    private string? _rawSecret;
+    private OAuthClientDto? _editingClient;
+    private readonly ClientFormModel _form = new();
+
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+
+    private static readonly DialogOptions _revealOpts = new()
+        { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = false };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload() => _clients = await ClientService.GetClientsAsync();
+
+    private void OpenCreate()
+    {
+        _editingClient = null;
+        _form.ClientId = "";
+        _form.Name = "";
+        _form.Description = "";
+        _form.Scopes = "";
+        _form.Enabled = true;
+        _showDialog = true;
+    }
+
+    private void OpenEdit(OAuthClientDto client)
+    {
+        _editingClient = client;
+        _form.ClientId = client.ClientId;
+        _form.Name = client.Name;
+        _form.Description = client.Description ?? "";
+        _form.Scopes = string.Join(' ', client.AllowedScopes);
+        _form.Enabled = client.Enabled;
+        _showDialog = true;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        var scopes = _form.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+        if (_editingClient is null)
+        {
+            var (ok, errors, result) = await ClientService.CreateClientAsync(new CreateOAuthClientDto
+            {
+                ClientId = _form.ClientId,
+                Name = _form.Name,
+                Description = _form.Description,
+                AllowedScopes = scopes
+            });
+            _saving = false;
+
+            if (ok && result is not null)
+            {
+                _showDialog = false;
+                _rawSecret = result.ClientSecret;
+                _copied = false;
+                _showReveal = true;
+                await Reload();
+            }
+            else
+            {
+                foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+            }
+        }
+        else
+        {
+            var (ok, errors) = await ClientService.UpdateClientAsync(_editingClient.Id, new UpdateOAuthClientDto
+            {
+                Name = _form.Name,
+                Description = _form.Description,
+                Enabled = _form.Enabled,
+                AllowedScopes = scopes
+            });
+            _saving = false;
+
+            if (ok)
+            {
+                _showDialog = false;
+                Snackbar.Add("Client updated.", Severity.Success);
+                await Reload();
+            }
+            else
+            {
+                foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+            }
+        }
+    }
+
+    private async Task RegenerateSecret(OAuthClientDto client)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Regenerate Secret",
+            $"This immediately invalidates {client.Name}'s current secret — any service still using it will start failing to authenticate.",
+            yesText: "Regenerate", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors, secret) = await ClientService.RegenerateSecretAsync(client.Id);
+        if (ok)
+        {
+            _rawSecret = secret;
+            _copied = false;
+            _showReveal = true;
+        }
+        else
+        {
+            foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private async Task CopySecret()
+    {
+        if (_rawSecret is null) return;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", _rawSecret);
+        _copied = true;
+        Snackbar.Add("Secret copied to clipboard.", Severity.Success);
+    }
+
+    private async Task DeleteClient(OAuthClientDto client)
+    {
+        var (ok, errors) = await ClientService.DeleteClientAsync(client.Id);
+        if (ok) { Snackbar.Add($"Client '{client.Name}' deleted.", Severity.Success); await Reload(); }
+        else    foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private sealed class ClientFormModel
+    {
+        public string ClientId { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Scopes { get; set; } = "";
+        public bool Enabled { get; set; } = true;
+    }
+}

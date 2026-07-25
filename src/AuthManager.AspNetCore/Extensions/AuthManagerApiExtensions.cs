@@ -54,6 +54,52 @@ public static class AuthManagerApiExtensions
         MapSessionEndpoints(api);
         MapAuditEndpoints(api);
         MapTokenEndpoints(api);
+        MapOAuthClientEndpoints(api);
+
+        // OAuth2 client-credentials token endpoint — must stay anonymous (this is how a
+        // client obtains its *first* token; it authenticates via client_id/client_secret in
+        // the request body, not an existing ClaimsPrincipal), so it overrides the group's
+        // RequireAuthorization() explicitly rather than living inside the gated surface.
+        app.MapPost($"/{options.RoutePrefix.Trim('/')}/api/oauth/token", async (
+                HttpRequest request, IOAuthClientService clients, IJwtConfigService jwt) =>
+            {
+                if (!request.HasFormContentType)
+                    return Results.BadRequest(new { error = "invalid_request", error_description = "Expected application/x-www-form-urlencoded body." });
+
+                var form = await request.ReadFormAsync();
+                var grantType = form["grant_type"].ToString();
+                if (grantType != "client_credentials")
+                    return Results.BadRequest(new { error = "unsupported_grant_type" });
+
+                var clientId = form["client_id"].ToString();
+                var clientSecret = form["client_secret"].ToString();
+                var client = await clients.ValidateClientCredentialsAsync(clientId, clientSecret);
+                if (client is null)
+                    return Results.Json(new { error = "invalid_client" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var claims = new List<System.Security.Claims.Claim>
+                {
+                    new(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub, client.ClientId),
+                    new(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new("client_id", client.ClientId),
+                    new("azp", client.ClientId),
+                };
+                claims.AddRange(client.AllowedScopes.Select(s => new System.Security.Claims.Claim("scope", s)));
+
+                var expiry = TimeSpan.FromMinutes(options.Jwt.AccessTokenExpiryMinutes);
+                var accessToken = await jwt.IssueTokenAsync(claims, expiry);
+
+                return Results.Ok(new
+                {
+                    access_token = accessToken,
+                    token_type = "Bearer",
+                    expires_in = (int)expiry.TotalSeconds,
+                    scope = string.Join(' ', client.AllowedScopes)
+                });
+            })
+            .AllowAnonymous()
+            .WithName("AuthManager.OAuth.Token")
+            .WithTags("AuthManager");
 
         return app;
     }
@@ -381,5 +427,37 @@ public static class AuthManagerApiExtensions
 
         tokens.MapDelete("{id}", async (string id, IApiTokenService svc)
             => (await svc.DeleteTokenAsync(id)).ToResult()).WithName("AuthManager.Tokens.Delete");
+    }
+
+    // ── OAuth2 Clients ───────────────────────────────────────────────────────
+
+    private static void MapOAuthClientEndpoints(RouteGroupBuilder api)
+    {
+        var clients = api.MapGroup("/clients");
+
+        clients.MapGet("", async (IOAuthClientService svc)
+            => Results.Ok(await svc.GetClientsAsync())).WithName("AuthManager.Clients.List");
+
+        clients.MapGet("{id}", async (string id, IOAuthClientService svc)
+            => await svc.GetClientAsync(id) is { } c ? Results.Ok(c) : Results.NotFound())
+            .WithName("AuthManager.Clients.Get");
+
+        clients.MapPost("", async (CreateOAuthClientDto dto, IOAuthClientService svc) =>
+        {
+            var (ok, errors, result) = await svc.CreateClientAsync(dto);
+            return ok ? Results.Created($"clients/{result!.Client.Id}", result) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Clients.Create");
+
+        clients.MapPut("{id}", async (string id, UpdateOAuthClientDto dto, IOAuthClientService svc)
+            => (await svc.UpdateClientAsync(id, dto)).ToResult()).WithName("AuthManager.Clients.Update");
+
+        clients.MapDelete("{id}", async (string id, IOAuthClientService svc)
+            => (await svc.DeleteClientAsync(id)).ToResult()).WithName("AuthManager.Clients.Delete");
+
+        clients.MapPost("{id}/regenerate-secret", async (string id, IOAuthClientService svc) =>
+        {
+            var (ok, errors, secret) = await svc.RegenerateSecretAsync(id);
+            return ok ? Results.Ok(new { clientSecret = secret }) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Clients.RegenerateSecret");
     }
 }

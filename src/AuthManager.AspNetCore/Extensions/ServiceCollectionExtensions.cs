@@ -141,6 +141,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IApiTokenService,      ApiTokenService<TUser>>();
         services.TryAddScoped<ITotpChallengeService, TotpChallengeService<TUser>>();
         services.TryAddScoped<ITenantService,        TenantService<TUser>>();
+        services.TryAddScoped<IOAuthClientService,   OAuthClientService>();
 
         // Optional SuperAdmin seeder — only acts when options.SeedSuperAdmin = true
         services.AddHostedService<SuperAdminSeeder<TUser, TRole>>();

@@ -71,6 +71,13 @@ builder.Services.AddAuthManager<ApplicationUser>(options =>
 
     options.SecurityPolicy.MaxFailedLoginAttempts = 5;
     options.SecurityPolicy.LockoutDuration = TimeSpan.FromMinutes(15);
+
+    // Same key/issuer/audience as the JWT bearer scheme above, so tokens AuthManager issues
+    // for OAuth2 clients (client_credentials grant) validate against this app's own APIs too.
+    options.Jwt.SigningKey = jwtOpts.SecretKey;
+    options.Jwt.Issuer = jwtOpts.Issuer;
+    options.Jwt.Audience = jwtOpts.Audience;
+    options.Jwt.AccessTokenExpiryMinutes = jwtOpts.AccessTokenExpiryMinutes;
 });
 
 // ── 5. Swagger — browse the full admin REST API surface ──────────────────────

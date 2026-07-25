@@ -32,6 +32,7 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 | **Claims** | User and role claims management with type reference |
 | **Multi-Tenancy** | Scope users to isolated tenants via a `tenant_id` claim · Create/edit/delete tenants, assign or remove members · Root tenant for unassigned users |
 | **API Tokens** | Long-lived personal access tokens (PATs), GitHub-style — SHA-256 hashed at rest, shown once on creation, revocable |
+| **Clients** | Register OAuth2 client applications (Keycloak-style) · Service-to-service auth via the client-credentials grant · Secret hashed at rest, regenerable |
 | **SSO** | Microsoft Entra ID (OIDC/SAML), generic OIDC providers (Okta, Auth0, Keycloak…), and SAML 2.0 |
 | **One-Time Passwords** | Email/SMS OTP codes for passwordless login and step-up MFA verification |
 | **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
@@ -213,6 +214,7 @@ All routes are under `/{RoutePrefix}/api` (default `/authmanager/api`) and retur
 | **Tenants** | `GET/POST /tenants` · `GET/PUT/DELETE /tenants/{id}` · `GET /tenants/{id}/members` · `GET/POST/DELETE /users/{id}/tenant[/{tenantId}]` |
 | **Sessions** | `GET /sessions` · `GET /sessions/count` · `DELETE /sessions/{id}` · `GET/DELETE /users/{id}/sessions` |
 | **API Tokens** | `GET/POST /tokens` · `POST /tokens/{id}/revoke` · `DELETE /tokens/{id}` |
+| **Clients** | `GET/POST /clients` · `GET/PUT/DELETE /clients/{id}` · `POST /clients/{id}/regenerate-secret` · `POST /oauth/token` (anonymous — the client-credentials grant itself) |
 | **Audit** | `GET /audit` · `GET /audit/export` (CSV) |
 | **Health** | `GET /health` (anonymous liveness) · `GET /health/report` (full report, SuperAdmin) |
 
@@ -460,6 +462,35 @@ Users without a tenant claim are grouped under the read-only **Root** tenant whe
 
 ---
 
+## OAuth2 Clients (Service-to-Service Auth)
+
+Register applications that authenticate as *themselves* rather than as a user — a background worker, another microservice, a CI/CD pipeline — the same concept as Keycloak's Clients. Manage them at **Clients** (`/authmanager/clients`): each client gets a `client_id` and a secret (shown once, stored hashed), plus a set of allowed scopes.
+
+```csharp
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    // Share the signing key with whatever validates JWTs on your own APIs, so tokens
+    // AuthManager issues to clients are accepted there with no extra wiring.
+    options.Jwt.SigningKey = builder.Configuration["Jwt:SecretKey"];
+    options.Jwt.Issuer     = "https://api.example.com";
+    options.Jwt.Audience   = "https://api.example.com";
+});
+```
+
+A client obtains a token via the standard OAuth2 **client-credentials grant** — no UI, no cookies, just the client's own id/secret:
+
+```bash
+curl -X POST https://api.example.com/authmanager/api/oauth/token \
+  -d "grant_type=client_credentials&client_id=billing-service&client_secret=cs_..."
+# → { "access_token": "eyJ...", "token_type": "Bearer", "expires_in": 3600, "scope": "read:invoices write:invoices" }
+```
+
+The token carries `client_id`/`azp` and a `scope` claim per allowed scope — check those in your API's authorization logic the same way you'd check any other JWT claim. Regenerating a client's secret invalidates the previous one immediately; disabling a client rejects new token requests without deleting it.
+
+> **Note:** `options.Jwt.SigningKey` also powers `GenerateTestTokenAsync` on the JWT Settings page. If left unset, AuthManager generates a random key for the process so things still work locally — but tokens won't validate after a restart or against any other service. Set it explicitly before relying on this in anything beyond local exploration.
+
+---
+
 ## Password History
 
 AuthManager enforces password history automatically when `PasswordPolicy.PasswordHistoryCount > 0`. Previous password hashes are stored as `password_history` claims and checked on every password reset:
@@ -546,6 +577,7 @@ options.Jwt.Issuer                   = "https://api.example.com";
 options.Jwt.Audience                 = "https://api.example.com";
 options.Jwt.AccessTokenExpiryMinutes = 60;
 options.Jwt.EnableRefreshTokens      = true;
+options.Jwt.SigningKey                = "same-key-your-own-jwt-bearer-validates-against";  // see OAuth2 Clients below
 
 options.OAuth.Google.Enabled         = true;
 options.OAuth.Google.ClientId        = "...";
@@ -589,6 +621,7 @@ All routes are prefixed with `options.RoutePrefix` (default `authmanager`).
 | `/authmanager/sso` | SSO / Entra ID | Configure Entra ID, generic OIDC providers, and SAML 2.0 |
 | `/authmanager/otp` | One-Time Passwords | Configure email/SMS OTP settings for passwordless and step-up auth |
 | `/authmanager/tokens` | API Tokens | Create, view, and revoke personal access tokens |
+| `/authmanager/clients` | Clients | Register OAuth2 clients for service-to-service auth; regenerate secrets, manage scopes |
 | `/authmanager/sessions` | Active Sessions | Live session table — revoke individual, per-user, or all sessions |
 | `/authmanager/security` | Security Settings | Password policy, lockout/brute-force settings, registration policy, theme picker, internal database config |
 | `/authmanager/userfields` | User Field Definitions | Add, edit, reorder, and delete typed custom field definitions |

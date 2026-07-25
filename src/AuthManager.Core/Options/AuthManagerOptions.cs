@@ -179,6 +179,16 @@ public sealed class JwtOptions
     public int AccessTokenExpiryMinutes { get; set; } = 60;
     public int RefreshTokenExpiryDays { get; set; } = 7;
     public bool EnableRefreshTokens { get; set; } = true;
+
+    /// <summary>
+    /// HMAC signing key (min 32 characters) used for tokens AuthManager itself issues —
+    /// test tokens and OAuth2 client-credentials grants (see <c>IOAuthClientService</c>).
+    /// Set this to the <b>same</b> key your host app's own JWT bearer authentication
+    /// validates against, so tokens issued here are accepted by your API without any
+    /// extra wiring. If left unset, a random key is generated at startup — fine for local
+    /// exploration, but tokens won't validate anywhere else and won't survive a restart.
+    /// </summary>
+    public string? SigningKey { get; set; }
 }
 
 /// <summary>

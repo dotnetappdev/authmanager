@@ -43,6 +43,14 @@ public interface IJwtConfigService
     Task<JwtConfigInfo> GetConfigAsync(CancellationToken ct = default);
     Task<(bool Success, string[] Errors)> UpdateConfigAsync(JwtConfigInfo config, CancellationToken ct = default);
     Task<string> GenerateTestTokenAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Signs and returns a JWT carrying the given claims, using the configured
+    /// <c>Jwt.SigningKey</c> (see <see cref="AuthManager.Core.Options.JwtOptions"/>).
+    /// Used internally for OAuth2 client-credentials grants; also usable directly by hosts
+    /// that want AuthManager's signing key management without building their own.
+    /// </summary>
+    Task<string> IssueTokenAsync(IEnumerable<System.Security.Claims.Claim> claims, TimeSpan? expiry = null, CancellationToken ct = default);
 }
 
 /// <summary>

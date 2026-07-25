@@ -38,6 +38,7 @@ public sealed class AuthManagerDbContext : DbContext
     public DbSet<EmailTemplateRecord>         EmailTemplates       { get; set; } = default!;
     public DbSet<ApiTokenRecord>              ApiTokens            { get; set; } = default!;
     public DbSet<OtpRecord>                   OtpCodes             { get; set; } = default!;
+    public DbSet<OAuthClientRecord>           OAuthClients         { get; set; } = default!;
     public DbSet<TenantRecord>                Tenants              { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -169,6 +170,18 @@ public sealed class AuthManagerDbContext : DbContext
             e.Property(x => x.DisplayName).HasMaxLength(128);
             e.Property(x => x.MetadataJson).HasMaxLength(2048);
         });
+
+        b.Entity<OAuthClientRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.ClientId).HasMaxLength(128);
+            e.Property(x => x.SecretHash).HasMaxLength(128);
+            e.Property(x => x.Name).HasMaxLength(128);
+            e.Property(x => x.Description).HasMaxLength(512);
+            e.Property(x => x.ScopesJson).HasMaxLength(2048);
+            e.HasIndex(x => x.ClientId).IsUnique();
+        });
     }
 }
 
@@ -224,6 +237,20 @@ public sealed class TenantRecord
     public string DisplayName { get; set; } = string.Empty;
     public string MetadataJson { get; set; } = "{}";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>A registered OAuth2 client application (service-to-service, client-credentials grant).</summary>
+public sealed class OAuthClientRecord
+{
+    public string  Id          { get; set; } = Guid.NewGuid().ToString("N")[..16];
+    public string  ClientId    { get; set; } = string.Empty;
+    public string  SecretHash  { get; set; } = string.Empty;
+    public string  Name        { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool    Enabled     { get; set; } = true;
+    public string  ScopesJson  { get; set; } = "[]";
+    public DateTimeOffset  CreatedAt  { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? LastUsedAt { get; set; }
 }
 
 /// <summary>Key/value store for serialised settings overrides.</summary>

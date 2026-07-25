@@ -18,6 +18,29 @@ internal sealed class JwtConfigService : IJwtConfigService
     {
         _options = options.Value;
         _logger = logger;
+
+        if (string.IsNullOrWhiteSpace(_options.Jwt.SigningKey))
+        {
+            _logger.LogWarning(
+                "[DotNetAuthManager] No JWT signing key configured (options.Jwt.SigningKey) — " +
+                "generated a random one for this process. Tokens issued by AuthManager (test tokens, " +
+                "OAuth2 client-credentials grants) will not validate after a restart or against any " +
+                "other service. Set options.Jwt.SigningKey to a stable secret before relying on this.");
+        }
+    }
+
+    /// <summary>Resolves the effective signing key: the configured one, or a per-process random fallback.</summary>
+    private static readonly string _fallbackKey = GenerateFallbackKey();
+
+    private string EffectiveSigningKey => string.IsNullOrWhiteSpace(_options.Jwt.SigningKey)
+        ? _fallbackKey
+        : _options.Jwt.SigningKey;
+
+    private static string GenerateFallbackKey()
+    {
+        var bytes = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+        return Convert.ToBase64String(bytes);
     }
 
     public Task<JwtConfigInfo> GetConfigAsync(CancellationToken ct = default)
@@ -49,7 +72,7 @@ internal sealed class JwtConfigService : IJwtConfigService
     public Task<string> GenerateTestTokenAsync(string userId, CancellationToken ct = default)
     {
         var jwt = _options.Jwt;
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("test-key-for-preview-do-not-use-in-production-32chars"));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(EffectiveSigningKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
@@ -62,6 +85,22 @@ internal sealed class JwtConfigService : IJwtConfigService
                 new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
             ],
             expires: DateTime.UtcNow.AddMinutes(jwt.AccessTokenExpiryMinutes),
+            signingCredentials: creds);
+
+        return Task.FromResult(new JwtSecurityTokenHandler().WriteToken(token));
+    }
+
+    public Task<string> IssueTokenAsync(IEnumerable<Claim> claims, TimeSpan? expiry = null, CancellationToken ct = default)
+    {
+        var jwt = _options.Jwt;
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(EffectiveSigningKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: jwt.Issuer,
+            audience: jwt.Audience,
+            claims: claims,
+            expires: DateTime.UtcNow.Add(expiry ?? TimeSpan.FromMinutes(jwt.AccessTokenExpiryMinutes)),
             signingCredentials: creds);
 
         return Task.FromResult(new JwtSecurityTokenHandler().WriteToken(token));
