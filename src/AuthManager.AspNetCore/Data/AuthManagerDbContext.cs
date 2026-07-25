@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace AuthManager.AspNetCore.Data;
 
@@ -11,6 +12,20 @@ namespace AuthManager.AspNetCore.Data;
 public sealed class AuthManagerDbContext : DbContext
 {
     public AuthManagerDbContext(DbContextOptions<AuthManagerDbContext> options) : base(options) { }
+
+    /// <summary>
+    /// SQLite's EF Core provider cannot translate ORDER BY, or relational comparisons
+    /// (&gt;, &lt;), on <see cref="DateTimeOffset"/> columns — it stores them as text and
+    /// throws <c>NotSupportedException</c> rather than risk an incorrect sort. Every
+    /// timestamp/expiry column in this context is DateTimeOffset and gets ordered or
+    /// range-compared somewhere (audit log, sessions, sign-in history, API tokens, OTP
+    /// expiry…), so map them all to a sortable/comparable packed long instead — EF Core's
+    /// documented workaround. SQL Server hosts are unaffected either way.
+    /// </summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTimeOffset>().HaveConversion<DateTimeOffsetToBinaryConverter>();
+    }
 
     public DbSet<AuthManagerSettingRecord>    Settings             { get; set; } = default!;
     public DbSet<AuditEntryRecord>            AuditEntries         { get; set; } = default!;

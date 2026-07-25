@@ -150,9 +150,13 @@ public static class WebApplicationExtensions
         // protect /_blazor/* hub endpoints and break the Blazor SignalR circuit.
         // Auth is enforced via the middleware above (step 0b).
 
-        // 6. Health / info endpoint at /{prefix}/api/health
-        var api = app.MapGroup($"/{prefix}/api");
-        MapApiEndpoints(api, options);
+        // 6. Full admin REST API (users, roles, groups, tenants, sessions, tokens, audit, health)
+        app.MapAuthManagerApi();
+
+        // 7. Impersonation redemption endpoints — must stay anonymous (the caller isn't
+        //    signed in as the target user yet) and so live outside the SuperAdmin-gated API.
+        var anon = app.MapGroup($"/{prefix}/api");
+        MapImpersonationEndpoints(anon, options);
 
         return app;
     }
@@ -212,21 +216,8 @@ public static class WebApplicationExtensions
         where TUser : IdentityUser, new()
         => app.CreateDefaultSuperUserAsync<TUser, IdentityRole>(email, password, roleName);
 
-    private static void MapApiEndpoints(RouteGroupBuilder api, AuthManagerOptions options)
+    private static void MapImpersonationEndpoints(RouteGroupBuilder api, AuthManagerOptions options)
     {
-        // Health check — accessible to SuperAdmin only
-        api.MapGet("health", () => Results.Ok(new
-        {
-            Status = "Healthy",
-            Service = "DotNetAuthManager",
-            Version = typeof(WebApplicationExtensions).Assembly.GetName().Version?.ToString(),
-            Timestamp = DateTimeOffset.UtcNow
-        }))
-        .RequireAuthorization(p => p.RequireRole(options.SuperAdminRole))
-        .WithName("AuthManager.Health")
-        .WithTags("AuthManager")
-        .ExcludeFromDescription();
-
         // Redeem impersonation token — navigates to app root on success
         api.MapGet("impersonate/{token}", async (string token, IImpersonationService svc, HttpContext ctx) =>
         {

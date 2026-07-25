@@ -178,6 +178,52 @@ Navigate to **`https://localhost:5001/authmanager`**, sign in, change the passwo
 
 ---
 
+## Deployment Modes: Self-Contained UI or Headless Web API
+
+AuthManager works two ways, and you can use either or both in the same app:
+
+| Mode | Call | What you get |
+|------|------|---------------|
+| **Self-contained** | `app.MapAuthManager()` | The full Blazor admin UI (everything in the [Features](#features) table) *and* the REST API below, together — the default, shown above. |
+| **Web API** | `app.MapAuthManagerApi()` | Just the REST API — no Razor Components, no MudBlazor, nothing rendered. Build your own frontend (SPA, mobile app, another service) against it, the same way you'd talk to Keycloak's Admin REST API. |
+
+`MapAuthManager()` calls `MapAuthManagerApi()` internally, so self-contained mode already includes everything below — you only call `MapAuthManagerApi()` directly when you want the API *without* the bundled UI.
+
+```csharp
+// Headless — API only, no Blazor UI at all
+builder.Services.AddAuthManager<ApplicationUser>(options => { /* ... */ });
+var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapAuthManagerApi();   // → /authmanager/api/*  (no /authmanager UI)
+app.Run();
+```
+
+Every route requires the caller to hold `AuthManagerOptions.SuperAdminRole` — AuthManager doesn't care *how* the request got authenticated (cookies, JWT bearer, an external OIDC provider); it only ever checks `ClaimsPrincipal.IsInRole(...)`. See `samples/AuthManagerSample.AdminApi` for a complete headless example (JWT bearer + Swagger UI over every endpoint below).
+
+### API Reference
+
+All routes are under `/{RoutePrefix}/api` (default `/authmanager/api`) and return JSON.
+
+| Resource | Routes |
+|----------|--------|
+| **Users** | `GET/POST /users` · `GET/PUT/DELETE /users/{id}` · `GET /users/by-email/{email}` · `POST /users/{id}/lock`\|`unlock` · `POST /users/{id}/reset-password` · `POST/DELETE /users/{id}/roles/{role}` · `POST /users/{id}/roles/{role}/temporary` · `POST /users/{id}/roles/{role}/make-permanent` · `GET /users/{id}/roles/expiries` · `POST/DELETE /users/{id}/claims` · `GET/POST/DELETE /users/{id}/required-actions[/{action}]` · `POST /users/{id}/2fa/disable`\|`reset`\|`force`\|`recovery-codes` · `GET /users/{id}/2fa/recovery-codes/remaining` · `GET /users/dashboard-stats`, `/2fa-stats` |
+| **Roles** | `GET/POST /roles` · `GET/PUT/DELETE /roles/{id}` · `GET /roles/{id}/users` · `POST/DELETE /roles/{id}/claims` |
+| **Groups** | `GET/POST /groups` · `GET/PUT/DELETE /groups/{id}` · `GET /groups/{id}/members` · `POST/DELETE /groups/{id}/members/{userId}` · `GET /users/{id}/groups` |
+| **Tenants** | `GET/POST /tenants` · `GET/PUT/DELETE /tenants/{id}` · `GET /tenants/{id}/members` · `GET/POST/DELETE /users/{id}/tenant[/{tenantId}]` |
+| **Sessions** | `GET /sessions` · `GET /sessions/count` · `DELETE /sessions/{id}` · `GET/DELETE /users/{id}/sessions` |
+| **API Tokens** | `GET/POST /tokens` · `POST /tokens/{id}/revoke` · `DELETE /tokens/{id}` |
+| **Audit** | `GET /audit` · `GET /audit/export` (CSV) |
+| **Health** | `GET /health` (anonymous liveness) · `GET /health/report` (full report, SuperAdmin) |
+
+```bash
+# Get a token (however your host issues them), then call the admin API with it
+curl -X POST https://localhost:5001/login -d '{"email":"...","password":"..."}'
+curl https://localhost:5001/authmanager/api/users -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
 ## Serilog Integration
 
 ```csharp
@@ -561,8 +607,9 @@ All routes are prefixed with `options.RoutePrefix` (default `authmanager`).
 | ASP.NET MVC | `samples/AuthManagerSample.Mvc/` | Classic MVC app with Identity + AuthManager admin UI |
 | Minimal API | `samples/AuthManagerSample.MinimalApi/` | Minimal API with AuthManager embedded |
 | Blazor Server | `samples/AuthManagerSample.BlazorServer/` | Blazor Server app wired to AuthManager |
-| **Web API + JWT** | `samples/AuthManagerSample.WebApi/` | .NET 10 REST API with JWT auth, refresh tokens, and AuthManager at `/authmanager` |
+| **Web API + JWT** | `samples/AuthManagerSample.WebApi/` | .NET 10 REST API with JWT auth, refresh tokens, and AuthManager at `/authmanager` (UI + API) |
 | **Blazor Web App** | `samples/AuthManagerSample.BlazorWebApp/` | .NET 10 Blazor Web App (SSR + interactive) with cookie auth, login/register/profile pages, and AuthManager admin panel |
+| **Admin API (headless)** | `samples/AuthManagerSample.AdminApi/` | `MapAuthManagerApi()` only — no Blazor UI. JWT-authenticated REST API + Swagger UI over the full admin surface |
 
 ```bash
 # Run the JWT Web API sample
@@ -663,6 +710,7 @@ samples/
   AuthManagerSample.BlazorServer/
   AuthManagerSample.WebApi/        ← .NET 10, JWT REST API
   AuthManagerSample.BlazorWebApp/  ← .NET 10, Blazor Web App
+  AuthManagerSample.AdminApi/      ← .NET 10, headless Admin API (no Blazor UI)
 docs/
   site/                       GitHub Pages static site
 ```
