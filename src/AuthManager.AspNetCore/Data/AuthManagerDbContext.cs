@@ -23,6 +23,7 @@ public sealed class AuthManagerDbContext : DbContext
     public DbSet<EmailTemplateRecord>         EmailTemplates       { get; set; } = default!;
     public DbSet<ApiTokenRecord>              ApiTokens            { get; set; } = default!;
     public DbSet<OtpRecord>                   OtpCodes             { get; set; } = default!;
+    public DbSet<TenantRecord>                Tenants              { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -145,6 +146,14 @@ public sealed class AuthManagerDbContext : DbContext
             e.HasIndex(x => new { x.UserId, x.Purpose });
             e.HasIndex(x => x.ExpiresAt);
         });
+
+        b.Entity<TenantRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.DisplayName).HasMaxLength(128);
+            e.Property(x => x.MetadataJson).HasMaxLength(2048);
+        });
     }
 }
 
@@ -191,6 +200,15 @@ public sealed class ApiTokenRecord
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? LastUsedAt { get; set; }
     public DateTimeOffset? ExpiresAt  { get; set; }
+}
+
+/// <summary>A multi-tenancy tenant. Membership is tracked via the user's tenant claim, not a join table.</summary>
+public sealed class TenantRecord
+{
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string MetadataJson { get; set; } = "{}";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>Key/value store for serialised settings overrides.</summary>

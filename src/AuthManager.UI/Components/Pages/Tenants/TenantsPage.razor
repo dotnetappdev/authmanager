@@ -1,0 +1,297 @@
+@page "/authmanager/tenants"
+@rendermode InteractiveServer
+@inject ITenantService TenantService
+@inject IUserManagementService UserService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Tenants — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Tenants</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Isolate users into tenants via the <code>tenant_id</code> claim — for multi-tenant SaaS deployments
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.AddBusiness"
+               OnClick="OpenCreate">
+        New Tenant
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else
+{
+    <MudGrid Spacing="3">
+        @foreach (var tenant in _tenants)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudAvatar Color="@(tenant.IsRootTenant ? Color.Secondary : Color.Primary)" Size="Size.Medium">
+                                <MudIcon Icon="@(tenant.IsRootTenant ? Icons.Material.Filled.Public : Icons.Material.Filled.Business)" />
+                            </MudAvatar>
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Class="font-weight-medium">@tenant.DisplayName</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@(tenant.IsRootTenant ? "no tenant claim" : tenant.Id)</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            @if (!tenant.IsRootTenant)
+                            {
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                    <MudMenuItem OnClick="@(() => OpenEdit(tenant))">
+                                        <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-2" />Edit
+                                    </MudMenuItem>
+                                    <MudMenuItem OnClick="@(() => OpenMembers(tenant))">
+                                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-2" />Members
+                                    </MudMenuItem>
+                                    <MudDivider />
+                                    <MudMenuItem OnClick="@(() => DeleteTenant(tenant))" Style="color:var(--mud-palette-error)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Class="mr-2" />Delete
+                                    </MudMenuItem>
+                                </MudMenu>
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.People" Size="Size.Small"
+                                               Title="View members" OnClick="@(() => OpenMembers(tenant))" />
+                            }
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent Class="pt-0">
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @tenant.MemberCount member@(tenant.MemberCount == 1 ? "" : "s")
+                            </MudText>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+<!-- ── Create / Edit Dialog ────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_editingTenant is null ? "New Tenant" : $"Edit — {_editingTenant.DisplayName}")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (_editingTenant is null)
+            {
+                <MudTextField @bind-Value="_form.Id" Label="Tenant ID" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Placeholder="e.g. acme-corp" Required="true"
+                              HelperText="Stable identifier stored in the tenant claim — cannot be changed later" />
+            }
+            <MudTextField @bind-Value="_form.DisplayName" Label="Display Name" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Placeholder="e.g. Acme Corp" Required="true" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showDialog = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="SaveTenant" Disabled="_saving">
+            @(_saving ? "Saving…" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- ── Members Dialog ────────────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showMembers" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Members — @_membersTenant?.DisplayName</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_membersLoading)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else
+        {
+            @if (_membersTenant is { IsRootTenant: false })
+            {
+                <MudStack Row="true" Spacing="2" Class="mb-3">
+                    <MudTextField @bind-Value="_addUserQuery" Label="Add user by username or email"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddMember">Add</MudButton>
+                </MudStack>
+            }
+
+            @if (!_members.Any())
+            {
+                <MudAlert Severity="Severity.Info">No members yet.</MudAlert>
+            }
+            else
+            {
+                <MudList T="UserDto" Dense="true">
+                    @foreach (var m in _members)
+                    {
+                        <MudListItem T="UserDto" Value="m">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudAvatar Color="Color.Primary" Size="Size.Small">@m.UserName[..1].ToUpper()</MudAvatar>
+                                <div>
+                                    <MudText Typo="Typo.body2">@m.UserName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@m.Email</MudText>
+                                </div>
+                                <MudSpacer />
+                                @if (_membersTenant is { IsRootTenant: false })
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
+                                                   Size="Size.Small" Color="Color.Error"
+                                                   Title="Remove from tenant"
+                                                   OnClick="@(() => RemoveMember(m))" />
+                                }
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showMembers = false)">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<TenantDto> _tenants = [];
+    private List<UserDto>   _members = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showDialog;
+    private bool _showMembers;
+    private bool _membersLoading;
+    private string _addUserQuery = "";
+    private TenantDto? _editingTenant;
+    private TenantDto? _membersTenant;
+    private readonly TenantFormModel _form = new();
+
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload()
+        => _tenants = await TenantService.GetTenantsAsync();
+
+    private void OpenCreate()
+    {
+        _editingTenant  = null;
+        _form.Id          = "";
+        _form.DisplayName = "";
+        _showDialog       = true;
+    }
+
+    private void OpenEdit(TenantDto tenant)
+    {
+        _editingTenant    = tenant;
+        _form.Id          = tenant.Id;
+        _form.DisplayName = tenant.DisplayName;
+        _showDialog       = true;
+    }
+
+    private async Task OpenMembers(TenantDto tenant)
+    {
+        _membersTenant  = tenant;
+        _showMembers    = true;
+        _membersLoading = true;
+        _addUserQuery   = "";
+        _members = await TenantService.GetTenantMembersAsync(tenant.Id);
+        _membersLoading = false;
+    }
+
+    private async Task SaveTenant()
+    {
+        _saving = true;
+        (bool ok, string[] errors) result;
+
+        if (_editingTenant is null)
+            result = await TenantService.CreateTenantAsync(new CreateTenantDto
+                { Id = _form.Id, DisplayName = _form.DisplayName });
+        else
+            result = await TenantService.UpdateTenantAsync(_editingTenant.Id, new UpdateTenantDto
+                { DisplayName = _form.DisplayName });
+
+        _saving = false;
+        if (result.ok)
+        {
+            _showDialog = false;
+            Snackbar.Add(_editingTenant is null ? "Tenant created." : "Tenant updated.", Severity.Success);
+            await Reload();
+        }
+        else
+        {
+            foreach (var e in result.errors)
+                Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private async Task DeleteTenant(TenantDto tenant)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Tenant",
+            $"Delete '{tenant.DisplayName}'? Members will not be deleted, but will lose their tenant claim.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors) = await TenantService.DeleteTenantAsync(tenant.Id);
+        if (ok) { Snackbar.Add("Tenant deleted.", Severity.Success); await Reload(); }
+        else    foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task AddMember()
+    {
+        if (_membersTenant is null || string.IsNullOrWhiteSpace(_addUserQuery)) return;
+
+        var user = _addUserQuery.Contains('@')
+            ? await UserService.GetUserByEmailAsync(_addUserQuery.Trim())
+            : await UserService.GetUserByUserNameAsync(_addUserQuery.Trim());
+
+        if (user is null)
+        {
+            Snackbar.Add("No user found with that username or email.", Severity.Error);
+            return;
+        }
+
+        var (ok, errors) = await TenantService.AssignUserToTenantAsync(user.Id, _membersTenant.Id);
+        if (ok)
+        {
+            Snackbar.Add($"{user.UserName} added to {_membersTenant.DisplayName}.", Severity.Success);
+            _addUserQuery = "";
+            _members = await TenantService.GetTenantMembersAsync(_membersTenant.Id);
+            await Reload();
+        }
+        else
+        {
+            foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private async Task RemoveMember(UserDto user)
+    {
+        if (_membersTenant is null) return;
+        await TenantService.RemoveUserFromTenantAsync(user.Id);
+        _members.Remove(user);
+        Snackbar.Add($"{user.UserName} removed from tenant.", Severity.Success);
+        await Reload();
+    }
+
+    private sealed class TenantFormModel
+    {
+        public string Id          { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+    }
+}

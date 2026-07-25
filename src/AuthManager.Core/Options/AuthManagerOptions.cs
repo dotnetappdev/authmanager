@@ -150,6 +150,12 @@ public sealed class AuthManagerOptions
     /// Email / SMS one-time password (OTP) settings for passwordless or step-up authentication.
     /// </summary>
     public OtpOptions Otp { get; set; } = new();
+
+    /// <summary>
+    /// Multi-tenancy configuration — scope users to isolated tenants via a claim.
+    /// Manage tenants at runtime via /authmanager/tenants.
+    /// </summary>
+    public MultiTenancyOptions MultiTenancy { get; set; } = new();
 }
 
 /// <summary>

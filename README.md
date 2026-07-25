@@ -28,7 +28,12 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 |------|-----------|
 | **Users** | Full CRUD via MudBlazor DataGrid · Bulk actions (lock, unlock, force reset, delete) · Lock/unlock · Password reset · 2FA toggle · Role assignment · Claims editor |
 | **Roles** | Create / edit / delete · Assign claims to roles |
+| **Groups** | Named bundles of roles assigned to users as a unit — add a user to a group and they inherit every role in it |
 | **Claims** | User and role claims management with type reference |
+| **Multi-Tenancy** | Scope users to isolated tenants via a `tenant_id` claim · Create/edit/delete tenants, assign or remove members · Root tenant for unassigned users |
+| **API Tokens** | Long-lived personal access tokens (PATs), GitHub-style — SHA-256 hashed at rest, shown once on creation, revocable |
+| **SSO** | Microsoft Entra ID (OIDC/SAML), generic OIDC providers (Okta, Auth0, Keycloak…), and SAML 2.0 |
+| **One-Time Passwords** | Email/SMS OTP codes for passwordless login and step-up MFA verification |
 | **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
 | **Custom Fields** | Define typed field definitions (Text, Email, Number, Boolean, Select, Date…) · Values stored as `custom:fieldId` claims · No schema migration needed |
 | **Display Settings** | Rename "User"/"Users" to match your domain · Changes reflected across all pages immediately |
@@ -360,6 +365,23 @@ The names propagate automatically to the sidebar navigation, page titles, button
 
 ---
 
+## Multi-Tenancy
+
+Scope users to isolated tenants for multi-tenant SaaS deployments — inspired by Firebase Auth's tenant model. When enabled, manage tenants at **Settings → Tenants** (`/authmanager/tenants`): create/rename/delete tenants, and add or remove members. Membership is tracked as a `tenant_id` claim (configurable), so no schema migration is required.
+
+```csharp
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    options.MultiTenancy.Enabled         = true;
+    options.MultiTenancy.TenantClaimType = "tenant_id";
+    options.MultiTenancy.AllowRootTenant = true;   // unassigned users appear under "Root"
+});
+```
+
+Users without a tenant claim are grouped under the read-only **Root** tenant when `AllowRootTenant` is true. Deleting a tenant does not delete its members — they simply lose the claim and fall back to Root. Assign a user to a tenant programmatically via `ITenantService.AssignUserToTenantAsync(userId, tenantId)`.
+
+---
+
 ## Password History
 
 AuthManager enforces password history automatically when `PasswordPolicy.PasswordHistoryCount > 0`. Previous password hashes are stored as `password_history` claims and checked on every password reset:
@@ -455,6 +477,12 @@ options.OAuth.Microsoft.TenantId     = "common";
 
 options.LogViewer.MaxLogEntries         = 10_000;
 options.LogViewer.LiveUpdateIntervalMs  = 2000;
+
+// Multi-Tenancy — scope users to isolated tenants via a claim
+options.MultiTenancy.Enabled         = true;
+options.MultiTenancy.TenantClaimType = "tenant_id";   // claim type carrying the tenant ID
+options.MultiTenancy.AllowRootTenant = true;          // users without the claim show under "Root"
+options.MultiTenancy.Tenants.Add(new TenantDefinition { Id = "acme-corp", DisplayName = "Acme Corp" });
 ```
 
 ---
@@ -474,9 +502,14 @@ All routes are prefixed with `options.RoutePrefix` (default `authmanager`).
 | `/authmanager/roles` | Role List | All roles with user counts; create, edit, delete |
 | `/authmanager/roles/create` | Create Role | Create a new role and attach initial claims |
 | `/authmanager/roles/{id}` | Edit Role | Rename role, add/remove role-level claims |
+| `/authmanager/groups` | Groups | Bundle roles into named groups; add/remove members who inherit the group's roles |
 | `/authmanager/claims` | Claims Reference | Full list of claims across all users and roles with type reference |
+| `/authmanager/tenants` | Tenants | Multi-tenancy management — create/edit/delete tenants, assign or remove members |
 | `/authmanager/jwt` | JWT Settings | Configure issuer, audience, expiry, algorithm; generate and inspect test tokens |
 | `/authmanager/oauth` | OAuth Providers | Enable/configure Google, Microsoft, Apple, GitHub, and custom OIDC providers |
+| `/authmanager/sso` | SSO / Entra ID | Configure Entra ID, generic OIDC providers, and SAML 2.0 |
+| `/authmanager/otp` | One-Time Passwords | Configure email/SMS OTP settings for passwordless and step-up auth |
+| `/authmanager/tokens` | API Tokens | Create, view, and revoke personal access tokens |
 | `/authmanager/sessions` | Active Sessions | Live session table — revoke individual, per-user, or all sessions |
 | `/authmanager/security` | Security Settings | Password policy, lockout/brute-force settings, registration policy, theme picker, internal database config |
 | `/authmanager/userfields` | User Field Definitions | Add, edit, reorder, and delete typed custom field definitions |

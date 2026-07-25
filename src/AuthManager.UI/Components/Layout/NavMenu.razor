@@ -38,6 +38,12 @@
         <MudNavLink Href="@Prefix("claims")" Icon="@Icons.Material.Filled.Badge">
             Claims
         </MudNavLink>
+        @if (Options.Value.MultiTenancy.Enabled)
+        {
+            <MudNavLink Href="@Prefix("tenants")" Icon="@Icons.Material.Filled.Business">
+                Tenants
+            </MudNavLink>
+        }
 
         <MudText Typo="Typo.overline" Class="am-nav-section-label">Authentication</MudText>
         <MudNavLink Href="@Prefix("jwt")" Icon="@Icons.Material.Filled.Lock">
