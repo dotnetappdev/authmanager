@@ -51,7 +51,7 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<TokenService>();
 
 // ── 4. AuthManager — headless mode ────────────────────────────────────────────
 // Same AddAuthManager<TUser>() call as the Blazor samples. What differs is what we map
@@ -148,3 +148,6 @@ app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 app.Run();
 
 internal sealed record LoginRequest(string Email, string Password);
+
+/// <summary>Exposed so integration tests can drive this app via <c>WebApplicationFactory&lt;Program&gt;</c>.</summary>
+public partial class Program;

@@ -27,6 +27,9 @@ jobs:
     - name: Build
       run: dotnet build AuthManager.sln --no-restore -c Release
 
+    - name: Test
+      run: dotnet test tests/AuthManager.Tests/AuthManager.Tests.csproj --no-build -c Release
+
     - name: Pack (Release only)
       if: github.ref == 'refs/heads/main'
       run: dotnet pack AuthManager.sln --no-build -c Release -o ./nupkgs

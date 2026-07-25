@@ -661,6 +661,31 @@ dotnet run
 
 ---
 
+## Testing
+
+`tests/AuthManager.Tests/` is an xUnit suite covering both the service layer and the
+HTTP API surface:
+
+- **Service tests** (`ServiceTests/`) build a real DI container — the same `AddAuthManager<TUser>()`
+  call a host app makes — backed by throwaway SQLite files, and exercise the services directly:
+  tenants, user management, recovery codes, temporary role assignments (including the background
+  `RoleExpirySweeperService`), groups, API tokens, OAuth2 clients, sign-in history, audit export,
+  and JWT config/signing.
+- **API tests** (`ApiTests/`) spin up the `AuthManagerSample.AdminApi` sample in-memory via
+  `WebApplicationFactory<Program>` and drive it over real HTTP — routing, model binding, JWT
+  bearer auth, and the full OAuth2 client-credentials flow end to end.
+
+Each test gets its own isolated SQLite database file, created fresh and deleted on teardown, so
+tests never share state or depend on run order.
+
+```bash
+dotnet test tests/AuthManager.Tests/AuthManager.Tests.csproj -c Release
+```
+
+CI runs this suite on every push and pull request (see `.github/workflows/ci.yml`).
+
+---
+
 ## Publishing to NuGet
 
 ### Pack locally
