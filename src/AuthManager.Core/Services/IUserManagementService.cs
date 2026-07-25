@@ -61,6 +61,32 @@ public interface IUserManagementService
 
     /// <summary>Return users grouped by their 2FA status for the admin overview.</summary>
     Task<TwoFactorStats> GetTwoFactorStatsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Generates a fresh set of 2FA recovery (backup) codes for the user, invalidating any
+    /// previous set. Requires two-factor authentication to already be enabled.
+    /// The returned codes are shown once — they are stored hashed and cannot be retrieved again.
+    /// </summary>
+    Task<(bool Success, string[] Errors, string[]? Codes)> GenerateRecoveryCodesAsync(string userId, int count = 10, CancellationToken ct = default);
+
+    /// <summary>Number of unused recovery codes remaining for the user.</summary>
+    Task<int> GetRecoveryCodesRemainingAsync(string userId, CancellationToken ct = default);
+
+    // ── Temporary (expiring) role assignments ──────────────────
+
+    /// <summary>
+    /// Grants a role that is automatically revoked at <paramref name="expiresAt"/>.
+    /// A background sweep removes the role once it expires — see
+    /// <c>SecurityPolicyOptions.RoleExpiryCheckInterval</c>. If the user already holds the
+    /// role permanently, this has no effect on the permanent grant.
+    /// </summary>
+    Task<(bool Success, string[] Errors)> AssignTemporaryRoleAsync(string userId, string roleName, DateTimeOffset expiresAt, CancellationToken ct = default);
+
+    /// <summary>Removes the expiry from a role grant, making it permanent. The role itself is not removed.</summary>
+    Task<(bool Success, string[] Errors)> MakeRoleAssignmentPermanentAsync(string userId, string roleName, CancellationToken ct = default);
+
+    /// <summary>Returns the role names currently scheduled to expire for a user, keyed by role name.</summary>
+    Task<Dictionary<string, DateTimeOffset>> GetRoleExpiriesAsync(string userId, CancellationToken ct = default);
 }
 
 /// <summary>

@@ -67,6 +67,13 @@ internal sealed class PersistentAuditService : IAuditService
         };
     }
 
+    public async Task<byte[]> ExportAuditLogCsvAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var rows = await db.AuditEntries.OrderByDescending(e => e.Timestamp).ToListAsync(ct);
+        return AuditCsvWriter.Write(rows.Select(Map));
+    }
+
     private static AuditEntry Map(AuditEntryRecord r) => new()
     {
         Id                  = r.Id,

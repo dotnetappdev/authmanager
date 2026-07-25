@@ -61,16 +61,15 @@
                      RowsPerPage="25"
                      MultiSelection="true"
                      SelectedItemsChanged="OnSelectedItemsChanged"
-                     QuickFilter="@QuickFilter"
                      SortMode="SortMode.Single"
                      Class="am-data-grid">
             <ToolBarContent>
-                <MudTextField @bind-Value="_searchText" Placeholder="Search users..."
+                <MudTextField @bind-Value="_searchText" @bind-Value:after="ReloadGrid" Placeholder="Search users..."
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                               IconSize="Size.Medium" Immediate="true" DebounceInterval="400"
                               Class="mt-0" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 <MudSpacer />
-                <MudSelect T="string" @bind-Value="_roleFilter" Label="Role" AnchorOrigin="Origin.BottomCenter"
+                <MudSelect T="string" @bind-Value="_roleFilter" @bind-Value:after="ReloadGrid" Label="Role" AnchorOrigin="Origin.BottomCenter"
                            Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Dense="true"
                            Style="min-width:160px">
                     @foreach (var role in _roles)
@@ -78,7 +77,7 @@
                         <MudSelectItem Value="@role.Name">@role.Name</MudSelectItem>
                     }
                 </MudSelect>
-                <MudSelect T="string" @bind-Value="_statusFilter" Label="Status" AnchorOrigin="Origin.BottomCenter"
+                <MudSelect T="string" @bind-Value="_statusFilter" @bind-Value:after="ReloadGrid" Label="Status" AnchorOrigin="Origin.BottomCenter"
                            Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Dense="true"
                            Style="min-width:140px" Class="ml-2">
                     <MudSelectItem Value="@("active")">Active</MudSelectItem>
@@ -218,10 +217,7 @@
     private string _statusFilter = "";
     private string _currentUserId = "";
 
-    private Func<UserDto, bool> QuickFilter => x =>
-        string.IsNullOrWhiteSpace(_searchText)
-        || x.UserName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
-        || x.Email.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+    private async Task ReloadGrid() => await _grid.ReloadServerData();
 
     protected override async Task OnInitializedAsync()
     {

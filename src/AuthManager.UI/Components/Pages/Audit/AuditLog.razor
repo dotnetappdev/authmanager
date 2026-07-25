@@ -1,6 +1,7 @@
 @page "/authmanager/audit"
 @rendermode InteractiveServer
 @inject IAuditService AuditService
+@inject IJSRuntime JS
 
 <PageTitle>Audit Log — Auth Manager</PageTitle>
 
@@ -33,6 +34,10 @@
                               Class="mt-0" Variant="Variant.Outlined" Margin="Margin.Dense"
                               OnKeyUp="OnSearchKeyUp" />
                 <MudSpacer />
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportCsv" Disabled="_exporting">
+                    @(_exporting ? "Exporting…" : "Export CSV")
+                </MudButton>
                 <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
                                OnClick="@(() => _grid.ReloadServerData())" Title="Refresh" />
             </ToolBarContent>
@@ -138,6 +143,23 @@
     }
 
     private async Task OnSearchKeyUp(KeyboardEventArgs _) => await _grid.ReloadServerData();
+
+    private bool _exporting;
+
+    private async Task ExportCsv()
+    {
+        _exporting = true;
+        try
+        {
+            var bytes = await AuditService.ExportAuditLogCsvAsync();
+            var fileName = $"audit-log-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+            await JS.InvokeVoidAsync("authManager.downloadFile", fileName, Convert.ToBase64String(bytes), "text/csv");
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
 
     private static Color GetActionColor(string action) => action switch
     {

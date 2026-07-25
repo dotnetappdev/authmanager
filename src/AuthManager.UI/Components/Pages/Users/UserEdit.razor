@@ -278,6 +278,48 @@ else
                 </div>
             </div>
 
+            <!-- Temporary Access (edit mode only) -->
+            @if (!IsCreate)
+            {
+                <div class="am-card">
+                    <div class="am-card-header"><h2 class="am-card-title">Temporary Access</h2></div>
+                    <div class="am-card-body">
+                        <p class="am-text-muted">
+                            Grant a role that is automatically revoked at a set time — for time-boxed
+                            elevated access. Checked-in the Roles list above, but expires on its own.
+                        </p>
+                        @if (_roleExpiries.Count > 0)
+                        {
+                            <div class="am-mt-2">
+                                @foreach (var (role, expiresAt) in _roleExpiries)
+                                {
+                                    <div class="am-toggle-item">
+                                        <div class="am-toggle-info">
+                                            <div class="am-toggle-label">@role</div>
+                                            <div class="am-toggle-desc">Expires @expiresAt.LocalDateTime.ToString("g")</div>
+                                        </div>
+                                        <button class="am-btn am-btn-ghost am-btn-sm" @onclick="@(() => MakePermanent(role))">
+                                            Make permanent
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <div class="am-mt-3" style="display:flex; gap:8px; align-items:center;">
+                            <select class="am-input" @bind="_tempRoleName" style="flex:1">
+                                <option value="">Select a role…</option>
+                                @foreach (var role in _allRoles)
+                                {
+                                    <option value="@role.Name">@role.Name</option>
+                                }
+                            </select>
+                            <input class="am-input" type="datetime-local" @bind="_tempRoleExpiry" />
+                            <button class="am-btn am-btn-primary am-btn-sm" @onclick="GrantTemporaryRole">Grant</button>
+                        </div>
+                    </div>
+                </div>
+            }
+
             <!-- Actions -->
             <div class="am-card">
                 <div class="am-card-header"><h2 class="am-card-title">Actions</h2></div>
@@ -325,6 +367,11 @@ else
     private Dictionary<string, string> _fieldValues = [];
     private bool _savingAttributes;
 
+    // Temporary (expiring) role assignments
+    private Dictionary<string, DateTimeOffset> _roleExpiries = [];
+    private string _tempRoleName = "";
+    private DateTime _tempRoleExpiry = DateTime.Now.AddDays(1);
+
     // Required Actions
     private HashSet<string> _requiredActions = [];
     private static readonly Dictionary<string, string> _allRequiredActions = new()
@@ -368,6 +415,8 @@ else
 
                 var actions = await UserService.GetRequiredActionsAsync(UserId!);
                 _requiredActions = [.. actions];
+
+                _roleExpiries = await UserService.GetRoleExpiriesAsync(UserId!);
 
                 // Load field definitions and populate values from existing claims
                 _fieldDefinitions = await FieldService.GetAllFieldDefinitionsAsync();
@@ -480,6 +529,31 @@ else
             if (ok) _requiredActions.Remove(action);
             else _errors = errs;
         }
+    }
+
+    private async Task GrantTemporaryRole()
+    {
+        if (string.IsNullOrWhiteSpace(_tempRoleName)) return;
+
+        var expiresAt = new DateTimeOffset(_tempRoleExpiry, TimeZoneInfo.Local.GetUtcOffset(_tempRoleExpiry));
+        var (ok, errs) = await UserService.AssignTemporaryRoleAsync(UserId!, _tempRoleName, expiresAt);
+        if (ok)
+        {
+            _selectedRoles.Add(_tempRoleName);
+            _roleExpiries = await UserService.GetRoleExpiriesAsync(UserId!);
+            _tempRoleName = "";
+        }
+        else
+        {
+            _errors = errs;
+        }
+    }
+
+    private async Task MakePermanent(string roleName)
+    {
+        var (ok, errs) = await UserService.MakeRoleAssignmentPermanentAsync(UserId!, roleName);
+        if (ok) _roleExpiries.Remove(roleName);
+        else _errors = errs;
     }
 
     private string GetFieldValue(string fieldId) =>

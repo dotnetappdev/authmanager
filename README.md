@@ -35,6 +35,8 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 | **SSO** | Microsoft Entra ID (OIDC/SAML), generic OIDC providers (Okta, Auth0, Keycloak…), and SAML 2.0 |
 | **One-Time Passwords** | Email/SMS OTP codes for passwordless login and step-up MFA verification |
 | **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
+| **Recovery Codes** | Generate 2FA backup codes (GitHub-style) · Shown once, stored hashed · View remaining count, regenerate on demand |
+| **Temporary Roles** | Grant a role with an expiry — auto-revoked by a background sweep · Promote to permanent at any time |
 | **Custom Fields** | Define typed field definitions (Text, Email, Number, Boolean, Select, Date…) · Values stored as `custom:fieldId` claims · No schema migration needed |
 | **Display Settings** | Rename "User"/"Users" to match your domain · Changes reflected across all pages immediately |
 | **Security Settings** | Password Policy UI (length, complexity, history, expiry) · Brute Force Detection (max attempts, lockout duration) · Registration Policy |
@@ -45,7 +47,7 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 | **JWT** | Configure issuer, audience, expiry, algorithm · Test token generator |
 | **OAuth** | Google, Microsoft, Apple, GitHub, custom OIDC providers |
 | **Logs** | Real-time Serilog viewer with filtering, search, live mode |
-| **Audit** | Every change recorded — who, what, when, from where |
+| **Audit** | Every change recorded — who, what, when, from where · One-click CSV export |
 | **Import / Export** | Bulk CSV and JSON user import/export |
 | **Webhooks** | Signed HTTP POST events to external endpoints on auth actions |
 | **Themes** | Dark / light / system palette · OS preference auto-detect |
@@ -242,6 +244,36 @@ var requiredActions = user.Claims
 
 if (requiredActions.Contains("UpdatePassword"))
     return RedirectToAction("ForcePasswordChange");
+```
+
+---
+
+## Recovery Codes
+
+Generate GitHub-style 2FA backup codes for a user who already has two-factor authentication enabled — from **Two-Factor Auth** (`/authmanager/2fa`), click the key icon on any 2FA-enabled user. Codes are shown once and stored hashed; generating a new set invalidates the previous one.
+
+```csharp
+var (success, errors, codes) = await userManagementService.GenerateRecoveryCodesAsync(userId, count: 10);
+// codes is populated only on success — show it to the user once, then discard
+
+var remaining = await userManagementService.GetRecoveryCodesRemainingAsync(userId);
+```
+
+---
+
+## Temporary Role Assignments
+
+Grant a role that expires automatically — useful for time-boxed elevated access (a contractor's `Admin` role for one week, an on-call `Support` grant for a shift). A background sweep (interval configurable via `SecurityPolicyOptions.RoleExpiryCheckInterval`, default 5 minutes) revokes the role once it lapses. Manage this from **Edit User → Temporary Access**, or in code:
+
+```csharp
+// Grant "Support" for 24 hours
+await userManagementService.AssignTemporaryRoleAsync(userId, "Support", DateTimeOffset.UtcNow.AddHours(24));
+
+// Promote to a permanent assignment at any time — the role itself is untouched
+await userManagementService.MakeRoleAssignmentPermanentAsync(userId, "Support");
+
+// Inspect current expiries
+var expiries = await userManagementService.GetRoleExpiriesAsync(userId); // role name -> expiry
 ```
 
 ---
@@ -451,6 +483,7 @@ options.SecurityPolicy.MaxConcurrentSessions      = 0;     // 0 = unlimited
 options.SecurityPolicy.InvalidateSessionsOnPasswordChange = true;
 options.SecurityPolicy.AllowSelfRegistration      = true;
 options.SecurityPolicy.RequireEmailVerificationOnRegistration = false;
+options.SecurityPolicy.RoleExpiryCheckInterval    = TimeSpan.FromMinutes(5);  // temporary role sweep frequency
 
 // Webhooks — fire-and-forget signed HTTP POSTs on auth events
 options.Webhooks.Enabled = true;

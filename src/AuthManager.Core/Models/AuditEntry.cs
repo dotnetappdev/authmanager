@@ -51,4 +51,6 @@ public static class AuditActions
     public const string TwoFactorEnabled         = "TwoFactorEnabled";
     public const string TwoFactorDisabled        = "TwoFactorDisabled";
     public const string WebhookFired             = "WebhookFired";
+    public const string RoleExpired              = "RoleExpired";
+    public const string RecoveryCodesGenerated    = "RecoveryCodesGenerated";
 }

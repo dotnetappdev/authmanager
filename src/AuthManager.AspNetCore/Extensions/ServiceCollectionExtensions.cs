@@ -145,6 +145,9 @@ public static class ServiceCollectionExtensions
         // Optional SuperAdmin seeder — only acts when options.SeedSuperAdmin = true
         services.AddHostedService<SuperAdminSeeder<TUser, TRole>>();
 
+        // Revokes temporary (expiring) role assignments once they lapse
+        services.AddHostedService<RoleExpirySweeperService<TUser>>();
+
         return services;
     }
 }

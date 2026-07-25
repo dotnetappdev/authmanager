@@ -1,0 +1,53 @@
+/* Styling for the static-SSR account forms (Login/Register/ForgotPassword).
+   These pages use native <InputText>/<InputCheckbox> instead of MudBlazor form
+   components — see the comment in Login.razor for why — so they need their own
+   minimal styling to look consistent with the rest of the MudBlazor UI. */
+
+.am-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.am-field label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--mud-palette-text-secondary, #667);
+}
+
+.am-input {
+    font: inherit;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--mud-palette-lines-inputs, #c7c7d1);
+    background: var(--mud-palette-surface, #fff);
+    color: var(--mud-palette-text-primary, #1a1a2e);
+}
+
+.am-input:focus {
+    outline: none;
+    border-color: var(--mud-palette-primary, #594ae2);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--mud-palette-primary, #594ae2) 25%, transparent);
+}
+
+.am-input.invalid {
+    border-color: var(--mud-palette-error, #f5545b);
+}
+
+.am-help-text {
+    font-size: 0.75rem;
+    color: var(--mud-palette-text-secondary, #667);
+}
+
+.am-checkbox-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.am-validation-summary ul {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--mud-palette-error, #f5545b);
+    font-size: 0.85rem;
+}

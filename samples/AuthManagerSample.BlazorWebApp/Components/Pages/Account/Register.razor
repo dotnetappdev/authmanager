@@ -28,33 +28,29 @@
             </MudAlert>
         }
 
+        @* Native Blazor form components are required here (not MudTextField) — this page is
+           static SSR (no @rendermode) so SignInManager can write the auth cookie directly on
+           HttpContext. Only InputBase-derived components participate in
+           [SupplyParameterFromForm] model binding on a static form POST. *@
         <EditForm Model="Input" OnValidSubmit="HandleRegister" FormName="register" method="post">
             <DataAnnotationsValidator />
+            <ValidationSummary class="am-validation-summary mb-3" />
 
-            <MudTextField @bind-Value="Input.Email"
-                          Label="Email"
-                          InputType="InputType.Email"
-                          Variant="Variant.Outlined"
-                          Class="mb-3"
-                          For="@(() => Input.Email)"
-                          Required="true" />
+            <div class="am-field mb-3">
+                <label for="email">Email</label>
+                <InputText id="email" @bind-Value="Input.Email" class="am-input" autocomplete="username" />
+            </div>
 
-            <MudTextField @bind-Value="Input.Password"
-                          Label="Password"
-                          InputType="InputType.Password"
-                          Variant="Variant.Outlined"
-                          Class="mb-3"
-                          For="@(() => Input.Password)"
-                          HelperText="Min 8 chars, uppercase, digit required"
-                          Required="true" />
+            <div class="am-field mb-3">
+                <label for="password">Password</label>
+                <InputText id="password" type="password" @bind-Value="Input.Password" class="am-input" autocomplete="new-password" />
+                <span class="am-help-text">Min 8 chars, uppercase, digit required</span>
+            </div>
 
-            <MudTextField @bind-Value="Input.ConfirmPassword"
-                          Label="Confirm Password"
-                          InputType="InputType.Password"
-                          Variant="Variant.Outlined"
-                          Class="mb-4"
-                          For="@(() => Input.ConfirmPassword)"
-                          Required="true" />
+            <div class="am-field mb-4">
+                <label for="confirmPassword">Confirm Password</label>
+                <InputText id="confirmPassword" type="password" @bind-Value="Input.ConfirmPassword" class="am-input" autocomplete="new-password" />
+            </div>
 
             <MudButton ButtonType="ButtonType.Submit"
                        Variant="Variant.Filled"

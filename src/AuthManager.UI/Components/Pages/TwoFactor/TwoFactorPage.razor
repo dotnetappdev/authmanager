@@ -139,6 +139,11 @@ else
                                                    Size="Size.Small" Color="Color.Error"
                                                    OnClick="@(() => ResetAuthenticator(context))" />
                                 </MudTooltip>
+                                <MudTooltip Text="View / regenerate recovery codes">
+                                    <MudIconButton Icon="@Icons.Material.Filled.VpnKey"
+                                                   Size="Size.Small" Color="Color.Default"
+                                                   OnClick="@(() => OpenRecoveryCodes(context))" />
+                                </MudTooltip>
                             }
                             else
                             {
@@ -162,7 +167,57 @@ else
     </MudCard>
 }
 
+<!-- ── Recovery Codes Dialog ────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showRecoveryDialog" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Recovery Codes — @_recoveryUser?.UserName</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_recoveryCodes is null)
+        {
+            <MudText Typo="Typo.body2" Class="mb-3">
+                @_recoveryRemaining unused recovery code@(_recoveryRemaining == 1 ? "" : "s") remaining.
+            </MudText>
+            <MudAlert Severity="Severity.Warning" Class="mb-2">
+                Generating new codes immediately invalidates any existing recovery codes for this user.
+            </MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Success" Class="mb-3">
+                Save these codes now — they are shown only once and cannot be retrieved again.
+            </MudAlert>
+            <MudPaper Elevation="0" Class="pa-3 am-card-border">
+                <MudStack Spacing="1">
+                    @foreach (var recoveryCode in _recoveryCodes)
+                    {
+                        <MudText Typo="Typo.body1" Style="font-family:monospace">@recoveryCode</MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showRecoveryDialog = false)">Close</MudButton>
+        @if (_recoveryCodes is null)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GenerateRecoveryCodes" Disabled="_generatingCodes">
+                @(_generatingCodes ? "Generating…" : "Generate New Codes")
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
 @code {
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+
+    private bool _showRecoveryDialog;
+    private bool _generatingCodes;
+    private UserDto? _recoveryUser;
+    private int _recoveryRemaining;
+    private string[]? _recoveryCodes;
+
     private List<UserDto>   _users  = [];
     private TwoFactorStats  _stats  = new();
     private bool   _loading = true;
@@ -257,5 +312,30 @@ else
         var (ok, errors) = await UserService.Force2FaEnrollmentAsync(user.Id);
         if (ok) { Snackbar.Add($"{user.UserName} must configure 2FA on next sign-in.", Severity.Info); await Reload(); }
         else    foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task OpenRecoveryCodes(UserDto user)
+    {
+        _recoveryUser = user;
+        _recoveryCodes = null;
+        _recoveryRemaining = await UserService.GetRecoveryCodesRemainingAsync(user.Id);
+        _showRecoveryDialog = true;
+    }
+
+    private async Task GenerateRecoveryCodes()
+    {
+        if (_recoveryUser is null) return;
+        _generatingCodes = true;
+        var (ok, errors, codes) = await UserService.GenerateRecoveryCodesAsync(_recoveryUser.Id);
+        _generatingCodes = false;
+
+        if (ok)
+        {
+            _recoveryCodes = codes;
+        }
+        else
+        {
+            foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+        }
     }
 }

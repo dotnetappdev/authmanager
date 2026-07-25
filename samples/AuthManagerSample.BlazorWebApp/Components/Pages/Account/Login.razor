@@ -5,6 +5,7 @@
 
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
 
@@ -22,33 +23,28 @@
             <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
         }
 
+        @* Native Blazor form components are required here (not MudTextField/MudCheckBox) —
+           this page is static SSR (no @rendermode) so SignInManager can write the auth
+           cookie directly on HttpContext. Only InputBase-derived components participate
+           in [SupplyParameterFromForm] model binding on a static form POST. *@
         <EditForm Model="Input" OnValidSubmit="HandleLogin" FormName="login" method="post">
             <DataAnnotationsValidator />
+            <ValidationSummary class="am-validation-summary mb-3" />
 
-            <MudTextField @bind-Value="Input.Email"
-                          Label="Email"
-                          InputType="InputType.Email"
-                          Variant="Variant.Outlined"
-                          Class="mb-3"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Email"
-                          For="@(() => Input.Email)"
-                          Required="true" />
+            <div class="am-field mb-3">
+                <label for="email">Email</label>
+                <InputText id="email" @bind-Value="Input.Email" class="am-input" autocomplete="username" />
+            </div>
 
-            <MudTextField @bind-Value="Input.Password"
-                          Label="Password"
-                          InputType="InputType.Password"
-                          Variant="Variant.Outlined"
-                          Class="mb-3"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Lock"
-                          For="@(() => Input.Password)"
-                          Required="true" />
+            <div class="am-field mb-3">
+                <label for="password">Password</label>
+                <InputText id="password" type="password" @bind-Value="Input.Password" class="am-input" autocomplete="current-password" />
+            </div>
 
-            <MudCheckBox @bind-Value="Input.RememberMe"
-                         Label="Remember me"
-                         Color="Color.Primary"
-                         Class="mb-4" />
+            <div class="am-field mb-4 am-checkbox-row">
+                <InputCheckbox id="rememberMe" @bind-Value="Input.RememberMe" />
+                <label for="rememberMe">Remember me</label>
+            </div>
 
             <MudButton ButtonType="ButtonType.Submit"
                        Variant="Variant.Filled"
@@ -82,8 +78,18 @@
 
     private async Task HandleLogin()
     {
+        // Look up by email explicitly — UserName and Email can differ (e.g. the
+        // seeded SuperAdmin has UserName "superadmin" but a different Email),
+        // and PasswordSignInAsync(string, ...) matches on UserName only.
+        var user = await UserManager.FindByEmailAsync(Input.Email);
+        if (user is null)
+        {
+            _errorMessage = "Invalid email or password.";
+            return;
+        }
+
         var result = await SignInManager.PasswordSignInAsync(
-            Input.Email,
+            user,
             Input.Password,
             Input.RememberMe,
             lockoutOnFailure: true);

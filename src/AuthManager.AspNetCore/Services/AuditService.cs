@@ -37,4 +37,7 @@ internal sealed class InMemoryAuditService : IAuditService
             PageSize = pageSize
         });
     }
+
+    public Task<byte[]> ExportAuditLogCsvAsync(CancellationToken ct = default)
+        => Task.FromResult(AuditCsvWriter.Write(_entries.OrderByDescending(e => e.Timestamp)));
 }

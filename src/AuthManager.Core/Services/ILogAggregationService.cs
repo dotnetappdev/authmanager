@@ -20,6 +20,9 @@ public interface IAuditService
 {
     Task RecordAsync(AuditEntry entry, CancellationToken ct = default);
     Task<PagedResult<AuditEntry>> GetAuditLogAsync(int page = 1, int pageSize = 50, CancellationToken ct = default);
+
+    /// <summary>Exports the full audit log as CSV (UTF-8 encoded bytes), most recent first.</summary>
+    Task<byte[]> ExportAuditLogCsvAsync(CancellationToken ct = default);
 }
 
 /// <summary>

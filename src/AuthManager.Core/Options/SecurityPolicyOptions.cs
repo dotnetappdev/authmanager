@@ -57,6 +57,13 @@ public sealed class SecurityPolicyOptions
     /// </summary>
     public int MaxConcurrentSessions { get; set; } = 0;
 
+    /// <summary>
+    /// How often the background sweep checks for and revokes expired temporary role
+    /// assignments (see <c>IUserManagementService.AssignTemporaryRoleAsync</c>).
+    /// Default: 5 minutes.
+    /// </summary>
+    public TimeSpan RoleExpiryCheckInterval { get; set; } = TimeSpan.FromMinutes(5);
+
     // ── Registration ─────────────────────────────────────────────────────────
 
     /// <summary>

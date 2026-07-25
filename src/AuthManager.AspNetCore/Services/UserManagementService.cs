@@ -441,6 +441,88 @@ internal sealed class UserManagementService<TUser> : IUserManagementService
         };
     }
 
+    // ── Recovery codes ──────────────────────────────────────────────────────────
+
+    public async Task<(bool Success, string[] Errors, string[]? Codes)> GenerateRecoveryCodesAsync(
+        string userId, int count = 10, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."], null);
+
+        if (!user.TwoFactorEnabled)
+            return (false, ["Two-factor authentication must be enabled before generating recovery codes."], null);
+
+        var codes = await _userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, count);
+        if (codes is null)
+            return (false, ["Failed to generate recovery codes."], null);
+
+        _logger.LogInformation("Recovery codes regenerated for user {UserId}.", userId);
+        return (true, [], codes.ToArray());
+    }
+
+    public async Task<int> GetRecoveryCodesRemainingAsync(string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        return user is null ? 0 : await _userManager.CountRecoveryCodesAsync(user);
+    }
+
+    // ── Temporary (expiring) role assignments ───────────────────────────────────
+
+    private const string RoleExpiryClaimPrefix = "role_expiry:";
+
+    public async Task<(bool Success, string[] Errors)> AssignTemporaryRoleAsync(
+        string userId, string roleName, DateTimeOffset expiresAt, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        if (!await _userManager.IsInRoleAsync(user, roleName))
+        {
+            var addResult = await _userManager.AddToRoleAsync(user, roleName);
+            if (!addResult.Succeeded)
+                return (false, addResult.Errors.Select(e => e.Description).ToArray());
+        }
+
+        var claimType = RoleExpiryClaimPrefix + roleName;
+        var existing = await _userManager.GetClaimsAsync(user);
+        foreach (var claim in existing.Where(c => c.Type == claimType))
+            await _userManager.RemoveClaimAsync(user, claim);
+
+        var result = await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim(claimType, expiresAt.ToString("O")));
+        return result.Succeeded
+            ? (true, [])
+            : (false, result.Errors.Select(e => e.Description).ToArray());
+    }
+
+    public async Task<(bool Success, string[] Errors)> MakeRoleAssignmentPermanentAsync(
+        string userId, string roleName, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, [$"User {userId} not found."]);
+
+        var claimType = RoleExpiryClaimPrefix + roleName;
+        var existing = await _userManager.GetClaimsAsync(user);
+        foreach (var claim in existing.Where(c => c.Type == claimType))
+            await _userManager.RemoveClaimAsync(user, claim);
+
+        return (true, []);
+    }
+
+    public async Task<Dictionary<string, DateTimeOffset>> GetRoleExpiriesAsync(string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return [];
+
+        var claims = await _userManager.GetClaimsAsync(user);
+        var result = new Dictionary<string, DateTimeOffset>();
+        foreach (var claim in claims.Where(c => c.Type.StartsWith(RoleExpiryClaimPrefix, StringComparison.Ordinal)))
+        {
+            if (DateTimeOffset.TryParse(claim.Value, out var expiry))
+                result[claim.Type[RoleExpiryClaimPrefix.Length..]] = expiry;
+        }
+        return result;
+    }
+
     private async Task<UserDto> MapToDto(TUser user, CancellationToken ct)
     {
         var roles = await _userManager.GetRolesAsync(user);
