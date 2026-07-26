@@ -33,3 +33,18 @@ public sealed class UpdateSsoProviderDto
     public bool Enabled { get; set; }
     public Dictionary<string, string> Settings { get; set; } = [];
 }
+
+/// <summary>DTO for registering a new generic OIDC provider at runtime.</summary>
+public sealed class CreateOidcProviderDto
+{
+    /// <summary>Unique internal key (used in routes/logs) — e.g. "okta", "auth0".</summary>
+    public string Name { get; set; } = string.Empty;
+
+    public string DisplayName { get; set; } = string.Empty;
+    public string Authority { get; set; } = string.Empty;
+    public string ClientId { get; set; } = string.Empty;
+    public string ClientSecret { get; set; } = string.Empty;
+    public string CallbackPath { get; set; } = string.Empty;
+    public string AdditionalScopes { get; set; } = string.Empty;
+    public string UserIdClaim { get; set; } = "sub";
+}

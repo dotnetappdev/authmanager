@@ -85,6 +85,17 @@ public interface ISsoService
 
     /// <summary>Persists updated settings for a provider.</summary>
     Task<(bool Success, string[] Errors)> UpdateProviderAsync(UpdateSsoProviderDto dto, CancellationToken ct = default);
+
+    /// <summary>
+    /// Registers a new generic OIDC provider at runtime (Okta, Auth0, Keycloak, PingFederate,
+    /// any standards-compliant OpenID Connect issuer) — no code change or restart required to
+    /// add it to the list; wiring it into your authentication pipeline still needs the usual
+    /// <c>.AddOpenIdConnect()</c> call in <c>Program.cs</c> (see the README for an example).
+    /// </summary>
+    Task<(bool Success, string[] Errors)> CreateOidcProviderAsync(CreateOidcProviderDto dto, CancellationToken ct = default);
+
+    /// <summary>Removes a custom OIDC provider by name. Entra ID and SAML cannot be removed, only disabled.</summary>
+    Task<(bool Success, string[] Errors)> DeleteOidcProviderAsync(string name, CancellationToken ct = default);
 }
 
 /// <summary>

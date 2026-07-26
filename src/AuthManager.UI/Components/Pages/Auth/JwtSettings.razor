@@ -1,180 +1,165 @@
 @page "/authmanager/jwt"
 @rendermode InteractiveServer
 @inject IJwtConfigService JwtService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <PageTitle>JWT Settings — Auth Manager</PageTitle>
 
-<div class="am-page-header">
-    <div>
-        <h1 class="am-page-title">JWT Configuration</h1>
-        <p class="am-page-subtitle">Manage JSON Web Token settings for API authentication</p>
-    </div>
+<div class="mb-4">
+    <MudText Typo="Typo.h4">JWT Configuration</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">Manage JSON Web Token settings for API authentication</MudText>
 </div>
 
 @if (_loading)
 {
-    <Spinner />
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
 }
 else if (_config != null)
 {
-    <div class="am-form-layout">
-        <div class="am-form-main">
-            <div class="am-card">
-                <div class="am-card-header"><h2 class="am-card-title">Token Settings</h2></div>
-                <div class="am-card-body">
-                    <div class="am-form-grid">
-                        <div class="am-form-group">
-                            <label class="am-label">Issuer</label>
-                            <input class="am-input" @bind="_config.Issuer" placeholder="https://your-api.com" />
-                            <span class="am-input-hint">The authority that issues the token (iss claim)</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Audience</label>
-                            <input class="am-input" @bind="_config.Audience" placeholder="https://your-api.com/api" />
-                            <span class="am-input-hint">The intended recipient of the token (aud claim)</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Algorithm</label>
-                            <select class="am-select" @bind="_config.Algorithm">
-                                <option value="HS256">HS256 (HMAC-SHA256)</option>
-                                <option value="HS384">HS384 (HMAC-SHA384)</option>
-                                <option value="HS512">HS512 (HMAC-SHA512)</option>
-                                <option value="RS256">RS256 (RSA-SHA256)</option>
-                            </select>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Access Token Expiry (minutes)</label>
-                            <input class="am-input" type="number" @bind="_config.AccessTokenExpiryMinutes" min="1" max="1440" />
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Refresh Token Expiry (days)</label>
-                            <input class="am-input" type="number" @bind="_config.RefreshTokenExpiryDays" min="1" max="365" />
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="8">
+            <MudStack Spacing="3">
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">Token Settings</MudText></MudCardHeader>
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_config.Issuer" Label="Issuer" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Placeholder="https://your-api.com"
+                                              HelperText="The authority that issues the token (iss claim)" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_config.Audience" Label="Audience" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Placeholder="https://your-api.com/api"
+                                              HelperText="The intended recipient of the token (aud claim)" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" @bind-Value="_config.Algorithm" Label="Algorithm" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                    <MudSelectItem T="string" Value="@("HS256")">HS256 (HMAC-SHA256)</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("HS384")">HS384 (HMAC-SHA384)</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("HS512")">HS512 (HMAC-SHA512)</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("RS256")">RS256 (RSA-SHA256)</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_config.AccessTokenExpiryMinutes" Label="Access Token Expiry (minutes)"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="1440" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_config.RefreshTokenExpiryDays" Label="Refresh Token Expiry (days)"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="365" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
 
-            <div class="am-card">
-                <div class="am-card-header"><h2 class="am-card-title">Validation Options</h2></div>
-                <div class="am-card-body">
-                    <div class="am-toggle-list">
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Enable Refresh Tokens</div>
-                                <div class="am-toggle-desc">Allow clients to request new access tokens without re-authentication</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_config.EnableRefreshTokens" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Validate Issuer</div>
-                                <div class="am-toggle-desc">Verify the iss claim matches the configured issuer</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_config.ValidateIssuer" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Validate Audience</div>
-                                <div class="am-toggle-desc">Verify the aud claim matches the configured audience</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_config.ValidateAudience" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Validate Lifetime</div>
-                                <div class="am-toggle-desc">Reject expired tokens</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_config.ValidateLifetime" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Require HTTPS Metadata</div>
-                                <div class="am-toggle-desc">Require HTTPS for the metadata endpoint</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_config.RequireHttpsMetadata" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">Validation Options</MudText></MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Spacing="1">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Enable Refresh Tokens</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Allow clients to request new access tokens without re-authentication</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_config.EnableRefreshTokens" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Validate Issuer</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Verify the iss claim matches the configured issuer</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_config.ValidateIssuer" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Validate Audience</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Verify the aud claim matches the configured audience</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_config.ValidateAudience" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Validate Lifetime</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Reject expired tokens</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_config.ValidateLifetime" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Require HTTPS Metadata</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Require HTTPS for the metadata endpoint</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_config.RequireHttpsMetadata" Color="Color.Primary" />
+                            </MudStack>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
 
-            <div class="am-card">
-                <div class="am-card-header">
-                    <h2 class="am-card-title">Test Token Generator</h2>
-                </div>
-                <div class="am-card-body">
-                    <p class="am-text-muted">Generate a test JWT for debugging. Never use test tokens in production.</p>
-                    <div class="am-form-group">
-                        <label class="am-label">User ID</label>
-                        <div class="am-input-group">
-                            <input class="am-input" @bind="_testUserId" placeholder="Enter user ID or sub claim..." />
-                            <button class="am-btn am-btn-primary" @onclick="GenerateToken" disabled="@string.IsNullOrEmpty(_testUserId)">Generate</button>
-                        </div>
-                    </div>
-                    @if (!string.IsNullOrEmpty(_testToken))
-                    {
-                        <div class="am-token-output">
-                            <div class="am-token-label">Generated Token:</div>
-                            <div class="am-token-value">
-                                <code>@_testToken</code>
-                                <button class="am-btn am-btn-sm am-btn-ghost" @onclick="CopyToken" title="Copy">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                                    </svg>
-                                </button>
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">Test Token Generator</MudText></MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Generate a test JWT for debugging. Never use test tokens in production.
+                        </MudText>
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
+                            <MudTextField @bind-Value="_testUserId" Label="User ID" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Placeholder="Enter user ID or sub claim..." Class="flex-grow-1" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GenerateToken"
+                                       Disabled="@string.IsNullOrEmpty(_testUserId)" Class="mt-1">Generate</MudButton>
+                        </MudStack>
+                        @if (!string.IsNullOrEmpty(_testToken))
+                        {
+                            <MudPaper Elevation="0" Class="am-card-border pa-3 mt-3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Generated Token:</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudText Style="font-family:monospace;word-break:break-all;flex:1">@_testToken</MudText>
+                                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Title="Copy" OnClick="CopyToken" />
+                                </MudStack>
+                            </MudPaper>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudStack Spacing="3">
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">Signing Key</MudText></MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.VpnKey" Color="Color.Primary" />
+                            <div>
+                                <MudText Typo="Typo.body2" Style="font-family:monospace">@_config.SigningKeyPreview</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Algorithm: @_config.Algorithm</MudText>
                             </div>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                            Configure signing keys via environment variables or appsettings.json for security.
+                        </MudText>
+                    </MudCardContent>
+                </MudCard>
 
-        <div class="am-form-aside">
-            <div class="am-card">
-                <div class="am-card-header"><h2 class="am-card-title">Signing Key</h2></div>
-                <div class="am-card-body">
-                    <div class="am-key-display">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
-                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                        </svg>
-                        <div>
-                            <div class="am-key-preview">@_config.SigningKeyPreview</div>
-                            <div class="am-key-algo">Algorithm: @_config.Algorithm</div>
-                        </div>
-                    </div>
-                    <p class="am-text-muted am-mt-2">Configure signing keys via environment variables or appsettings.json for security.</p>
-                </div>
-            </div>
-
-            <div class="am-card">
-                <div class="am-card-body am-actions-card">
-                    @if (_errors.Length > 0)
-                    {
-                        <div class="am-alert am-alert-error">@string.Join(", ", _errors)</div>
-                    }
-                    <button class="am-btn am-btn-primary am-btn-full" @onclick="Save" disabled="@_saving">
-                        @if (_saving) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
-                        Save Configuration
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardContent>
+                        @if (_errors.Length > 0)
+                        {
+                            <MudAlert Severity="Severity.Error" Class="mb-3">@string.Join(", ", _errors)</MudAlert>
+                        }
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="Save" Disabled="_saving">
+                            @(_saving ? "Saving…" : "Save Configuration")
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
 }
 
 @code {
@@ -184,8 +169,6 @@ else if (_config != null)
     private string[] _errors = [];
     private string _testUserId = "";
     private string _testToken = "";
-
-    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -199,7 +182,7 @@ else if (_config != null)
         _errors = [];
         var (success, errors) = await JwtService.UpdateConfigAsync(_config!);
         if (success)
-            ToastService.Instance.Success("JWT configuration saved.");
+            Snackbar.Add("JWT configuration saved.", Severity.Success);
         else
             _errors = errors;
         _saving = false;
@@ -213,6 +196,6 @@ else if (_config != null)
     private async Task CopyToken()
     {
         await JS.InvokeVoidAsync("authManager.copyToClipboard", _testToken);
-        ToastService.Instance.Success("Token copied to clipboard.");
+        Snackbar.Add("Token copied to clipboard.", Severity.Success);
     }
 }

@@ -3,89 +3,99 @@
 @rendermode InteractiveServer
 @inject IRoleManagementService RoleService
 @inject NavigationManager Nav
+@inject ISnackbar Snackbar
 
 <PageTitle>@(IsCreate ? "Create Role" : "Edit Role") — Auth Manager</PageTitle>
 
-<div class="am-page-header">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
     <div>
-        <a href="/authmanager/roles" class="am-breadcrumb">← Back to Roles</a>
-        <h1 class="am-page-title">@(IsCreate ? "Create New Role" : $"Edit Role: {_role?.Name}")</h1>
+        <MudLink Href="/authmanager/roles" Underline="Underline.Hover" Class="mb-1 d-block">
+            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" Class="mr-1" Style="vertical-align:middle" />Back to Roles
+        </MudLink>
+        <MudText Typo="Typo.h4">@(IsCreate ? "Create New Role" : $"Edit Role: {_role?.Name}")</MudText>
     </div>
-</div>
+</MudStack>
 
 @if (_loading)
 {
-    <Spinner />
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
 }
 else
 {
-    <div class="am-form-layout">
-        <div class="am-form-main">
-            <div class="am-card">
-                <div class="am-card-header"><h2 class="am-card-title">Role Details</h2></div>
-                <div class="am-card-body">
-                    <div class="am-form-group">
-                        <label class="am-label">Role Name <span class="am-required">*</span></label>
-                        <input class="am-input" type="text" @bind="_name" placeholder="e.g. Admin, Manager, Viewer" />
-                        <span class="am-input-hint">Use PascalCase. Cannot be changed after creation.</span>
-                    </div>
-                    <div class="am-form-group">
-                        <label class="am-label">Description</label>
-                        <textarea class="am-textarea" @bind="_description" placeholder="Describe what this role can do..." rows="3"></textarea>
-                    </div>
-                </div>
-            </div>
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="8">
+            <MudCard Elevation="0" Class="am-card-border mb-4">
+                <MudCardHeader><MudText Typo="Typo.h6">Role Details</MudText></MudCardHeader>
+                <MudCardContent>
+                    <MudStack Spacing="3">
+                        <MudTextField @bind-Value="_name" Label="Role Name" Required="true" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Placeholder="e.g. Admin, Manager, Viewer"
+                                      HelperText="Use PascalCase. Cannot be changed after creation." Disabled="!IsCreate" />
+                        <MudTextField @bind-Value="_description" Label="Description" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Lines="3" Placeholder="Describe what this role can do..." />
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
 
-            <div class="am-card">
-                <div class="am-card-header">
-                    <h2 class="am-card-title">Role Claims</h2>
-                    <button class="am-btn am-btn-sm am-btn-ghost" @onclick="AddClaim">+ Add Claim</button>
-                </div>
-                <div class="am-card-body">
-                    <p class="am-text-muted am-mb-3">Claims attached to this role will be automatically applied to all users who have the role.</p>
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent><MudText Typo="Typo.h6">Role Claims</MudText></CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddClaim">
+                            Add Claim
+                        </MudButton>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                        Claims attached to this role will be automatically applied to all users who have the role.
+                    </MudText>
                     @if (_claims.Count == 0)
                     {
-                        <p class="am-text-muted">No claims. Click "Add Claim" to add one.</p>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No claims. Click "Add Claim" to add one.</MudText>
                     }
-                    @foreach (var (claim, index) in _claims.Select((c, i) => (c, i)))
-                    {
-                        <div class="am-claim-row">
-                            <div class="am-form-group am-form-group-inline">
-                                <label class="am-label">Type</label>
-                                <input class="am-input" placeholder="permission" @bind="claim.Type" />
-                            </div>
-                            <div class="am-form-group am-form-group-inline">
-                                <label class="am-label">Value</label>
-                                <input class="am-input" placeholder="read:users" @bind="claim.Value" />
-                            </div>
-                            <button class="am-btn am-btn-sm am-btn-danger" @onclick="@(() => RemoveClaim(index))">Remove</button>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
+                    <MudStack Spacing="2">
+                        @foreach (var (claim, index) in _claims.Select((c, i) => (c, i)))
+                        {
+                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                <MudTextField T="string" @bind-Value="claim.Type" Label="Type" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Placeholder="permission" />
+                                <MudTextField T="string" @bind-Value="claim.Value" Label="Value" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Placeholder="read:users" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                               OnClick="@(() => RemoveClaim(index))" />
+                            </MudStack>
+                        }
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
 
-        <div class="am-form-aside">
-            <div class="am-card">
-                <div class="am-card-body am-actions-card">
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent>
                     @if (_errors.Length > 0)
                     {
-                        <div class="am-alert am-alert-error">
+                        <MudAlert Severity="Severity.Error" Class="mb-3">
                             @foreach (var err in _errors)
                             {
                                 <div>@err</div>
                             }
-                        </div>
+                        </MudAlert>
                     }
-                    <button class="am-btn am-btn-primary am-btn-full" @onclick="Save" disabled="@_saving">
-                        @if (_saving) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
-                        @(IsCreate ? "Create Role" : "Save Changes")
-                    </button>
-                    <a href="/authmanager/roles" class="am-btn am-btn-ghost am-btn-full">Cancel</a>
-                </div>
-            </div>
-        </div>
-    </div>
+                    <MudStack Spacing="2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                   OnClick="Save" Disabled="_saving">
+                            @(_saving ? "Saving…" : (IsCreate ? "Create Role" : "Save Changes"))
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" FullWidth="true" Href="/authmanager/roles">
+                            Cancel
+                        </MudButton>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
 }
 
 @code {
@@ -145,7 +155,7 @@ else
 
             if (success)
             {
-                ToastService.Instance.Success(IsCreate ? $"Role \"{_name}\" created." : "Role updated.");
+                Snackbar.Add(IsCreate ? $"Role \"{_name}\" created." : "Role updated.", Severity.Success);
                 Nav.NavigateTo("/authmanager/roles");
             }
             else

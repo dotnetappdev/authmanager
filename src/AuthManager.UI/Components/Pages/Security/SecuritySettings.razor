@@ -4,347 +4,290 @@
 @inject IAuditService AuditService
 @inject IOptions<AuthManagerOptions> Options
 @inject IJSRuntime JS
+@inject ISnackbar Snackbar
 
 <PageTitle>Security Settings — Auth Manager</PageTitle>
 
-<div class="am-page-header">
-    <div>
-        <h1 class="am-page-title">Security Settings</h1>
-        <p class="am-page-subtitle">Configure password policy, brute-force protection, database storage, and appearance.</p>
-    </div>
+<div class="mb-4">
+    <MudText Typo="Typo.h4">Security Settings</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">Configure password policy, brute-force protection, database storage, and appearance.</MudText>
 </div>
 
 @if (_loading)
 {
-    <Spinner />
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
 }
 else
 {
-    <div class="am-form-layout">
-        <div class="am-form-main">
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="8">
+            <MudStack Spacing="3">
 
-            <!-- Password Policy -->
-            <div class="am-card">
-                <div class="am-card-header">
-                    <h2 class="am-card-title">Password Policy</h2>
-                    <span class="am-badge am-badge-info">ASP.NET Identity</span>
-                </div>
-                <div class="am-card-body">
-                    <div class="am-form-grid">
-                        <div class="am-form-group">
-                            <label class="am-label">Minimum Length</label>
-                            <input class="am-input" type="number" min="4" max="128"
-                                   @bind="_pw.MinimumLength" />
-                            <span class="am-input-hint">Minimum number of characters required (default: 8)</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Maximum Length</label>
-                            <input class="am-input" type="number" min="8" max="256"
-                                   @bind="_pw.MaximumLength" />
-                            <span class="am-input-hint">Prevents DoS via bcrypt — keep ≤ 128 (default: 128)</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Password History (last N)</label>
-                            <input class="am-input" type="number" min="0" max="24"
-                                   @bind="_pw.PasswordHistoryCount" />
-                            <span class="am-input-hint">Reject if the password matches a recent one. 0 = disabled</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Password Expiry (days)</label>
-                            <input class="am-input" type="number" min="0" max="365"
-                                   @bind="_pw.PasswordExpiryDays" />
-                            <span class="am-input-hint">Force password change after N days. 0 = never expires</span>
-                        </div>
-                    </div>
+                <!-- Password Policy -->
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Password Policy</MudText></CardHeaderContent>
+                        <CardHeaderActions><MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">ASP.NET Identity</MudChip></CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_pw.MinimumLength" Label="Minimum Length" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="4" Max="128"
+                                                 HelperText="Minimum number of characters required (default: 8)" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_pw.MaximumLength" Label="Maximum Length" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="8" Max="256"
+                                                 HelperText="Prevents DoS via bcrypt — keep ≤ 128 (default: 128)" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_pw.PasswordHistoryCount" Label="Password History (last N)" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="0" Max="24"
+                                                 HelperText="Reject if the password matches a recent one. 0 = disabled" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_pw.PasswordExpiryDays" Label="Password Expiry (days)" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="0" Max="365"
+                                                 HelperText="Force password change after N days. 0 = never expires" />
+                            </MudItem>
+                        </MudGrid>
 
-                    <div class="am-toggle-list am-mt-4">
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Require Uppercase Letter (A–Z)</div>
-                                <div class="am-toggle-desc">Password must contain at least one uppercase character</div>
+                        <MudStack Spacing="1" Class="mt-4">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Require Uppercase Letter (A–Z)</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Password must contain at least one uppercase character</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_pw.RequireUppercase" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Require Lowercase Letter (a–z)</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Password must contain at least one lowercase character</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_pw.RequireLowercase" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Require Digit (0–9)</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Password must contain at least one numeric digit</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_pw.RequireDigit" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Require Non-Alphanumeric (!, @@, #…)</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Password must contain at least one special character</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_pw.RequireNonAlphanumeric" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Deny Username in Password</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Reject passwords that contain the user's username</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_pw.DenyUsernameInPassword" Color="Color.Primary" />
+                            </MudStack>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+
+                <!-- Brute Force / Lockout -->
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Brute Force Detection</MudText></CardHeaderContent>
+                        <CardHeaderActions><MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Account Lockout</MudChip></CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <div>
+                                <MudText Typo="Typo.body1">Enable Brute Force Detection</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Temporarily lock accounts after repeated failed login attempts</MudText>
                             </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_pw.RequireUppercase" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Require Lowercase Letter (a–z)</div>
-                                <div class="am-toggle-desc">Password must contain at least one lowercase character</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_pw.RequireLowercase" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Require Digit (0–9)</div>
-                                <div class="am-toggle-desc">Password must contain at least one numeric digit</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_pw.RequireDigit" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Require Non-Alphanumeric (!, @@, #…)</div>
-                                <div class="am-toggle-desc">Password must contain at least one special character</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_pw.RequireNonAlphanumeric" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Deny Username in Password</div>
-                                <div class="am-toggle-desc">Reject passwords that contain the user's username</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_pw.DenyUsernameInPassword" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                            <MudSwitch T="bool" @bind-Value="_sec.EnableBruteForceDetection" Color="Color.Primary" />
+                        </MudStack>
 
-            <!-- Brute Force / Lockout -->
-            <div class="am-card">
-                <div class="am-card-header">
-                    <h2 class="am-card-title">Brute Force Detection</h2>
-                    <span class="am-badge am-badge-info">Account Lockout</span>
-                </div>
-                <div class="am-card-body">
-                    <div class="am-toggle-list">
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Enable Brute Force Detection</div>
-                                <div class="am-toggle-desc">Temporarily lock accounts after repeated failed login attempts</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_sec.EnableBruteForceDetection" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                    </div>
+                        <MudGrid Class="mt-2">
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_sec.MaxFailedLoginAttempts" Label="Max Failed Attempts" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="1" Max="20" Disabled="!_sec.EnableBruteForceDetection"
+                                                 HelperText="Failed logins before the account is locked (default: 5)" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_lockoutMinutes" Label="Lockout Duration (minutes)" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="1" Max="10080" Disabled="!_sec.EnableBruteForceDetection"
+                                                 HelperText="How long the account stays locked (default: 15 min)" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_failedAttemptWindowHours" Label="Failed Attempt Window (hours)" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="1" Max="168" Disabled="!_sec.EnableBruteForceDetection"
+                                                 HelperText="Reset failure count after this idle period (default: 12 h)" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_sec.MaxConcurrentSessions" Label="Max Concurrent Sessions Per User" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="0" Max="100"
+                                                 HelperText="0 = unlimited. Oldest session terminated when exceeded" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_secStampMinutes" Label="Security Stamp Validation (minutes)" Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense" Min="1" Max="1440"
+                                                 HelperText="How often cookie auth re-validates against the server (default: 30 min)" />
+                            </MudItem>
+                        </MudGrid>
 
-                    <div class="am-form-grid am-mt-4">
-                        <div class="am-form-group">
-                            <label class="am-label">Max Failed Attempts</label>
-                            <input class="am-input" type="number" min="1" max="20"
-                                   @bind="_sec.MaxFailedLoginAttempts"
-                                   disabled="@(!_sec.EnableBruteForceDetection)" />
-                            <span class="am-input-hint">Failed logins before the account is locked (default: 5)</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Lockout Duration (minutes)</label>
-                            <input class="am-input" type="number" min="1" max="10080"
-                                   @bind="_lockoutMinutes"
-                                   disabled="@(!_sec.EnableBruteForceDetection)" />
-                            <span class="am-input-hint">How long the account stays locked (default: 15 min)</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Failed Attempt Window (hours)</label>
-                            <input class="am-input" type="number" min="1" max="168"
-                                   @bind="_failedAttemptWindowHours"
-                                   disabled="@(!_sec.EnableBruteForceDetection)" />
-                            <span class="am-input-hint">Reset failure count after this idle period (default: 12 h)</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Max Concurrent Sessions Per User</label>
-                            <input class="am-input" type="number" min="0" max="100"
-                                   @bind="_sec.MaxConcurrentSessions" />
-                            <span class="am-input-hint">0 = unlimited. Oldest session terminated when exceeded</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Security Stamp Validation (minutes)</label>
-                            <input class="am-input" type="number" min="1" max="1440"
-                                   @bind="_secStampMinutes" />
-                            <span class="am-input-hint">How often cookie auth re-validates against the server (default: 30 min)</span>
-                        </div>
-                    </div>
+                        <MudStack Spacing="1" Class="mt-4">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Invalidate Sessions on Password Change</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Force re-login on all devices when a user changes their password</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_sec.InvalidateSessionsOnPasswordChange" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Enable Refresh Token Rotation</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Issue a new refresh token on each use and invalidate the old one</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_sec.EnableRefreshTokenRotation" Color="Color.Primary" />
+                            </MudStack>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
 
-                    <div class="am-toggle-list am-mt-4">
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Invalidate Sessions on Password Change</div>
-                                <div class="am-toggle-desc">Force re-login on all devices when a user changes their password</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_sec.InvalidateSessionsOnPasswordChange" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Enable Refresh Token Rotation</div>
-                                <div class="am-toggle-desc">Issue a new refresh token on each use and invalidate the old one</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_sec.EnableRefreshTokenRotation" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                <!-- Registration -->
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">Registration Policy</MudText></MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Spacing="1">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Allow Self-Registration</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Allow new users to register themselves via the standard Identity flows</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_sec.AllowSelfRegistration" Color="Color.Primary" />
+                            </MudStack>
+                            <MudDivider />
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">Require Email Verification on Registration</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">New accounts must verify their email before they can sign in</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_sec.RequireEmailVerificationOnRegistration" Color="Color.Primary" />
+                            </MudStack>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
 
-            <!-- Registration -->
-            <div class="am-card">
-                <div class="am-card-header">
-                    <h2 class="am-card-title">Registration Policy</h2>
-                </div>
-                <div class="am-card-body">
-                    <div class="am-toggle-list">
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Allow Self-Registration</div>
-                                <div class="am-toggle-desc">Allow new users to register themselves via the standard Identity flows</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_sec.AllowSelfRegistration" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                        <div class="am-toggle-item">
-                            <div class="am-toggle-info">
-                                <div class="am-toggle-label">Require Email Verification on Registration</div>
-                                <div class="am-toggle-desc">New accounts must verify their email before they can sign in</div>
-                            </div>
-                            <label class="am-switch">
-                                <input type="checkbox" @bind="_sec.RequireEmailVerificationOnRegistration" />
-                                <span class="am-switch-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                <!-- Database & Storage -->
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Database &amp; Storage</MudText></CardHeaderContent>
+                        <CardHeaderActions><MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Internal DB</MudChip></CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            AuthManager keeps its own internal database for audit entries, session records, and settings
+                            overrides — separate from your application's database. <strong>SQLite</strong> is the default
+                            and requires no external server. Switch to <strong>SQL Server</strong> for enterprise
+                            or clustered deployments.
+                        </MudText>
+                        <MudGrid>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" @bind-Value="_dbProvider" Label="Database Provider" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                           HelperText="Changes take effect after saving and restarting the application">
+                                    <MudSelectItem T="string" Value="@("SQLite")">SQLite (default — no install needed)</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("SqlServer")">SQL Server</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_dbConnectionString" Label="Connection String" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Placeholder="@DbPlaceholder"
+                                              HelperText="@(_dbProvider == "SQLite" ? "SQLite file path — relative to the application working directory" : "SQL Server connection string. Use (localdb)\\mssqllocaldb for local development")" />
+                            </MudItem>
+                        </MudGrid>
+                        <MudAlert Severity="Severity.Warning" Class="mt-3">
+                            <strong>Note:</strong> Changing the provider or connection string requires an application restart
+                            to take effect. Existing data will not be migrated automatically.
+                        </MudAlert>
+                    </MudCardContent>
+                </MudCard>
 
-            <!-- Database & Storage -->
-            <div class="am-card">
-                <div class="am-card-header">
-                    <h2 class="am-card-title">Database &amp; Storage</h2>
-                    <span class="am-badge am-badge-success">Internal DB</span>
-                </div>
-                <div class="am-card-body">
-                    <p class="am-text-muted am-mb-3">
-                        AuthManager keeps its own internal database for audit entries, session records, and settings
-                        overrides — separate from your application's database. <strong>SQLite</strong> is the default
-                        and requires no external server. Switch to <strong>SQL Server</strong> for enterprise
-                        or clustered deployments.
-                    </p>
-                    <div class="am-form-grid">
-                        <div class="am-form-group">
-                            <label class="am-label">Database Provider</label>
-                            <select class="am-input" @bind="_dbProvider">
-                                <option value="SQLite">SQLite (default — no install needed)</option>
-                                <option value="SqlServer">SQL Server</option>
-                            </select>
-                            <span class="am-input-hint">Changes take effect after saving and restarting the application</span>
-                        </div>
-                        <div class="am-form-group">
-                            <label class="am-label">Connection String</label>
-                            <input class="am-input" type="text" @bind="_dbConnectionString"
-                                   placeholder="@DbPlaceholder" />
-                            <span class="am-input-hint">
-                                @if (_dbProvider == "SQLite")
-                                {
-                                    <text>SQLite file path — relative to the application working directory</text>
-                                }
-                                else
-                                {
-                                    <text>SQL Server connection string. Use <code>(localdb)\mssqllocaldb</code> for local development</text>
-                                }
-                            </span>
-                        </div>
-                    </div>
-                    <div class="am-alert am-alert-warning am-mt-3">
-                        <strong>Note:</strong> Changing the provider or connection string requires an application restart
-                        to take effect. Existing data will not be migrated automatically.
-                    </div>
-                </div>
-            </div>
+                <!-- Appearance -->
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Appearance</MudText></CardHeaderContent>
+                        <CardHeaderActions><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">Theme</MudChip></CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Choose the colour scheme for the Auth Manager UI. Your preference is saved in the browser
+                            and overrides the server-side default. Use the toggle in the sidebar footer to switch on the fly.
+                        </MudText>
+                        <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+                            <MudButton Variant="@(_currentTheme == "dark" ? Variant.Filled : Variant.Outlined)"
+                                       StartIcon="@Icons.Material.Filled.DarkMode" OnClick='@(() => SetTheme("dark"))'>Dark</MudButton>
+                            <MudButton Variant="@(_currentTheme == "light" ? Variant.Filled : Variant.Outlined)"
+                                       StartIcon="@Icons.Material.Filled.LightMode" OnClick='@(() => SetTheme("light"))'>Light</MudButton>
+                            <MudButton Variant="@(_currentTheme == "system" ? Variant.Filled : Variant.Outlined)"
+                                       StartIcon="@Icons.Material.Filled.Computer" OnClick='@(() => SetTheme("system"))'>System</MudButton>
+                        </MudButtonGroup>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-2">
+                            Current: <strong>@(_currentTheme == "system" ? "System default" : _currentTheme == "dark" ? "Dark mode" : "Light mode")</strong>
+                        </MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudItem>
 
-            <!-- Appearance -->
-            <div class="am-card">
-                <div class="am-card-header">
-                    <h2 class="am-card-title">Appearance</h2>
-                    <span class="am-badge">Theme</span>
-                </div>
-                <div class="am-card-body">
-                    <p class="am-text-muted am-mb-3">
-                        Choose the colour scheme for the Auth Manager UI. Your preference is saved in the browser
-                        and overrides the server-side default. Use the toggle in the sidebar footer to switch on the fly.
-                    </p>
-                    <div class="am-theme-picker">
-                        <button class="am-theme-btn @(_currentTheme == "dark" ? "am-theme-btn-active" : "")"
-                                @onclick='() => SetTheme("dark")'>
-                            <span class="am-theme-icon">🌙</span>
-                            <span>Dark</span>
-                        </button>
-                        <button class="am-theme-btn @(_currentTheme == "light" ? "am-theme-btn-active" : "")"
-                                @onclick='() => SetTheme("light")'>
-                            <span class="am-theme-icon">☀️</span>
-                            <span>Light</span>
-                        </button>
-                        <button class="am-theme-btn @(_currentTheme == "system" ? "am-theme-btn-active" : "")"
-                                @onclick='() => SetTheme("system")'>
-                            <span class="am-theme-icon">💻</span>
-                            <span>System</span>
-                        </button>
-                    </div>
-                    <p class="am-text-muted am-mt-2" style="font-size:0.8rem">
-                        Current: <strong>@(_currentTheme == "system" ? "System default" : _currentTheme == "dark" ? "Dark mode" : "Light mode")</strong>
-                    </p>
-                </div>
-            </div>
+        <MudItem xs="12" md="4">
+            <MudStack Spacing="3">
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">Save Changes</MudText></MudCardHeader>
+                    <MudCardContent>
+                        @if (_saved)
+                        {
+                            <MudAlert Severity="Severity.Success" Class="mb-3">Settings saved successfully.</MudAlert>
+                        }
+                        @if (_errors.Length > 0)
+                        {
+                            <MudAlert Severity="Severity.Error" Class="mb-3">@string.Join(", ", _errors)</MudAlert>
+                        }
+                        <MudStack Spacing="2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveAll" Disabled="_saving">
+                                @(_saving ? "Saving…" : "Save All Settings")
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" FullWidth="true" OnClick="ResetDefaults">
+                                Reset to Defaults
+                            </MudButton>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
 
-        </div>
-
-        <div class="am-form-aside">
-            <div class="am-card">
-                <div class="am-card-header"><h2 class="am-card-title">Save Changes</h2></div>
-                <div class="am-card-body am-actions-card">
-                    @if (_saved)
-                    {
-                        <div class="am-alert am-alert-success">Settings saved successfully.</div>
-                    }
-                    @if (_errors.Length > 0)
-                    {
-                        <div class="am-alert am-alert-error">@string.Join(", ", _errors)</div>
-                    }
-                    <button class="am-btn am-btn-primary am-btn-full" @onclick="SaveAll" disabled="@_saving">
-                        @if (_saving) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
-                        Save All Settings
-                    </button>
-                    <button class="am-btn am-btn-ghost am-btn-full" @onclick="ResetDefaults">
-                        Reset to Defaults
-                    </button>
-                </div>
-            </div>
-
-            <div class="am-card">
-                <div class="am-card-header"><h2 class="am-card-title">About</h2></div>
-                <div class="am-card-body">
-                    <p class="am-text-muted">
-                        Password policy changes take effect on the <strong>next password creation or reset</strong>.
-                        Existing passwords are not affected.
-                    </p>
-                    <p class="am-text-muted am-mt-2">
-                        Lockout settings are applied to <strong>ASP.NET Identity's LockoutOptions</strong>.
-                        Runtime changes are persisted to the internal database and apply immediately.
-                    </p>
-                    <p class="am-text-muted am-mt-2">
-                        Database provider changes require an <strong>application restart</strong> to take effect.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">About</MudText></MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Password policy changes take effect on the <strong>next password creation or reset</strong>.
+                            Existing passwords are not affected.
+                        </MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                            Lockout settings are applied to <strong>ASP.NET Identity's LockoutOptions</strong>.
+                            Runtime changes are persisted to the internal database and apply immediately.
+                        </MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                            Database provider changes require an <strong>application restart</strong> to take effect.
+                        </MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
 }
 
 @code {
@@ -460,7 +403,7 @@ else
                 Success = true
             });
 
-            ToastService.Instance.Success("Security settings saved. Restart the app to apply database changes.");
+            Snackbar.Add("Security settings saved. Restart the app to apply database changes.", Severity.Success);
             _saved = true;
         }
         catch (Exception ex)
@@ -481,6 +424,6 @@ else
         _dbConnectionString = "Data Source=authmanager.db";
         _saved = false;
         _errors = [];
-        ToastService.Instance.Info("Defaults loaded. Click Save to apply.");
+        Snackbar.Add("Defaults loaded. Click Save to apply.", Severity.Info);
     }
 }

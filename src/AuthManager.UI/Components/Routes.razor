@@ -9,11 +9,11 @@
     <NotFound>
         <PageTitle>Not Found</PageTitle>
         <LayoutView Layout="typeof(MainLayout)">
-            <div class="am-not-found">
-                <h1>404 — Page Not Found</h1>
-                <p>The page you requested does not exist.</p>
-                <a href="/authmanager" class="am-btn am-btn-primary">Back to Dashboard</a>
-            </div>
+            <MudStack AlignItems="AlignItems.Center" Class="pa-8" Spacing="3">
+                <MudText Typo="Typo.h4">404 — Page Not Found</MudText>
+                <MudText Typo="Typo.body1" Color="Color.Secondary">The page you requested does not exist.</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/authmanager">Back to Dashboard</MudButton>
+            </MudStack>
         </LayoutView>
     </NotFound>
 </Router>

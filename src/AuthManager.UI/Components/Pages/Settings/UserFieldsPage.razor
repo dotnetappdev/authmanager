@@ -140,112 +140,87 @@
 </MudCard>
 
 <!-- Add / Edit Dialog -->
-@if (_dialogOpen)
-{
-    <div class="am-modal-backdrop" @onclick="CloseDialog">
-        <div class="am-modal" @onclick:stopPropagation="true">
-            <div class="am-modal-header">
-                <h2 class="am-modal-title">@(_isEditing ? "Edit Field" : "New Custom Field")</h2>
-                <button class="am-modal-close" @onclick="CloseDialog">×</button>
-            </div>
-            <div class="am-modal-body">
-                <div class="am-form-grid">
-                    <div class="am-form-group">
-                        <label class="am-label">Display Name <span class="am-required">*</span></label>
-                        <input class="am-input" type="text" @bind="_editField.DisplayName"
-                               placeholder="e.g. Department" @oninput="AutoSlug" />
-                        <span class="am-input-hint">Label shown in the user edit form</span>
-                    </div>
-                    <div class="am-form-group">
-                        <label class="am-label">Field ID <span class="am-required">*</span></label>
-                        <input class="am-input" type="text" @bind="_editField.FieldId"
-                               placeholder="e.g. department"
-                               disabled="@_isEditing" />
-                        <span class="am-input-hint">
-                            Claim stored as <code>custom:@(_editField.FieldId ?? "…")</code>.
-                            @if (_isEditing) { <text>Cannot be changed after creation.</text> }
-                        </span>
-                    </div>
-                </div>
+<MudDialog @bind-IsVisible="_dialogOpen" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_isEditing ? "Edit Field" : "New Custom Field")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editField.DisplayName" @bind-Value:after="@(() => AutoSlug(_editField.DisplayName))"
+                                  Label="Display Name" Required="true" Immediate="true"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="e.g. Department"
+                                  HelperText="Label shown in the user edit form" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editField.FieldId" Label="Field ID" Required="true"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="e.g. department"
+                                  Disabled="_isEditing"
+                                  HelperText="@($"Claim stored as custom:{_editField.FieldId ?? "…"}.{(_isEditing ? " Cannot be changed after creation." : "")}")" />
+                </MudItem>
+            </MudGrid>
 
-                <div class="am-form-group">
-                    <label class="am-label">Field Type <span class="am-required">*</span></label>
-                    <select class="am-input" @bind="_editFieldTypeStr">
-                        @foreach (var t in Enum.GetValues<UserFieldType>())
-                        {
-                            <option value="@t">@GetTypeIcon(t) @t — @GetTypeDescription(t)</option>
-                        }
-                    </select>
-                </div>
-
-                @if (_editField.FieldType == UserFieldType.Select)
+            <MudSelect T="UserFieldType" @bind-Value="_editField.FieldType" Label="Field Type" Required="true"
+                       Variant="Variant.Outlined" Margin="Margin.Dense">
+                @foreach (var t in Enum.GetValues<UserFieldType>())
                 {
-                    <div class="am-form-group">
-                        <label class="am-label">Options <span class="am-required">*</span></label>
-                        <textarea class="am-input" rows="3"
-                                  @bind="_editField.SelectOptions"
-                                  placeholder="Engineering|Marketing|Sales|HR"></textarea>
-                        <span class="am-input-hint">Separate options with a pipe character <code>|</code></span>
-                    </div>
+                    <MudSelectItem T="UserFieldType" Value="@t">@GetTypeIcon(t) @t — @GetTypeDescription(t)</MudSelectItem>
                 }
+            </MudSelect>
 
-                <div class="am-form-grid">
-                    <div class="am-form-group">
-                        <label class="am-label">Placeholder</label>
-                        <input class="am-input" type="text" @bind="_editField.Placeholder"
-                               placeholder="e.g. Enter department name" />
-                    </div>
-                    <div class="am-form-group">
-                        <label class="am-label">Default Value</label>
-                        <input class="am-input" type="text" @bind="_editField.DefaultValue"
-                               placeholder="e.g. Engineering" />
-                    </div>
-                </div>
+            @if (_editField.FieldType == UserFieldType.Select)
+            {
+                <MudTextField @bind-Value="_editField.SelectOptions" Label="Options" Required="true" Lines="3"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Engineering|Marketing|Sales|HR"
+                              HelperText="Separate options with a pipe character |" />
+            }
 
-                <div class="am-form-group">
-                    <label class="am-label">Help Text</label>
-                    <input class="am-input" type="text" @bind="_editField.HelpText"
-                           placeholder="Short description shown below the input" />
-                </div>
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editField.Placeholder" Label="Placeholder" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" Placeholder="e.g. Enter department name" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editField.DefaultValue" Label="Default Value" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" Placeholder="e.g. Engineering" />
+                </MudItem>
+            </MudGrid>
 
-                <div class="am-toggle-list am-mt-3">
-                    <div class="am-toggle-item">
-                        <div class="am-toggle-info">
-                            <div class="am-toggle-label">Required</div>
-                            <div class="am-toggle-desc">Validation error if left empty when saving the user</div>
-                        </div>
-                        <label class="am-switch">
-                            <input type="checkbox" @bind="_editField.IsRequired" />
-                            <span class="am-switch-slider"></span>
-                        </label>
-                    </div>
-                    <div class="am-toggle-item">
-                        <div class="am-toggle-info">
-                            <div class="am-toggle-label">Visible</div>
-                            <div class="am-toggle-desc">Show this field in the user edit form</div>
-                        </div>
-                        <label class="am-switch">
-                            <input type="checkbox" @bind="_editField.IsVisible" />
-                            <span class="am-switch-slider"></span>
-                        </label>
-                    </div>
-                </div>
+            <MudTextField @bind-Value="_editField.HelpText" Label="Help Text" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Placeholder="Short description shown below the input" />
 
-                @if (_dialogError is not null)
-                {
-                    <div class="am-alert am-alert-error am-mt-3">@_dialogError</div>
-                }
-            </div>
-            <div class="am-modal-footer">
-                <button class="am-btn am-btn-ghost" @onclick="CloseDialog">Cancel</button>
-                <button class="am-btn am-btn-primary" @onclick="SaveField" disabled="@_saving">
-                    @if (_saving) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
-                    @(_isEditing ? "Save Changes" : "Create Field")
-                </button>
-            </div>
-        </div>
-    </div>
-}
+            <MudStack Spacing="1">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <div>
+                        <MudText Typo="Typo.body1">Required</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Validation error if left empty when saving the user</MudText>
+                    </div>
+                    <MudSwitch T="bool" @bind-Value="_editField.IsRequired" Color="Color.Primary" />
+                </MudStack>
+                <MudDivider />
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <div>
+                        <MudText Typo="Typo.body1">Visible</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Show this field in the user edit form</MudText>
+                    </div>
+                    <MudSwitch T="bool" @bind-Value="_editField.IsVisible" Color="Color.Primary" />
+                </MudStack>
+            </MudStack>
+
+            @if (_dialogError is not null)
+            {
+                <MudAlert Severity="Severity.Error">@_dialogError</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveField" Disabled="_saving">
+            @(_saving ? "Saving…" : (_isEditing ? "Save Changes" : "Create Field"))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
     private MudDataGrid<UserFieldDefinition> _grid = default!;
@@ -260,11 +235,8 @@
     private string? _dialogError;
     private UserFieldDefinition _editField = new();
 
-    private string _editFieldTypeStr
-    {
-        get => _editField.FieldType.ToString();
-        set => _editField.FieldType = Enum.TryParse<UserFieldType>(value, out var t) ? t : UserFieldType.Text;
-    }
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -305,10 +277,10 @@
         _saving     = false;
     }
 
-    private void AutoSlug(ChangeEventArgs e)
+    private void AutoSlug(string? displayName)
     {
         if (_isEditing) return;
-        var raw = e.Value?.ToString() ?? string.Empty;
+        var raw = displayName ?? string.Empty;
         _editField.FieldId = System.Text.RegularExpressions.Regex.Replace(
             raw.ToLowerInvariant().Trim().Replace(' ', '_'), @"[^a-z0-9_]", string.Empty);
     }

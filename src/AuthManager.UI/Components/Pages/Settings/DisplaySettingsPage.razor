@@ -4,164 +4,150 @@
 @inject IRoleManagementService RoleService
 @inject IAuditService AuditService
 @inject IOptions<AuthManagerOptions> Options
+@inject ISnackbar Snackbar
 
 <PageTitle>Display Settings — Auth Manager</PageTitle>
 
-<div class="am-page-header">
-    <div>
-        <h1 class="am-page-title">Display Settings</h1>
-        <p class="am-page-subtitle">
-            Customise how entities are labelled throughout the admin UI.
-            Changes are persisted immediately and reflected on the next page load.
-        </p>
-    </div>
+<div class="mb-4">
+    <MudText Typo="Typo.h4">Display Settings</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        Customise how entities are labelled throughout the admin UI.
+        Changes are persisted immediately and reflected on the next page load.
+    </MudText>
 </div>
 
-<div class="am-form-layout">
-    <div class="am-form-main">
+<MudGrid Spacing="3">
+    <MudItem xs="12" md="8">
+        <MudStack Spacing="3">
 
-        <!-- Entity Names -->
-        <div class="am-card">
-            <div class="am-card-header">
-                <h2 class="am-card-title">User Entity Name</h2>
-                <span class="am-badge am-badge-info">Branding</span>
-            </div>
-            <div class="am-card-body">
-                <p class="am-text-muted am-mb-3">
-                    Rename the "User" concept to match your application domain —
-                    "Member", "Customer", "Employee", "Player", etc.
-                    The name is used in page titles, breadcrumbs, and button labels.
-                </p>
-                <div class="am-form-grid">
-                    <div class="am-form-group">
-                        <label class="am-label">Singular Name</label>
-                        <input class="am-input" type="text" @bind="_singular"
-                               placeholder="User" maxlength="32" />
-                        <span class="am-input-hint">E.g. "Member", "Customer", "Employee"</span>
-                    </div>
-                    <div class="am-form-group">
-                        <label class="am-label">Plural Name</label>
-                        <input class="am-input" type="text" @bind="_plural"
-                               placeholder="Users" maxlength="32" />
-                        <span class="am-input-hint">E.g. "Members", "Customers", "Employees"</span>
-                    </div>
-                </div>
+            <!-- Entity Names -->
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent><MudText Typo="Typo.h6">User Entity Name</MudText></CardHeaderContent>
+                    <CardHeaderActions><MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Branding</MudChip></CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                        Rename the "User" concept to match your application domain —
+                        "Member", "Customer", "Employee", "Player", etc.
+                        The name is used in page titles, breadcrumbs, and button labels.
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_singular" Label="Singular Name" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Placeholder="User" MaxLength="32"
+                                          HelperText="E.g. &quot;Member&quot;, &quot;Customer&quot;, &quot;Employee&quot;" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_plural" Label="Plural Name" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Placeholder="Users" MaxLength="32"
+                                          HelperText="E.g. &quot;Members&quot;, &quot;Customers&quot;, &quot;Employees&quot;" />
+                        </MudItem>
+                    </MudGrid>
 
-                <div class="am-alert am-mt-3" style="background:var(--am-surface-2);border:1px solid var(--am-border)">
-                    Preview: <strong>@(_plural ?? "Users")</strong> list · Edit <strong>@(_singular ?? "User")</strong> · New <strong>@(_singular ?? "User")</strong>
-                </div>
+                    <MudAlert Severity="Severity.Normal" Class="mt-3">
+                        Preview: <strong>@(_plural ?? "Users")</strong> list · Edit <strong>@(_singular ?? "User")</strong> · New <strong>@(_singular ?? "User")</strong>
+                    </MudAlert>
 
-                <button class="am-btn am-btn-primary am-mt-3" @onclick="SaveNaming" disabled="@_savingNaming">
-                    @if (_savingNaming) { <Spinner Size="Spinner.SpinnerSize.Small" /> }
-                    Save Names
-                </button>
-                @if (_namingSaved)
-                {
-                    <span class="am-text-success am-ml-2">✓ Saved — reload to see changes in the sidebar</span>
-                }
-            </div>
-        </div>
-
-        <!-- Admin UI Branding -->
-        <div class="am-card">
-            <div class="am-card-header">
-                <h2 class="am-card-title">Admin UI Title</h2>
-            </div>
-            <div class="am-card-body">
-                <p class="am-text-muted am-mb-3">
-                    The title shown in the sidebar header is set in <code>AddAuthManager()</code>
-                    via <code>options.Title</code>. Current value:
-                </p>
-                <div class="am-form-group">
-                    <label class="am-label">Current Title</label>
-                    <input class="am-input" type="text" value="@Options.Value.Title" disabled />
-                    <span class="am-input-hint">
-                        Change in <code>Program.cs</code>:
-                        <code>options.Title = "My App Admin";</code>
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Default Role Names -->
-        <div class="am-card">
-            <div class="am-card-header">
-                <h2 class="am-card-title">Existing Roles</h2>
-                <span class="am-badge">@_roles.Count total</span>
-            </div>
-            <div class="am-card-body">
-                <p class="am-text-muted am-mb-3">
-                    Roles are managed in the <a href="/authmanager/roles" class="am-link">Roles</a> section.
-                    To rename a role, edit it there. Below is a read-only overview.
-                </p>
-                @if (_roles.Count == 0)
-                {
-                    <p class="am-text-muted">No roles defined yet.</p>
-                }
-                else
-                {
-                    <div class="am-tag-list">
-                        @foreach (var role in _roles)
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveNaming" Disabled="_savingNaming">
+                            @(_savingNaming ? "Saving…" : "Save Names")
+                        </MudButton>
+                        @if (_namingSaved)
                         {
-                            <a href="/authmanager/roles/@role.Id" class="am-tag am-tag-primary">
-                                @role.Name
-                            </a>
+                            <MudText Typo="Typo.body2" Color="Color.Success">✓ Saved — reload to see changes in the sidebar</MudText>
                         }
-                    </div>
-                }
-            </div>
-        </div>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
 
-        <!-- SuperAdmin Role Config -->
-        <div class="am-card">
-            <div class="am-card-header">
-                <h2 class="am-card-title">Admin UI Access Role</h2>
-            </div>
-            <div class="am-card-body">
-                <p class="am-text-muted am-mb-2">
-                    Only users in this role can access the Auth Manager admin UI.
-                    Change in <code>Program.cs</code>:
-                </p>
-                <div class="am-form-group">
-                    <label class="am-label">Current SuperAdmin Role</label>
-                    <input class="am-input" type="text" value="@Options.Value.SuperAdminRole" disabled />
-                    <span class="am-input-hint">
-                        <code>options.SuperAdminRole = "@Options.Value.SuperAdminRole";</code>
-                    </span>
-                </div>
-            </div>
-        </div>
+            <!-- Admin UI Branding -->
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader><MudText Typo="Typo.h6">Admin UI Title</MudText></MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                        The title shown in the sidebar header is set in <code>AddAuthManager()</code>
+                        via <code>options.Title</code>. Current value:
+                    </MudText>
+                    <MudTextField Value="@Options.Value.Title" Label="Current Title" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" ReadOnly="true"
+                                  HelperText="@("Change in Program.cs: options.Title = \"My App Admin\";")" />
+                </MudCardContent>
+            </MudCard>
 
-    </div>
+            <!-- Default Role Names -->
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent><MudText Typo="Typo.h6">Existing Roles</MudText></CardHeaderContent>
+                    <CardHeaderActions><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@_roles.Count total</MudChip></CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                        Roles are managed in the <MudLink Href="/authmanager/roles">Roles</MudLink> section.
+                        To rename a role, edit it there. Below is a read-only overview.
+                    </MudText>
+                    @if (_roles.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No roles defined yet.</MudText>
+                    }
+                    else
+                    {
+                        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                            @foreach (var role in _roles)
+                            {
+                                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined"
+                                         Href="@($"/authmanager/roles/{role.Id}")">@role.Name</MudChip>
+                            }
+                        </MudStack>
+                    }
+                </MudCardContent>
+            </MudCard>
 
-    <div class="am-form-aside">
-        <div class="am-card">
-            <div class="am-card-header"><h2 class="am-card-title">Quick Links</h2></div>
-            <div class="am-card-body am-actions-card">
-                <a href="/authmanager/userfields" class="am-btn am-btn-ghost am-btn-full">
-                    🏷️ Custom Field Definitions
-                </a>
-                <a href="/authmanager/roles" class="am-btn am-btn-ghost am-btn-full">
-                    ⭐ Manage Roles
-                </a>
-                <a href="/authmanager/security" class="am-btn am-btn-ghost am-btn-full">
-                    🔒 Security Settings
-                </a>
-            </div>
-        </div>
+            <!-- SuperAdmin Role Config -->
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader><MudText Typo="Typo.h6">Admin UI Access Role</MudText></MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                        Only users in this role can access the Auth Manager admin UI.
+                        Change in <code>Program.cs</code>:
+                    </MudText>
+                    <MudTextField Value="@Options.Value.SuperAdminRole" Label="Current SuperAdmin Role" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" ReadOnly="true"
+                                  HelperText="@($"options.SuperAdminRole = \"{Options.Value.SuperAdminRole}\";")" />
+                </MudCardContent>
+            </MudCard>
+        </MudStack>
+    </MudItem>
 
-        <div class="am-card">
-            <div class="am-card-header"><h2 class="am-card-title">Startup Config</h2></div>
-            <div class="am-card-body">
-                <p class="am-text-muted" style="font-size:0.8rem">
-                    Some settings (title, SuperAdmin role) can only be changed in
-                    <code>Program.cs</code> via <code>AddAuthManager(options =&gt; …)</code>
-                    because they affect authentication at startup.
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
+    <MudItem xs="12" md="4">
+        <MudStack Spacing="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader><MudText Typo="Typo.h6">Quick Links</MudText></MudCardHeader>
+                <MudCardContent>
+                    <MudStack Spacing="2">
+                        <MudButton Variant="Variant.Text" FullWidth="true" Href="/authmanager/userfields"
+                                   StartIcon="@Icons.Material.Filled.Label">Custom Field Definitions</MudButton>
+                        <MudButton Variant="Variant.Text" FullWidth="true" Href="/authmanager/roles"
+                                   StartIcon="@Icons.Material.Filled.Stars">Manage Roles</MudButton>
+                        <MudButton Variant="Variant.Text" FullWidth="true" Href="/authmanager/security"
+                                   StartIcon="@Icons.Material.Filled.Lock">Security Settings</MudButton>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader><MudText Typo="Typo.h6">Startup Config</MudText></MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Some settings (title, SuperAdmin role) can only be changed in
+                        <code>Program.cs</code> via <code>AddAuthManager(options =&gt; …)</code>
+                        because they affect authentication at startup.
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudStack>
+    </MudItem>
+</MudGrid>
 
 @code {
     private string _singular = "User";
@@ -199,7 +185,7 @@
             Success = true
         });
 
-        ToastService.Instance.Success("Display names saved.");
+        Snackbar.Add("Display names saved.", Severity.Success);
         _namingSaved  = true;
         _savingNaming = false;
     }

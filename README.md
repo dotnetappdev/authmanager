@@ -37,7 +37,7 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 | **Licensing** | Generate CD-key style product license keys · Per-license activation caps enforced per machine · Anonymous validate/activate/deactivate API for your desktop app or installer |
 | **Customer API Keys** | Issue bearer keys to your own customers (Stripe/SendGrid-style) · Scoped, optionally rate-limited, revocable, regenerable |
 | **Subscriptions** | Define billing plans (price, interval, trial, feature list) · Subscribe customers, change plans, cancel/reactivate |
-| **SSO** | Microsoft Entra ID (OIDC/SAML), generic OIDC providers (Okta, Auth0, Keycloak…), and SAML 2.0 |
+| **SSO** | Microsoft Entra ID, generic OIDC providers (Okta, Auth0, Keycloak…, add/remove at runtime, no restart), and SAML 2.0 with X.509 certificate upload · settings persist to the internal DB · group-to-role sync for Entra ID |
 | **One-Time Passwords** | Email/SMS OTP codes for passwordless login and step-up MFA verification |
 | **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
 | **Recovery Codes** | Generate 2FA backup codes (GitHub-style) · Shown once, stored hashed · View remaining count, regenerate on demand |
@@ -511,6 +511,55 @@ builder.Services
 ```
 
 That's it — `AddAuthManager<TUser>()` maps everything else: `GET /authmanager/api/passkeys/creation-options` and `POST .../register` for enrolling a new passkey (both require a signed-in user), and the anonymous `GET /authmanager/api/passkeys/login/options` + `POST /authmanager/api/passkeys/login` for signing in with one. The Passkeys page drives the browser's WebAuthn ceremony (`navigator.credentials.create()`/`.get()`) via `window.authManager.registerPasskey()`/`.loginWithPasskey()` in `authmanager.js`, using the newer WebAuthn JSON serialization the server already speaks — no manual base64url conversion needed. Works in headless "Web API mode" too (`MapAuthManagerApi()` alone), not just the self-contained UI.
+
+---
+
+## Single Sign-On (SSO)
+
+Manage enterprise identity providers — **Microsoft Entra ID**, any standards-compliant **generic OIDC** provider (Okta, Auth0, Keycloak, PingFederate…), and **SAML 2.0** — at **SSO** (`/authmanager/sso`). Same philosophy as JWT/OAuth2: AuthManager manages the *settings* (client IDs, secrets, certificates, group-to-role mappings) and persists them to its internal database so they survive restarts and don't need a redeploy to change; wiring the actual authentication middleware in `Program.cs` is up to you, the same way you'd wire it without AuthManager.
+
+### Entra ID (Azure AD)
+
+Register an app at [entra.microsoft.com](https://entra.microsoft.com), then configure it on the SSO page (tenant ID, client ID/secret, callback path, scopes) or via `appsettings.json`/`options.Sso.EntraId` as defaults. Wire the actual sign-in flow with the standard OIDC handler:
+
+```csharp
+var entra = authManagerOptions.Sso.EntraId; // read however you configured it
+builder.Services.AddAuthentication()
+    .AddOpenIdConnect("EntraId", o =>
+    {
+        o.Authority     = entra.Authority.Replace("{tenantId}", entra.TenantId);
+        o.ClientId      = entra.ClientId;
+        o.ClientSecret  = entra.ClientSecret;
+        o.CallbackPath  = entra.CallbackPath;
+        o.ResponseType  = "code";
+        foreach (var scope in entra.AdditionalScopes.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            o.Scope.Add(scope);
+    });
+```
+
+Turn on **group-to-role sync** on the SSO page to map Entra security group object IDs to local role names (requires the `GroupMember.Read.All` scope and the `groups` claim enabled in the app manifest) — apply the mapping in your OIDC handler's `OnTokenValidated` event using `IUserManagementService`/`IRoleManagementService`.
+
+### Generic OIDC (Okta, Auth0, Keycloak, …)
+
+Click **Add OIDC Provider** on the SSO page — no code change or restart needed to register a new one. Each provider gets its own callback path, so you can wire multiple with the same pattern:
+
+```csharp
+foreach (var oidc in await ssoService.GetProvidersAsync())
+{
+    if (oidc.Type != SsoProviderType.Oidc || !oidc.IsEnabled) continue;
+    builder.Services.AddAuthentication().AddOpenIdConnect(oidc.Key, o =>
+    {
+        o.Authority    = oidc.Settings["Authority"];
+        o.CallbackPath = oidc.Settings["CallbackPath"];
+        // ClientId/ClientSecret are masked in Settings for display — read the real
+        // values from your own config/secret store, or extend ISsoService for your host.
+    });
+}
+```
+
+### SAML 2.0
+
+Configure the service provider entity ID, the IdP's SSO URL, and the ACS path on the SSO page, then click **Upload IdP Certificate** to supply the IdP's X.509 signing certificate (`.cer`/`.crt`/`.pem`/`.der`) — it's stored Base64-encoded and used to validate assertion signatures. ASP.NET Core has no built-in SAML service-provider support, so pair this with a SAML SP library such as [ITfoxtec.Identity.Saml2](https://github.com/ITfoxtec/ITfoxtec.Identity.Saml2) or [Sustainsys.Saml2](https://github.com/Sustainsys/Saml2), reading `options.Sso.Saml` (or `ISsoService.GetProviderAsync("saml")`) for the entity ID, SSO URL, ACS path, and certificate.
 
 ---
 

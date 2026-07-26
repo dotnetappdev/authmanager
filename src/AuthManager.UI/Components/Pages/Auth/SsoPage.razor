@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject ISsoService SsoService
 @inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Components.Forms
 
 <PageTitle>SSO Providers — Auth Manager</PageTitle>
 
@@ -9,9 +10,15 @@
     <div>
         <MudText Typo="Typo.h4">Single Sign-On (SSO)</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">
-            Configure Entra ID (Azure AD), OIDC, and SAML 2.0 enterprise identity providers
+            Configure Entra ID (Azure AD), generic OIDC, and SAML 2.0 enterprise identity providers.
+            AuthManager manages these settings — wiring the actual authentication middleware in
+            <code>Program.cs</code> is up to you; see the README's SSO section for an example.
         </MudText>
     </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateOidc">
+        Add OIDC Provider
+    </MudButton>
 </MudStack>
 
 @if (_loading)
@@ -49,6 +56,11 @@ else
                             </div>
                             <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Settings"
                                        OnClick="@(() => OpenEdit(provider))">Configure</MudButton>
+                            @if (provider.Type == SsoProviderType.Oidc)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                               OnClick="@(() => DeleteOidc(provider))" />
+                            }
                         </MudStack>
 
                         @if (provider.Settings.Count > 0)
@@ -88,7 +100,7 @@ else
                         <MudCardActions>
                             <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">
                                 <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
-                                Download your SP metadata to upload to your IdP
+                                Upload the IdP's X.509 certificate under Configure
                             </MudText>
                         </MudCardActions>
                     }
@@ -104,11 +116,30 @@ else
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@(_editProvider is null ? Icons.Material.Filled.Settings : GetIcon(_editProvider.Type))"
                      Color="Color.Primary" />
-            <MudText Typo="Typo.h6">Configure @_editProvider?.DisplayName</MudText>
+            <MudText Typo="Typo.h6">@(_isNewOidc ? "Add OIDC Provider" : $"Configure {_editProvider?.DisplayName}")</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        @if (_editProvider is not null)
+        @if (_isNewOidc)
+        {
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_newOidcName" Label="Name" Variant="Variant.Outlined"
+                              HelperText="Unique internal key used in routes/logs, e.g. &quot;okta&quot;, &quot;auth0&quot;" />
+                <MudTextField @bind-Value="_newOidcDisplayName" Label="Display Name" Variant="Variant.Outlined"
+                              HelperText="Shown in the admin UI and any login picker, e.g. &quot;Okta&quot;" />
+                <MudTextField @bind-Value="_authority" Label="Authority / Issuer URL" Variant="Variant.Outlined"
+                              HelperText="OIDC discovery document root (without /.well-known/...)" />
+                <MudTextField @bind-Value="_clientId" Label="Client ID" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_clientSecret" Label="Client Secret" Variant="Variant.Outlined" InputType="InputType.Password" />
+                <MudTextField @bind-Value="_callbackPath" Label="Callback Path" Variant="Variant.Outlined"
+                              HelperText="e.g. /signin-oidc-okta — must match the redirect URI registered with the provider" />
+                <MudTextField @bind-Value="_additionalScopes" Label="Additional Scopes" Variant="Variant.Outlined"
+                              HelperText="Space-separated scopes beyond openid profile email" />
+                <MudTextField @bind-Value="_userIdClaim" Label="User ID Claim" Variant="Variant.Outlined"
+                              HelperText="Claim type used as the unique user identifier (default: sub)" />
+            </MudStack>
+        }
+        else if (_editProvider is not null)
         {
             <MudStack Spacing="3">
                 <MudSwitch @bind-Value="_editEnabled" Color="Color.Primary"
@@ -125,7 +156,7 @@ else
                     <MudTextField @bind-Value="_clientSecret"
                                   Label="Client Secret" Variant="Variant.Outlined"
                                   InputType="InputType.Password"
-                                  HelperText="Client secret value from the Credentials tab" />
+                                  HelperText="Client secret value from the Credentials tab. Leave blank to keep the current one." />
                     <MudTextField @bind-Value="_authority"
                                   Label="Authority URL" Variant="Variant.Outlined"
                                   HelperText="Leave default unless using a national cloud" />
@@ -135,10 +166,32 @@ else
                     <MudTextField @bind-Value="_additionalScopes"
                                   Label="Additional Scopes" Variant="Variant.Outlined"
                                   HelperText="Space-separated, e.g. User.Read GroupMember.Read.All" />
-                    <MudAlert Severity="Severity.Info" Dense="true">
-                        To enable group-to-role sync, add <strong>GroupMember.Read.All</strong> scope and
-                        enable the <strong>groups</strong> claim in the app manifest token configuration.
-                    </MudAlert>
+
+                    <MudDivider Class="my-2" />
+                    <MudSwitch @bind-Value="_enableGroupToRoleSync" Color="Color.Primary"
+                               Label="Sync Entra ID security groups to local roles" />
+                    @if (_enableGroupToRoleSync)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Map Entra group object IDs to local role names — a user in the group is granted the role on sign-in.
+                        </MudText>
+                        @foreach (var (mapping, index) in _groupMappings.Select((m, i) => (m, i)))
+                        {
+                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                <MudTextField T="string" @bind-Value="mapping.GroupId" Label="Entra Group ID" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                <MudTextField T="string" @bind-Value="mapping.RoleName" Label="Local Role" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                               OnClick="@(() => _groupMappings.RemoveAt(index))" />
+                            </MudStack>
+                        }
+                        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => _groupMappings.Add(new()))">
+                            Add Mapping
+                        </MudButton>
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            Requires the <strong>GroupMember.Read.All</strong> scope (added automatically above) and the
+                            <strong>groups</strong> claim enabled in the app manifest token configuration.
+                        </MudAlert>
+                    }
                 }
                 else if (_editProvider.Type == SsoProviderType.Oidc)
                 {
@@ -149,12 +202,16 @@ else
                                   Label="Client ID" Variant="Variant.Outlined" />
                     <MudTextField @bind-Value="_clientSecret"
                                   Label="Client Secret" Variant="Variant.Outlined"
-                                  InputType="InputType.Password" />
+                                  InputType="InputType.Password"
+                                  HelperText="Leave blank to keep the current one." />
                     <MudTextField @bind-Value="_callbackPath"
                                   Label="Callback Path" Variant="Variant.Outlined" />
                     <MudTextField @bind-Value="_additionalScopes"
                                   Label="Additional Scopes" Variant="Variant.Outlined"
                                   HelperText="Space-separated scopes beyond openid profile email" />
+                    <MudTextField @bind-Value="_userIdClaim"
+                                  Label="User ID Claim" Variant="Variant.Outlined"
+                                  HelperText="Claim type used as the unique user identifier (default: sub)" />
                 }
                 else if (_editProvider.Type == SsoProviderType.Saml)
                 {
@@ -170,18 +227,33 @@ else
                     <MudTextField @bind-Value="_emailAttribute"
                                   Label="Email Attribute Name" Variant="Variant.Outlined"
                                   HelperText="Attribute name in SAML assertion carrying user email" />
-                    <MudAlert Severity="Severity.Warning" Dense="true">
-                        Upload your IdP X.509 certificate via <strong>appsettings.json</strong>
-                        (AuthManager:Sso:Saml:IdentityProviderCertificate) — it is too large
-                        to store securely through the UI.
-                    </MudAlert>
+                    <MudTextField @bind-Value="_nameIdAttribute"
+                                  Label="NameID Attribute Override" Variant="Variant.Outlined"
+                                  HelperText="Leave blank to use the assertion's NameID as the unique identifier" />
+
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <MudFileUpload T="IBrowserFile" FilesChanged="OnCertificateUploaded" Accept=".cer,.crt,.pem,.der">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.UploadFile">
+                                    Upload IdP Certificate
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                        <MudText Typo="Typo.body2" Color="@(_certificateConfigured ? Color.Success : Color.Secondary)">
+                            @(_certificateConfigured ? "✓ Certificate configured" : "No certificate uploaded yet")
+                        </MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Upload the identity provider's X.509 signing certificate (.cer/.crt/.pem/.der) — used to
+                        validate the signature on incoming SAML assertions. Stored Base64-encoded.
+                    </MudText>
                 }
             </MudStack>
         }
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Text" OnClick="@(() => _dialogOpen = false)">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveProvider"
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(_isNewOidc ? SaveNewOidc : SaveProvider)"
                    Disabled="_saving">
             @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
             Save
@@ -195,6 +267,7 @@ else
 
     // Edit state
     private bool _dialogOpen;
+    private bool _isNewOidc;
     private SsoProviderInfo? _editProvider;
     private bool _editEnabled;
     private bool _saving;
@@ -210,6 +283,18 @@ else
     private string _idpSsoUrl       = "";
     private string _acsPath         = "";
     private string _emailAttribute  = "";
+    private string _nameIdAttribute = "";
+    private string _userIdClaim     = "sub";
+    private string? _newCertificateBase64;
+    private bool _certificateConfigured;
+
+    // Entra ID group-to-role sync
+    private bool _enableGroupToRoleSync;
+    private List<GroupMappingRow> _groupMappings = [];
+
+    // New OIDC provider fields
+    private string _newOidcName = "";
+    private string _newOidcDisplayName = "";
 
     private readonly DialogOptions _dialogOptions = new()
     {
@@ -224,10 +309,27 @@ else
         _loading = false;
     }
 
+    private void OpenCreateOidc()
+    {
+        _isNewOidc = true;
+        _editProvider = null;
+        _newOidcName = "";
+        _newOidcDisplayName = "";
+        _authority = "";
+        _clientId = "";
+        _clientSecret = "";
+        _callbackPath = "";
+        _additionalScopes = "";
+        _userIdClaim = "sub";
+        _dialogOpen = true;
+    }
+
     private void OpenEdit(SsoProviderInfo provider)
     {
+        _isNewOidc     = false;
         _editProvider  = provider;
         _editEnabled   = provider.IsEnabled;
+        _newCertificateBase64 = null;
 
         // Populate typed fields from the provider's Settings dictionary
         _tenantId         = provider.Settings.GetValueOrDefault("TenantId", "");
@@ -240,8 +342,27 @@ else
         _idpSsoUrl        = provider.Settings.GetValueOrDefault("IdentityProviderSsoUrl", "");
         _acsPath          = provider.Settings.GetValueOrDefault("AssertionConsumerServicePath", "");
         _emailAttribute   = provider.Settings.GetValueOrDefault("EmailAttributeName", "");
+        _userIdClaim      = provider.Settings.GetValueOrDefault("UserIdClaim", "sub");
+
+        var nameIdRaw = provider.Settings.GetValueOrDefault("NameIdAttributeName", "");
+        _nameIdAttribute = nameIdRaw.StartsWith("(default") ? "" : nameIdRaw;
+
+        _certificateConfigured = provider.Settings.GetValueOrDefault("IdP Certificate", "") == "✓ configured";
+
+        _enableGroupToRoleSync = provider.Settings.GetValueOrDefault("GroupToRoleSync", "") == "Enabled";
+        _groupMappings = []; // populated fresh each edit — mapping values aren't round-tripped through the masked Settings dict
 
         _dialogOpen = true;
+    }
+
+    private async Task OnCertificateUploaded(IBrowserFile file)
+    {
+        using var stream = file.OpenReadStream(maxAllowedSize: 512 * 1024); // 512 KB is generous for an X.509 cert
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _newCertificateBase64 = Convert.ToBase64String(ms.ToArray());
+        _certificateConfigured = true;
+        Snackbar.Add($"Certificate \"{file.Name}\" ready — click Save to apply.", Severity.Info);
     }
 
     private async Task SaveProvider()
@@ -262,7 +383,21 @@ else
             ["IdentityProviderSsoUrl"]       = _idpSsoUrl,
             ["AssertionConsumerServicePath"] = _acsPath,
             ["EmailAttributeName"]           = _emailAttribute,
+            ["NameIdAttributeName"]          = _nameIdAttribute,
+            ["UserIdClaim"]                  = _userIdClaim,
+            ["EnableGroupToRoleSync"]        = _enableGroupToRoleSync ? "true" : "false",
         };
+
+        if (_editProvider.Type == SsoProviderType.EntraId && _enableGroupToRoleSync)
+        {
+            var mapping = _groupMappings
+                .Where(m => !string.IsNullOrWhiteSpace(m.GroupId) && !string.IsNullOrWhiteSpace(m.RoleName))
+                .ToDictionary(m => m.GroupId, m => m.RoleName);
+            settings["GroupToRoleMappingJson"] = System.Text.Json.JsonSerializer.Serialize(mapping);
+        }
+
+        if (_newCertificateBase64 is not null)
+            settings["IdentityProviderCertificate"] = _newCertificateBase64;
 
         var (ok, errors) = await SsoService.UpdateProviderAsync(new UpdateSsoProviderDto
         {
@@ -286,6 +421,51 @@ else
         }
     }
 
+    private async Task SaveNewOidc()
+    {
+        _saving = true;
+        var (ok, errors) = await SsoService.CreateOidcProviderAsync(new CreateOidcProviderDto
+        {
+            Name             = _newOidcName,
+            DisplayName      = _newOidcDisplayName,
+            Authority        = _authority,
+            ClientId         = _clientId,
+            ClientSecret     = _clientSecret,
+            CallbackPath     = _callbackPath,
+            AdditionalScopes = _additionalScopes,
+            UserIdClaim      = _userIdClaim
+        });
+        _saving = false;
+
+        if (ok)
+        {
+            _dialogOpen = false;
+            Snackbar.Add($"OIDC provider \"{_newOidcDisplayName}\" added.", Severity.Success);
+            _providers = await SsoService.GetProvidersAsync();
+        }
+        else
+        {
+            foreach (var e in errors)
+                Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private async Task DeleteOidc(SsoProviderInfo provider)
+    {
+        var name = provider.Key["oidc:".Length..];
+        var (ok, errors) = await SsoService.DeleteOidcProviderAsync(name);
+        if (ok)
+        {
+            Snackbar.Add($"\"{provider.DisplayName}\" removed.", Severity.Success);
+            _providers = await SsoService.GetProvidersAsync();
+        }
+        else
+        {
+            foreach (var e in errors)
+                Snackbar.Add(e, Severity.Error);
+        }
+    }
+
     private static string GetIcon(SsoProviderType type) => type switch
     {
         SsoProviderType.EntraId => Icons.Material.Filled.Cloud,
@@ -293,4 +473,10 @@ else
         SsoProviderType.Saml    => Icons.Material.Filled.Security,
         _                       => Icons.Material.Filled.Share
     };
+
+    private sealed class GroupMappingRow
+    {
+        public string GroupId { get; set; } = "";
+        public string RoleName { get; set; } = "";
+    }
 }
