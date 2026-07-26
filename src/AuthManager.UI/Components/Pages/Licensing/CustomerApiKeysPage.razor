@@ -1,0 +1,266 @@
+@page "/authmanager/api-keys"
+@rendermode InteractiveServer
+@inject ICustomerApiKeyService KeyService
+@inject ICustomerService CustomerService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+
+<PageTitle>Customer API Keys — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Customer API Keys</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Bearer keys handed to customers so their own application can call your APIs —
+            scoped and optionally rate-limited, the way Stripe or SendGrid hand out keys.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreate" Disabled="!_customers.Any()">
+        New API Key
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_customers.Any())
+{
+    <MudAlert Severity="Severity.Info">Add a customer first — API keys are issued to a customer.</MudAlert>
+}
+else if (!_keys.Any())
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent>
+            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                <MudIcon Icon="@Icons.Material.Filled.VpnKey" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">No API keys issued yet</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreate" Class="mt-2">
+                    Issue your first key
+                </MudButton>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>
+}
+else
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent Class="pa-0">
+            <MudTable T="CustomerApiKeyDto" Items="_keys" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Customer</MudTh>
+                    <MudTh>Key</MudTh>
+                    <MudTh>Scopes</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Last Used</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Customer">@(context.CustomerName ?? "—")</MudTd>
+                    <MudTd DataLabel="Key">
+                        <MudText Typo="Typo.caption" Style="font-family:monospace">@context.Prefix…</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Scopes">
+                        @foreach (var s in context.Scopes)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Class="mr-1">@s</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        @if (context.Enabled)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Enabled</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">Disabled</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Last Used">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @(context.LastUsedAt.HasValue ? context.LastUsedAt.Value.ToString("MMM dd, yyyy HH:mm") : "Never")
+                        </MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                            <MudMenuItem OnClick="@(() => Regenerate(context))">
+                                <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Small" Class="mr-2" />Regenerate
+                            </MudMenuItem>
+                            @if (context.Enabled)
+                            {
+                                <MudMenuItem OnClick="@(() => Revoke(context))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Block" Size="Size.Small" Class="mr-2" />Revoke
+                                </MudMenuItem>
+                            }
+                            <MudDivider />
+                            <MudMenuItem OnClick="@(() => Delete(context))" Style="color:var(--mud-palette-error)">
+                                <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Class="mr-2" />Delete
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+}
+
+<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+    <TitleContent><MudText Typo="Typo.h6">New API Key</MudText></TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudSelect T="string" @bind-Value="_form.CustomerId" Label="Customer" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true">
+                @foreach (var c in _customers)
+                {
+                    <MudSelectItem T="string" Value="@c.Id">@c.Name (@c.Email)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField @bind-Value="_form.Name" Label="Name" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Required="true" Placeholder="e.g. Production key" />
+            <MudTextField @bind-Value="_form.Scopes" Label="Scopes (space-separated)" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Placeholder="e.g. read:orders write:orders" />
+            <MudNumericField @bind-Value="_form.RateLimitPerMinute" Label="Rate limit / minute (optional)"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showDialog = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
+            @(_saving ? "Creating…" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-IsVisible="_showReveal" Options="_revealOpts">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">Copy the API key now</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Warning" Class="mb-3">This key will <strong>never be shown again</strong>.</MudAlert>
+        <MudPaper Elevation="0" Class="am-card-border pa-3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudText Style="font-family:monospace;word-break:break-all;flex:1">@_rawKey</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="CopyKey" />
+            </MudStack>
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="@(() => { _showReveal = false; _rawKey = null; })">
+            I've saved it — close
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<CustomerApiKeyDto> _keys = [];
+    private List<CustomerDto> _customers = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showDialog;
+    private bool _showReveal;
+    private string? _rawKey;
+    private readonly KeyFormModel _form = new();
+
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+    private static readonly DialogOptions _revealOpts = new()
+        { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = false };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _customers = await CustomerService.GetCustomersAsync();
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload() => _keys = await KeyService.GetKeysAsync();
+
+    private void OpenCreate()
+    {
+        _form.CustomerId = _customers.FirstOrDefault()?.Id ?? "";
+        _form.Name = "";
+        _form.Scopes = "";
+        _form.RateLimitPerMinute = null;
+        _showDialog = true;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        var scopes = _form.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var (ok, errors, result) = await KeyService.CreateKeyAsync(new CreateCustomerApiKeyDto
+        {
+            CustomerId = _form.CustomerId,
+            Name = _form.Name,
+            Scopes = scopes,
+            RateLimitPerMinute = _form.RateLimitPerMinute
+        });
+        _saving = false;
+
+        if (ok && result is not null)
+        {
+            _showDialog = false;
+            _rawKey = result.ApiKey;
+            _showReveal = true;
+            await Reload();
+        }
+        else
+        {
+            foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private async Task CopyKey()
+    {
+        if (_rawKey is null) return;
+        await JS.InvokeVoidAsync("authManager.copyToClipboard", _rawKey);
+        Snackbar.Add("Key copied to clipboard.", Severity.Success);
+    }
+
+    private async Task Regenerate(CustomerApiKeyDto key)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Regenerate Key", $"This immediately invalidates the current key for '{key.Name}'.",
+            yesText: "Regenerate", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors, newKey) = await KeyService.RegenerateKeyAsync(key.Id);
+        if (ok) { _rawKey = newKey; _showReveal = true; await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task Revoke(CustomerApiKeyDto key)
+    {
+        var (ok, errors) = await KeyService.RevokeKeyAsync(key.Id);
+        if (ok) { Snackbar.Add("Key revoked.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task Delete(CustomerApiKeyDto key)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Key", $"Permanently delete '{key.Name}'?", yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors) = await KeyService.DeleteKeyAsync(key.Id);
+        if (ok) { Snackbar.Add("Key deleted.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private sealed class KeyFormModel
+    {
+        public string CustomerId { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Scopes { get; set; } = "";
+        public int? RateLimitPerMinute { get; set; }
+    }
+}

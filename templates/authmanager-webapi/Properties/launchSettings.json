@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "AuthManagerWebApi1": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "authmanager",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:5001;http://localhost:5000"
+    }
+  }
+}

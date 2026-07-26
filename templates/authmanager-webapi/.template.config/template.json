@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "DotNetAuthManager",
+  "classifications": ["Web", "WebAPI", "Identity", "Auth"],
+  "identity": "DotNetAuthManager.Templates.WebApi",
+  "name": "AuthManager Web API",
+  "description": "A standalone ASP.NET Core Web API with ASP.NET Identity and DotNetAuthManager (a Keycloak-style admin UI + REST API) pre-wired — JWT/cookie auth, Swagger, SQLite by default and SQL Server-ready.",
+  "shortName": "authmanager-webapi",
+  "sourceName": "AuthManagerWebApi1",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  }
+}

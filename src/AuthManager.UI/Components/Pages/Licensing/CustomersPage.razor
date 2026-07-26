@@ -1,0 +1,196 @@
+@page "/authmanager/customers"
+@rendermode InteractiveServer
+@inject ICustomerService CustomerService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Customers — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Customers</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Accounts that license keys, API keys, and subscriptions attach to.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreate">
+        New Customer
+    </MudButton>
+</MudStack>
+
+<MudTextField T="string" Value="_search" ValueChanged="OnSearch" Placeholder="Search customers…"
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+              Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Style="max-width: 360px" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_customers.Any())
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent>
+            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">No customers yet</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreate" Class="mt-2">
+                    Add your first customer
+                </MudButton>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>
+}
+else
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent Class="pa-0">
+            <MudTable T="CustomerDto" Items="_customers" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Email</MudTh>
+                    <MudTh>Company</MudTh>
+                    <MudTh>Since</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">
+                        <MudText Typo="Typo.body2" Class="font-weight-medium">@context.Name</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Email">@context.Email</MudTd>
+                    <MudTd DataLabel="Company">@(context.CompanyName ?? "—")</MudTd>
+                    <MudTd DataLabel="Since">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.CreatedAt.ToString("MMM dd, yyyy")</MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                            <MudMenuItem OnClick="@(() => OpenEdit(context))">
+                                <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-2" />Edit
+                            </MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem OnClick="@(() => Delete(context))" Style="color:var(--mud-palette-error)">
+                                <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Class="mr-2" />Delete
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+}
+
+<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_editing is null ? "New Customer" : $"Edit — {_editing.Name}")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_form.Name" Label="Name" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
+            <MudTextField @bind-Value="_form.Email" Label="Email" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
+            <MudTextField @bind-Value="_form.CompanyName" Label="Company" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MudTextField @bind-Value="_form.Notes" Label="Notes" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="3" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showDialog = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
+            @(_saving ? "Saving…" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<CustomerDto> _customers = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showDialog;
+    private string _search = "";
+    private CustomerDto? _editing;
+    private readonly CustomerFormModel _form = new();
+
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload() => _customers = await CustomerService.GetCustomersAsync(_search);
+
+    private async Task OnSearch(string value)
+    {
+        _search = value;
+        await Reload();
+    }
+
+    private void OpenCreate()
+    {
+        _editing = null;
+        _form.Name = "";
+        _form.Email = "";
+        _form.CompanyName = "";
+        _form.Notes = "";
+        _showDialog = true;
+    }
+
+    private void OpenEdit(CustomerDto customer)
+    {
+        _editing = customer;
+        _form.Name = customer.Name;
+        _form.Email = customer.Email;
+        _form.CompanyName = customer.CompanyName ?? "";
+        _form.Notes = customer.Notes ?? "";
+        _showDialog = true;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        if (_editing is null)
+        {
+            var (ok, errors, _) = await CustomerService.CreateCustomerAsync(new CreateCustomerDto
+            {
+                Name = _form.Name, Email = _form.Email,
+                CompanyName = _form.CompanyName, Notes = _form.Notes
+            });
+            _saving = false;
+            if (ok) { _showDialog = false; Snackbar.Add("Customer created.", Severity.Success); await Reload(); }
+            else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+        }
+        else
+        {
+            var (ok, errors) = await CustomerService.UpdateCustomerAsync(_editing.Id, new UpdateCustomerDto
+            {
+                Name = _form.Name, Email = _form.Email,
+                CompanyName = _form.CompanyName, Notes = _form.Notes
+            });
+            _saving = false;
+            if (ok) { _showDialog = false; Snackbar.Add("Customer updated.", Severity.Success); await Reload(); }
+            else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private async Task Delete(CustomerDto customer)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Customer", $"Delete '{customer.Name}'? This does not delete their licenses or API keys.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors) = await CustomerService.DeleteCustomerAsync(customer.Id);
+        if (ok) { Snackbar.Add("Customer deleted.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private sealed class CustomerFormModel
+    {
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string CompanyName { get; set; } = "";
+        public string Notes { get; set; } = "";
+    }
+}

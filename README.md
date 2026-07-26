@@ -33,6 +33,10 @@ A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET
 | **Multi-Tenancy** | Scope users to isolated tenants via a `tenant_id` claim · Create/edit/delete tenants, assign or remove members · Root tenant for unassigned users |
 | **API Tokens** | Long-lived personal access tokens (PATs), GitHub-style — SHA-256 hashed at rest, shown once on creation, revocable |
 | **Clients** | Register OAuth2 client applications (Keycloak-style) · Service-to-service auth via the client-credentials grant · Secret hashed at rest, regenerable |
+| **Passkeys** | WebAuthn/FIDO2 passkeys via ASP.NET Core Identity's native support — register a device (fingerprint, face, security key) and sign in without a password |
+| **Licensing** | Generate CD-key style product license keys · Per-license activation caps enforced per machine · Anonymous validate/activate/deactivate API for your desktop app or installer |
+| **Customer API Keys** | Issue bearer keys to your own customers (Stripe/SendGrid-style) · Scoped, optionally rate-limited, revocable, regenerable |
+| **Subscriptions** | Define billing plans (price, interval, trial, feature list) · Subscribe customers, change plans, cancel/reactivate |
 | **SSO** | Microsoft Entra ID (OIDC/SAML), generic OIDC providers (Okta, Auth0, Keycloak…), and SAML 2.0 |
 | **One-Time Passwords** | Email/SMS OTP codes for passwordless login and step-up MFA verification |
 | **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
@@ -491,6 +495,74 @@ The token carries `client_id`/`azp` and a `scope` claim per allowed scope — ch
 
 ---
 
+## Passkeys (WebAuthn)
+
+Users can register a device passkey — fingerprint, face, or a security key — and sign in without a password, using ASP.NET Core Identity's native passkey support (no third-party WebAuthn library). Manage your own passkeys at **Passkeys** (`/authmanager/passkeys`).
+
+One extra line is required in your own `AddIdentity()` call — the EF store only maps the passkey table when you opt into the newer schema:
+
+```csharp
+builder.Services
+    .AddIdentity<ApplicationUser, IdentityRole>(o =>
+    {
+        o.Stores.SchemaVersion = IdentitySchemaVersions.Version3; // ← adds passkey support to the EF store
+    })
+    .AddEntityFrameworkStores<AppDbContext>();
+```
+
+That's it — `AddAuthManager<TUser>()` maps everything else: `GET /authmanager/api/passkeys/creation-options` and `POST .../register` for enrolling a new passkey (both require a signed-in user), and the anonymous `GET /authmanager/api/passkeys/login/options` + `POST /authmanager/api/passkeys/login` for signing in with one. The Passkeys page drives the browser's WebAuthn ceremony (`navigator.credentials.create()`/`.get()`) via `window.authManager.registerPasskey()`/`.loginWithPasskey()` in `authmanager.js`, using the newer WebAuthn JSON serialization the server already speaks — no manual base64url conversion needed. Works in headless "Web API mode" too (`MapAuthManagerApi()` alone), not just the self-contained UI.
+
+---
+
+## Licensing & Product Keys
+
+Issue CD-key style license keys for a desktop app, installer, or plugin — each capped at a configurable number of concurrent machine activations. Manage licenses at **License Keys** (`/authmanager/licenses`), tied to a **Customer** (`/authmanager/customers`).
+
+```bash
+# Issue a license (admin-authenticated)
+curl -X POST https://api.example.com/authmanager/api/licenses \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"productName":"Acme Pro","maxActivations":3}'
+# → { "key": "AB3D-9FGH-2KLM-7PQR", ... }
+
+# Your app validates/activates a key — anonymous, called from the customer's machine
+curl -X POST https://api.example.com/authmanager/api/licenses/activate \
+  -d '{"key":"AB3D-9FGH-2KLM-7PQR","machineId":"<hardware fingerprint>"}'
+```
+
+Re-activating the same `machineId` is idempotent (doesn't consume another slot); activating a 4th machine on a 3-activation license fails with a clear error. `DELETE .../deactivate` frees a slot. Revoking a license (vs. deleting it) keeps the record for history but fails all future validation immediately.
+
+---
+
+## Customer API Keys
+
+Bearer keys handed to your customers so *their* application can call *your* APIs — the same shape as Stripe or SendGrid API keys, distinct from personal API Tokens (yours) and OAuth2 Clients (service-to-service JWTs). Manage them at **Customer API Keys** (`/authmanager/api-keys`).
+
+```bash
+curl -X POST https://api.example.com/authmanager/api/keys/validate \
+  -d '{"apiKey":"ck_live_..."}'
+# → { "valid": true, "key": { "customerId": "...", "scopes": ["read:orders"], ... } }
+```
+
+Each key is scoped (arbitrary string scopes, checked in your own authorization logic) and can carry an optional per-minute rate limit — enforce it however fits your API (a `Microsoft.AspNetCore.RateLimiting` policy keyed off the validated key works well). Keys are stored as SHA-256 hashes; the raw value is shown once, on creation or regeneration.
+
+---
+
+## Subscriptions & Billing Plans
+
+Define plans (price, billing interval, trial length, feature list) and subscribe customers to them — manage both at **Subscriptions** (`/authmanager/subscriptions`). This models subscription *state*, not payment processing — wire it to Stripe/Paddle/etc. webhooks in your own app if you need to charge cards; AuthManager tracks who's on what plan and whether they're trialing, active, canceled, or past due.
+
+```csharp
+// Look up what a customer is currently entitled to
+var subscription = await subscriptionService.GetActiveSubscriptionForCustomerAsync(customerId);
+if (subscription is { Status: SubscriptionStatus.Active or SubscriptionStatus.Trialing })
+{
+    // grant access per subscription.PlanName / plan.MaxApiKeys / plan.Features
+}
+```
+
+---
+
 ## Password History
 
 AuthManager enforces password history automatically when `PasswordPolicy.PasswordHistoryCount > 0`. Previous password hashes are stored as `password_history` claims and checked on every password reset:
@@ -661,6 +733,37 @@ dotnet run
 
 ---
 
+## Project Template (`dotnet new`)
+
+Scaffold a new, ready-to-run project the same way `.NET Aspire`'s `dotnet new aspire-starter`
+does — ASP.NET Identity and AuthManager (admin UI + REST API) pre-wired, SQLite by default and
+SQL Server-ready:
+
+```bash
+dotnet new install ./templates/authmanager-webapi   # or a published nupkg once packed
+dotnet new authmanager-webapi -n Contoso.Api
+cd Contoso.Api
+dotnet run
+```
+
+See `templates/authmanager-webapi/README.md` for what's generated.
+
+---
+
+## Database: SQLite or SQL Server
+
+Every sample's own Identity store, and AuthManager's internal store (audit log, sessions,
+tokens, licenses), default to SQLite — no install needed. Both switch to SQL Server with the
+same setting; see `samples/AuthManagerSample.AdminApi/README.md` for a worked example, or set
+directly in code:
+
+```csharp
+options.InternalDatabaseProvider = "SqlServer"; // or "SQLite" (default)
+options.InternalDatabaseConnectionString = "Server=.;Database=MyApp;Trusted_Connection=True;TrustServerCertificate=True";
+```
+
+---
+
 ## Testing
 
 `tests/AuthManager.Tests/` is an xUnit suite covering both the service layer and the
@@ -670,10 +773,11 @@ HTTP API surface:
   call a host app makes — backed by throwaway SQLite files, and exercise the services directly:
   tenants, user management, recovery codes, temporary role assignments (including the background
   `RoleExpirySweeperService`), groups, API tokens, OAuth2 clients, sign-in history, audit export,
-  and JWT config/signing.
+  JWT config/signing, customers, license keys (including activation caps), customer API keys,
+  subscriptions, and passkeys (everything short of the browser WebAuthn ceremony itself).
 - **API tests** (`ApiTests/`) spin up the `AuthManagerSample.AdminApi` sample in-memory via
   `WebApplicationFactory<Program>` and drive it over real HTTP — routing, model binding, JWT
-  bearer auth, and the full OAuth2 client-credentials flow end to end.
+  bearer auth, the full OAuth2 client-credentials flow, and the passkey endpoints, end to end.
 
 Each test gets its own isolated SQLite database file, created fresh and deleted on teardown, so
 tests never share state or depend on run order.

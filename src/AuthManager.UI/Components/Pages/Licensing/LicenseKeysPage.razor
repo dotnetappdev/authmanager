@@ -1,0 +1,226 @@
+@page "/authmanager/licenses"
+@rendermode InteractiveServer
+@inject ILicenseService LicenseService
+@inject ICustomerService CustomerService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+
+<PageTitle>License Keys — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">License Keys</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Product keys customers activate against your desktop app, installer, or plugin —
+            each with a cap on concurrent machine activations.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreate">
+        Issue License
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_licenses.Any())
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent>
+            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                <MudIcon Icon="@Icons.Material.Filled.VpnKey" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">No license keys issued yet</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreate" Class="mt-2">
+                    Issue your first license
+                </MudButton>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>
+}
+else
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent Class="pa-0">
+            <MudTable T="LicenseKeyDto" Items="_licenses" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Key</MudTh>
+                    <MudTh>Product</MudTh>
+                    <MudTh>Customer</MudTh>
+                    <MudTh>Activations</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Expires</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Key">
+                        <MudText Typo="Typo.caption" Style="font-family:monospace">@context.Key</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Product">@context.ProductName</MudTd>
+                    <MudTd DataLabel="Customer">@(context.CustomerName ?? "—")</MudTd>
+                    <MudTd DataLabel="Activations">@context.ActivationCount / @context.MaxActivations</MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Filled"
+                                 Color="@StatusColor(context.Status)">@context.Status</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Expires">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @(context.ExpiresAt.HasValue ? context.ExpiresAt.Value.ToString("MMM dd, yyyy") : "Never")
+                        </MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                            <MudMenuItem OnClick="@(() => CopyKey(context))">
+                                <MudIcon Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Class="mr-2" />Copy Key
+                            </MudMenuItem>
+                            @if (context.Status == LicenseStatus.Active)
+                            {
+                                <MudMenuItem OnClick="@(() => Revoke(context))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Block" Size="Size.Small" Class="mr-2" />Revoke
+                                </MudMenuItem>
+                            }
+                            <MudDivider />
+                            <MudMenuItem OnClick="@(() => Delete(context))" Style="color:var(--mud-palette-error)">
+                                <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Class="mr-2" />Delete
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+}
+
+<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+    <TitleContent><MudText Typo="Typo.h6">Issue License</MudText></TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_form.ProductName" Label="Product Name" Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Required="true" Placeholder="e.g. Acme Pro" />
+            <MudSelect T="string" @bind-Value="_form.CustomerId" Label="Customer (optional)"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                @foreach (var c in _customers)
+                {
+                    <MudSelectItem T="string" Value="@c.Id">@c.Name (@c.Email)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudNumericField @bind-Value="_form.MaxActivations" Label="Max Activations" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Min="1" />
+            <MudDatePicker @bind-Date="_form.ExpiresAt" Label="Expires (optional)" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+            <MudTextField @bind-Value="_form.Notes" Label="Notes" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showDialog = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
+            @(_saving ? "Issuing…" : "Issue")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<LicenseKeyDto> _licenses = [];
+    private List<CustomerDto> _customers = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showDialog;
+    private readonly LicenseFormModel _form = new();
+
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _customers = await CustomerService.GetCustomersAsync();
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload() => _licenses = await LicenseService.GetLicensesAsync();
+
+    private void OpenCreate()
+    {
+        _form.ProductName = "";
+        _form.CustomerId = null;
+        _form.MaxActivations = 1;
+        _form.ExpiresAt = null;
+        _form.Notes = "";
+        _showDialog = true;
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        var (ok, errors, license) = await LicenseService.CreateLicenseAsync(new CreateLicenseKeyDto
+        {
+            ProductName = _form.ProductName,
+            CustomerId = _form.CustomerId,
+            MaxActivations = _form.MaxActivations,
+            Notes = _form.Notes,
+            ExpiresAt = _form.ExpiresAt.HasValue ? new DateTimeOffset(_form.ExpiresAt.Value) : null
+        });
+        _saving = false;
+
+        if (ok && license is not null)
+        {
+            _showDialog = false;
+            Snackbar.Add($"License issued: {license.Key}", Severity.Success);
+            await Reload();
+        }
+        else
+        {
+            foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+        }
+    }
+
+    private async Task CopyKey(LicenseKeyDto license)
+    {
+        await JS.InvokeVoidAsync("authManager.copyToClipboard", license.Key);
+        Snackbar.Add("Key copied to clipboard.", Severity.Success);
+    }
+
+    private async Task Revoke(LicenseKeyDto license)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Revoke License", $"Revoke license '{license.Key}'? It will stop validating immediately.",
+            yesText: "Revoke", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors) = await LicenseService.RevokeLicenseAsync(license.Id);
+        if (ok) { Snackbar.Add("License revoked.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task Delete(LicenseKeyDto license)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete License", $"Permanently delete license '{license.Key}'?",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors) = await LicenseService.DeleteLicenseAsync(license.Id);
+        if (ok) { Snackbar.Add("License deleted.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private static Color StatusColor(LicenseStatus status) => status switch
+    {
+        LicenseStatus.Active  => Color.Success,
+        LicenseStatus.Revoked => Color.Error,
+        LicenseStatus.Expired => Color.Default,
+        _ => Color.Default
+    };
+
+    private sealed class LicenseFormModel
+    {
+        public string ProductName { get; set; } = "";
+        public string? CustomerId { get; set; }
+        public int MaxActivations { get; set; } = 1;
+        public DateTime? ExpiresAt { get; set; }
+        public string Notes { get; set; } = "";
+    }
+}

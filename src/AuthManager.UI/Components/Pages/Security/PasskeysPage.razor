@@ -1,0 +1,171 @@
+@page "/authmanager/passkeys"
+@rendermode InteractiveServer
+@inject IOptions<AuthManagerOptions> Options
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+@using AuthManager.Core.Options
+
+<PageTitle>Passkeys — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Passkeys</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Sign in with your device's fingerprint, face, or security key instead of a password.
+        </MudText>
+    </div>
+    @if (_supported)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Fingerprint"
+                   OnClick="Register" Disabled="_registering">
+            @(_registering ? "Waiting for device…" : "Add a Passkey")
+        </MudButton>
+    }
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_checkedSupport)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_supported)
+{
+    <MudAlert Severity="Severity.Warning">
+        This browser doesn't support passkeys (WebAuthn). Try a recent version of Chrome, Edge, Safari, or Firefox.
+    </MudAlert>
+}
+else if (!_passkeys.Any())
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent>
+            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">No passkeys registered yet</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Add one so you can sign in without typing your password.
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="Register" Class="mt-2">
+                    Add your first passkey
+                </MudButton>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>
+}
+else
+{
+    <MudCard Elevation="0" Class="am-card-border">
+        <MudCardContent Class="pa-0">
+            <MudTable T="PasskeyInfoDto" Items="_passkeys" Dense="true" Hover="true"
+                      Elevation="0" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Added</MudTh>
+                    <MudTh>Synced</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Small" Color="Color.Primary" />
+                            <MudText Typo="Typo.body2">@context.Name</MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Added">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.CreatedAt.ToString("MMM dd, yyyy")</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Synced">
+                        @if (context.IsBackedUp)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Synced</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Device-only</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       OnClick="@(() => Remove(context))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+}
+
+@code {
+    private List<PasskeyInfoDto> _passkeys = [];
+    private bool _loading = true;
+    private bool _checkedSupport;
+    private bool _supported;
+    private bool _registering;
+    private string _routePrefix = "authmanager";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _routePrefix = Options.Value.RoutePrefix.Trim('/');
+        await Reload();
+        _loading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _supported = await JS.InvokeAsync<bool>("authManager.supportsPasskeys");
+            _checkedSupport = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Reload()
+    {
+        try
+        {
+            _passkeys = await JS.InvokeAsync<List<PasskeyInfoDto>>("authManager.listPasskeys", _routePrefix);
+        }
+        catch
+        {
+            _passkeys = [];
+        }
+    }
+
+    private async Task Register()
+    {
+        _registering = true;
+        try
+        {
+            await JS.InvokeVoidAsync("authManager.registerPasskey", _routePrefix);
+            Snackbar.Add("Passkey added.", Severity.Success);
+            await Reload();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Couldn't add passkey: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _registering = false;
+        }
+    }
+
+    private async Task Remove(PasskeyInfoDto passkey)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Remove Passkey",
+            $"Remove '{passkey.Name}'? You'll need another sign-in method if this was your only one.",
+            yesText: "Remove", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var ok = await JS.InvokeAsync<bool>("authManager.removePasskey", _routePrefix, passkey.CredentialId);
+        if (ok) { Snackbar.Add("Passkey removed.", Severity.Success); await Reload(); }
+        else    Snackbar.Add("Couldn't remove passkey.", Severity.Error);
+    }
+}

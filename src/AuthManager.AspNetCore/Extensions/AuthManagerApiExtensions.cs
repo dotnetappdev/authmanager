@@ -55,6 +55,10 @@ public static class AuthManagerApiExtensions
         MapAuditEndpoints(api);
         MapTokenEndpoints(api);
         MapOAuthClientEndpoints(api);
+        MapCustomerEndpoints(api);
+        MapLicenseEndpoints(api);
+        MapCustomerApiKeyEndpoints(api);
+        MapSubscriptionEndpoints(api);
 
         // OAuth2 client-credentials token endpoint — must stay anonymous (this is how a
         // client obtains its *first* token; it authenticates via client_id/client_secret in
@@ -101,8 +105,49 @@ public static class AuthManagerApiExtensions
             .WithName("AuthManager.OAuth.Token")
             .WithTags("AuthManager");
 
+        // License validation/activation and customer API key validation are called by the
+        // *customer's* own application (a desktop app checking its license, a customer's
+        // backend validating a key it was issued) — never by an authenticated admin — so
+        // these stay anonymous too, same reasoning as the OAuth2 token endpoint above.
+        var licenseRoot = $"/{options.RoutePrefix.Trim('/')}/api/licenses";
+
+        app.MapPost($"{licenseRoot}/validate", async (LicenseValidateRequest req, ILicenseService svc)
+                => Results.Ok(await svc.ValidateLicenseAsync(req.Key)))
+            .AllowAnonymous().WithName("AuthManager.Licenses.Validate").WithTags("AuthManager");
+
+        app.MapPost($"{licenseRoot}/activate", async (LicenseActivateRequest req, HttpContext ctx, ILicenseService svc) =>
+            {
+                var ip = ctx.Connection.RemoteIpAddress?.ToString();
+                var (ok, errors, result) = await svc.ActivateLicenseAsync(req.Key, req.MachineId, ip);
+                return ok ? Results.Ok(result) : Results.BadRequest(new { errors, result });
+            })
+            .AllowAnonymous().WithName("AuthManager.Licenses.Activate").WithTags("AuthManager");
+
+        app.MapPost($"{licenseRoot}/deactivate", async (LicenseActivateRequest req, ILicenseService svc)
+                => (await svc.DeactivateLicenseAsync(req.Key, req.MachineId)).ToResult())
+            .AllowAnonymous().WithName("AuthManager.Licenses.Deactivate").WithTags("AuthManager");
+
+        app.MapPost($"/{options.RoutePrefix.Trim('/')}/api/keys/validate", async (ApiKeyValidateRequest req, ICustomerApiKeyService svc) =>
+            {
+                var key = await svc.ValidateKeyAsync(req.ApiKey);
+                return key is null
+                    ? Results.Json(new { valid = false }, statusCode: StatusCodes.Status401Unauthorized)
+                    : Results.Ok(new { valid = true, key });
+            })
+            .AllowAnonymous().WithName("AuthManager.CustomerKeys.Validate").WithTags("AuthManager");
+
+        // Passkeys — registration/list/remove require a signed-in user (self-service, no
+        // SuperAdmin role needed); the login ceremony is anonymous by nature. Mapped here
+        // (not inside the SuperAdmin-gated `api` group above) so headless "Web API mode" apps
+        // that only call MapAuthManagerApi() — never MapAuthManager() — still get passkey support.
+        MapPasskeyEndpoints(app, options.RoutePrefix.Trim('/'));
+
         return app;
     }
+
+    private sealed record LicenseValidateRequest(string Key);
+    private sealed record LicenseActivateRequest(string Key, string MachineId);
+    private sealed record ApiKeyValidateRequest(string ApiKey);
 
     private static IResult ToResult(this (bool Success, string[] Errors) r)
         => r.Success ? Results.NoContent() : Results.BadRequest(new { errors = r.Errors });
@@ -460,4 +505,212 @@ public static class AuthManagerApiExtensions
             return ok ? Results.Ok(new { clientSecret = secret }) : Results.BadRequest(new { errors });
         }).WithName("AuthManager.Clients.RegenerateSecret");
     }
+
+    // ── Customers ────────────────────────────────────────────────────────────
+
+    private static void MapCustomerEndpoints(RouteGroupBuilder api)
+    {
+        var customers = api.MapGroup("/customers");
+
+        customers.MapGet("", async (string? search, ICustomerService svc)
+            => Results.Ok(await svc.GetCustomersAsync(search))).WithName("AuthManager.Customers.List");
+
+        customers.MapGet("{id}", async (string id, ICustomerService svc)
+            => await svc.GetCustomerAsync(id) is { } c ? Results.Ok(c) : Results.NotFound())
+            .WithName("AuthManager.Customers.Get");
+
+        customers.MapPost("", async (CreateCustomerDto dto, ICustomerService svc) =>
+        {
+            var (ok, errors, customer) = await svc.CreateCustomerAsync(dto);
+            return ok ? Results.Created($"customers/{customer!.Id}", customer) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Customers.Create");
+
+        customers.MapPut("{id}", async (string id, UpdateCustomerDto dto, ICustomerService svc)
+            => (await svc.UpdateCustomerAsync(id, dto)).ToResult()).WithName("AuthManager.Customers.Update");
+
+        customers.MapDelete("{id}", async (string id, ICustomerService svc)
+            => (await svc.DeleteCustomerAsync(id)).ToResult()).WithName("AuthManager.Customers.Delete");
+    }
+
+    // ── License Keys ─────────────────────────────────────────────────────────
+
+    private static void MapLicenseEndpoints(RouteGroupBuilder api)
+    {
+        var licenses = api.MapGroup("/licenses");
+
+        licenses.MapGet("", async (string? customerId, ILicenseService svc)
+            => Results.Ok(await svc.GetLicensesAsync(customerId))).WithName("AuthManager.Licenses.List");
+
+        licenses.MapGet("{id}", async (string id, ILicenseService svc)
+            => await svc.GetLicenseAsync(id) is { } l ? Results.Ok(l) : Results.NotFound())
+            .WithName("AuthManager.Licenses.Get");
+
+        licenses.MapGet("{id}/activations", async (string id, ILicenseService svc)
+            => Results.Ok(await svc.GetActivationsAsync(id))).WithName("AuthManager.Licenses.Activations");
+
+        licenses.MapPost("", async (CreateLicenseKeyDto dto, ILicenseService svc) =>
+        {
+            var (ok, errors, license) = await svc.CreateLicenseAsync(dto);
+            return ok ? Results.Created($"licenses/{license!.Id}", license) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Licenses.Create");
+
+        licenses.MapPut("{id}", async (string id, UpdateLicenseKeyDto dto, ILicenseService svc)
+            => (await svc.UpdateLicenseAsync(id, dto)).ToResult()).WithName("AuthManager.Licenses.Update");
+
+        licenses.MapPost("{id}/revoke", async (string id, ILicenseService svc)
+            => (await svc.RevokeLicenseAsync(id)).ToResult()).WithName("AuthManager.Licenses.Revoke");
+
+        licenses.MapDelete("{id}", async (string id, ILicenseService svc)
+            => (await svc.DeleteLicenseAsync(id)).ToResult()).WithName("AuthManager.Licenses.Delete");
+    }
+
+    // ── Customer API Keys ────────────────────────────────────────────────────
+
+    private static void MapCustomerApiKeyEndpoints(RouteGroupBuilder api)
+    {
+        var keys = api.MapGroup("/keys");
+
+        keys.MapGet("", async (string? customerId, ICustomerApiKeyService svc)
+            => Results.Ok(await svc.GetKeysAsync(customerId))).WithName("AuthManager.CustomerKeys.List");
+
+        keys.MapGet("{id}", async (string id, ICustomerApiKeyService svc)
+            => await svc.GetKeyAsync(id) is { } k ? Results.Ok(k) : Results.NotFound())
+            .WithName("AuthManager.CustomerKeys.Get");
+
+        keys.MapPost("", async (CreateCustomerApiKeyDto dto, ICustomerApiKeyService svc) =>
+        {
+            var (ok, errors, result) = await svc.CreateKeyAsync(dto);
+            return ok ? Results.Ok(result) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.CustomerKeys.Create");
+
+        keys.MapPut("{id}", async (string id, UpdateCustomerApiKeyDto dto, ICustomerApiKeyService svc)
+            => (await svc.UpdateKeyAsync(id, dto)).ToResult()).WithName("AuthManager.CustomerKeys.Update");
+
+        keys.MapPost("{id}/revoke", async (string id, ICustomerApiKeyService svc)
+            => (await svc.RevokeKeyAsync(id)).ToResult()).WithName("AuthManager.CustomerKeys.Revoke");
+
+        keys.MapPost("{id}/regenerate", async (string id, ICustomerApiKeyService svc) =>
+        {
+            var (ok, errors, newKey) = await svc.RegenerateKeyAsync(id);
+            return ok ? Results.Ok(new { apiKey = newKey }) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.CustomerKeys.Regenerate");
+
+        keys.MapDelete("{id}", async (string id, ICustomerApiKeyService svc)
+            => (await svc.DeleteKeyAsync(id)).ToResult()).WithName("AuthManager.CustomerKeys.Delete");
+    }
+
+    // ── Subscriptions ────────────────────────────────────────────────────────
+
+    private static void MapSubscriptionEndpoints(RouteGroupBuilder api)
+    {
+        var plans = api.MapGroup("/subscription-plans");
+
+        plans.MapGet("", async (ISubscriptionService svc)
+            => Results.Ok(await svc.GetPlansAsync())).WithName("AuthManager.Plans.List");
+
+        plans.MapGet("{id}", async (string id, ISubscriptionService svc)
+            => await svc.GetPlanAsync(id) is { } p ? Results.Ok(p) : Results.NotFound())
+            .WithName("AuthManager.Plans.Get");
+
+        plans.MapPost("", async (CreateSubscriptionPlanDto dto, ISubscriptionService svc) =>
+        {
+            var (ok, errors, plan) = await svc.CreatePlanAsync(dto);
+            return ok ? Results.Created($"subscription-plans/{plan!.Id}", plan) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Plans.Create");
+
+        plans.MapPut("{id}", async (string id, UpdateSubscriptionPlanDto dto, ISubscriptionService svc)
+            => (await svc.UpdatePlanAsync(id, dto)).ToResult()).WithName("AuthManager.Plans.Update");
+
+        plans.MapDelete("{id}", async (string id, ISubscriptionService svc)
+            => (await svc.DeletePlanAsync(id)).ToResult()).WithName("AuthManager.Plans.Delete");
+
+        var subs = api.MapGroup("/subscriptions");
+
+        subs.MapGet("", async (string? customerId, ISubscriptionService svc)
+            => Results.Ok(await svc.GetSubscriptionsAsync(customerId))).WithName("AuthManager.Subscriptions.List");
+
+        subs.MapGet("{id}", async (string id, ISubscriptionService svc)
+            => await svc.GetSubscriptionAsync(id) is { } s ? Results.Ok(s) : Results.NotFound())
+            .WithName("AuthManager.Subscriptions.Get");
+
+        subs.MapPost("", async (CreateCustomerSubscriptionDto dto, ISubscriptionService svc) =>
+        {
+            var (ok, errors, sub) = await svc.SubscribeAsync(dto);
+            return ok ? Results.Created($"subscriptions/{sub!.Id}", sub) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Subscriptions.Create");
+
+        subs.MapPost("{id}/change-plan", async (string id, ChangeSubscriptionPlanDto dto, ISubscriptionService svc)
+            => (await svc.ChangePlanAsync(id, dto)).ToResult()).WithName("AuthManager.Subscriptions.ChangePlan");
+
+        subs.MapPost("{id}/cancel", async (string id, ISubscriptionService svc)
+            => (await svc.CancelSubscriptionAsync(id)).ToResult()).WithName("AuthManager.Subscriptions.Cancel");
+
+        subs.MapPost("{id}/reactivate", async (string id, ISubscriptionService svc)
+            => (await svc.ReactivateSubscriptionAsync(id)).ToResult()).WithName("AuthManager.Subscriptions.Reactivate");
+
+        api.MapGet("/customers/{customerId}/subscription", async (string customerId, ISubscriptionService svc)
+            => await svc.GetActiveSubscriptionForCustomerAsync(customerId) is { } s ? Results.Ok(s) : Results.NotFound())
+            .WithName("AuthManager.Customers.ActiveSubscription");
+    }
+
+    // ── Passkeys ─────────────────────────────────────────────────────────────
+
+    private static void MapPasskeyEndpoints(WebApplication app, string prefix)
+    {
+        var self = app.MapGroup($"/{prefix}/api/passkeys").RequireAuthorization().WithTags("AuthManager.Passkeys");
+
+        self.MapGet("", async (HttpContext ctx, IPasskeyService svc) =>
+        {
+            var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null) return Results.Unauthorized();
+            return Results.Ok(await svc.GetPasskeysAsync(userId));
+        }).WithName("AuthManager.Passkeys.List");
+
+        self.MapGet("creation-options", async (HttpContext ctx, IPasskeyService svc) =>
+        {
+            var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null) return Results.Unauthorized();
+            var options = await svc.GetCreationOptionsAsync(userId);
+            return options is null ? Results.NotFound() : Results.Content(options, "application/json");
+        }).WithName("AuthManager.Passkeys.CreationOptions");
+
+        self.MapPost("register", async (HttpContext ctx, PasskeyRegisterRequest req, IPasskeyService svc) =>
+        {
+            var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null) return Results.Unauthorized();
+            var (ok, error) = await svc.CompleteRegistrationAsync(userId, req.CredentialJson);
+            return ok ? Results.NoContent() : Results.BadRequest(new { error });
+        }).WithName("AuthManager.Passkeys.Register");
+
+        self.MapDelete("{credentialId}", async (string credentialId, HttpContext ctx, IPasskeyService svc) =>
+        {
+            var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null) return Results.Unauthorized();
+            var (ok, errors) = await svc.RemovePasskeyAsync(userId, credentialId);
+            return ok ? Results.NoContent() : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Passkeys.Remove");
+
+        // Login ceremony — anonymous, same reasoning as the OAuth2 token endpoint: the caller
+        // isn't authenticated yet, that's precisely what this establishes.
+        var login = app.MapGroup($"/{prefix}/api/passkeys/login").AllowAnonymous().WithTags("AuthManager.Passkeys");
+
+        login.MapGet("options", async (string? username, IPasskeyService svc)
+            => Results.Content(await svc.GetRequestOptionsAsync(username), "application/json"))
+            .WithName("AuthManager.Passkeys.LoginOptions");
+
+        login.MapPost("", async (PasskeyLoginRequest req, IPasskeyService svc) =>
+        {
+            var outcome = await svc.SignInAsync(req.CredentialJson);
+            return outcome switch
+            {
+                PasskeySignInOutcome.Succeeded => Results.Ok(new { outcome = outcome.ToString() }),
+                PasskeySignInOutcome.RequiresTwoFactor => Results.Ok(new { outcome = outcome.ToString() }),
+                PasskeySignInOutcome.LockedOut => Results.Json(new { outcome = outcome.ToString() }, statusCode: StatusCodes.Status423Locked),
+                _ => Results.Json(new { outcome = outcome.ToString() }, statusCode: StatusCodes.Status401Unauthorized)
+            };
+        }).WithName("AuthManager.Passkeys.Login");
+    }
+
+    private sealed record PasskeyRegisterRequest(string CredentialJson);
+    private sealed record PasskeyLoginRequest(string CredentialJson);
 }

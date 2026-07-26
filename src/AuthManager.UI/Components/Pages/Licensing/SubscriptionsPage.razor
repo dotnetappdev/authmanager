@@ -1,0 +1,326 @@
+@page "/authmanager/subscriptions"
+@rendermode InteractiveServer
+@inject ISubscriptionService SubscriptionService
+@inject ICustomerService CustomerService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Subscriptions — Auth Manager</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Subscriptions</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Plans customers can subscribe to, and who's subscribed to what.
+        </MudText>
+    </div>
+</MudStack>
+
+<MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-0 mt-4">
+    <MudTabPanel Text="Plans">
+        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mb-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreatePlan">
+                New Plan
+            </MudButton>
+        </MudStack>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+        }
+        else if (!_plans.Any())
+        {
+            <MudAlert Severity="Severity.Info">No plans yet — create one to start subscribing customers.</MudAlert>
+        }
+        else
+        {
+            <MudGrid Spacing="3">
+                @foreach (var plan in _plans)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard Elevation="0" Class="am-card-border">
+                            <MudCardContent>
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.h6">@plan.Name</MudText>
+                                    @if (!plan.IsActive)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Inactive</MudChip>
+                                    }
+                                </MudStack>
+                                <MudText Typo="Typo.h4" Class="mt-2">
+                                    @FormatPrice(plan.PriceCents, plan.Currency)
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Style="display:inline">/ @plan.Interval.ToString().ToLower()</MudText>
+                                </MudText>
+                                @if (!string.IsNullOrEmpty(plan.Description))
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">@plan.Description</MudText>
+                                }
+                                @if (plan.TrialDays > 0)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@plan.TrialDays-day trial</MudText>
+                                }
+                                <MudStack Class="mt-2">
+                                    @foreach (var f in plan.Features)
+                                    {
+                                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success" />
+                                            <MudText Typo="Typo.body2">@f</MudText>
+                                        </MudStack>
+                                    }
+                                </MudStack>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(() => DeletePlan(plan))" />
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </MudTabPanel>
+
+    <MudTabPanel Text="Subscriptions">
+        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mb-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateSubscription" Disabled="!_customers.Any() || !_plans.Any()">
+                New Subscription
+            </MudButton>
+        </MudStack>
+
+        @if (!_subscriptions.Any())
+        {
+            <MudAlert Severity="Severity.Info">No subscriptions yet.</MudAlert>
+        }
+        else
+        {
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-0">
+                    <MudTable T="CustomerSubscriptionDto" Items="_subscriptions" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent>
+                            <MudTh>Customer</MudTh>
+                            <MudTh>Plan</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh>Renews / Ends</MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Customer">@(context.CustomerName ?? "—")</MudTd>
+                            <MudTd DataLabel="Plan">@(context.PlanName ?? "—")</MudTd>
+                            <MudTd DataLabel="Status">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled"
+                                         Color="@StatusColor(context.Status)">@context.Status</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Renews / Ends">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.CurrentPeriodEnd.ToString("MMM dd, yyyy")</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                    @if (context.Status is SubscriptionStatus.Active or SubscriptionStatus.Trialing)
+                                    {
+                                        <MudMenuItem OnClick="@(() => Cancel(context))">
+                                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Class="mr-2" />Cancel
+                                        </MudMenuItem>
+                                    }
+                                    @if (context.Status == SubscriptionStatus.Canceled)
+                                    {
+                                        <MudMenuItem OnClick="@(() => Reactivate(context))">
+                                            <MudIcon Icon="@Icons.Material.Filled.Replay" Size="Size.Small" Class="mr-2" />Reactivate
+                                        </MudMenuItem>
+                                    }
+                                </MudMenu>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudTabPanel>
+</MudTabs>
+
+<!-- ── New Plan Dialog ─────────────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showPlanDialog" Options="_dialogOpts">
+    <TitleContent><MudText Typo="Typo.h6">New Plan</MudText></TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_planForm.Name" Label="Name" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
+            <MudTextField @bind-Value="_planForm.Description" Label="Description" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+            <MudNumericField @bind-Value="_planForm.PriceDollars" Label="Price" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Min="0" Format="F2" Adornment="Adornment.Start" AdornmentText="$" />
+            <MudSelect T="BillingInterval" @bind-Value="_planForm.Interval" Label="Billing Interval" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="BillingInterval" Value="BillingInterval.Monthly">Monthly</MudSelectItem>
+                <MudSelectItem T="BillingInterval" Value="BillingInterval.Yearly">Yearly</MudSelectItem>
+                <MudSelectItem T="BillingInterval" Value="BillingInterval.Weekly">Weekly</MudSelectItem>
+                <MudSelectItem T="BillingInterval" Value="BillingInterval.OneTime">One-time</MudSelectItem>
+            </MudSelect>
+            <MudNumericField @bind-Value="_planForm.TrialDays" Label="Trial Days" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+            <MudTextField @bind-Value="_planForm.Features" Label="Features (one per line)" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="3" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showPlanDialog = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SavePlan" Disabled="_saving">
+            @(_saving ? "Saving…" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- ── New Subscription Dialog ─────────────────────────────────────────────── -->
+<MudDialog @bind-IsVisible="_showSubDialog" Options="_dialogOpts">
+    <TitleContent><MudText Typo="Typo.h6">New Subscription</MudText></TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudSelect T="string" @bind-Value="_subForm.CustomerId" Label="Customer" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true">
+                @foreach (var c in _customers)
+                {
+                    <MudSelectItem T="string" Value="@c.Id">@c.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="string" @bind-Value="_subForm.PlanId" Label="Plan" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true">
+                @foreach (var p in _plans.Where(p => p.IsActive))
+                {
+                    <MudSelectItem T="string" Value="@p.Id">@p.Name — @FormatPrice(p.PriceCents, p.Currency)/@p.Interval.ToString().ToLower()</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showSubDialog = false)">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSubscription" Disabled="_saving">
+            @(_saving ? "Subscribing…" : "Subscribe")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<SubscriptionPlanDto> _plans = [];
+    private List<CustomerSubscriptionDto> _subscriptions = [];
+    private List<CustomerDto> _customers = [];
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showPlanDialog;
+    private bool _showSubDialog;
+    private readonly PlanFormModel _planForm = new();
+    private readonly SubFormModel _subForm = new();
+
+    private static readonly DialogOptions _dialogOpts = new()
+        { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _customers = await CustomerService.GetCustomersAsync();
+        await Reload();
+        _loading = false;
+    }
+
+    private async Task Reload()
+    {
+        _plans = await SubscriptionService.GetPlansAsync();
+        _subscriptions = await SubscriptionService.GetSubscriptionsAsync();
+    }
+
+    private void OpenCreatePlan()
+    {
+        _planForm.Name = "";
+        _planForm.Description = "";
+        _planForm.PriceDollars = 0;
+        _planForm.Interval = BillingInterval.Monthly;
+        _planForm.TrialDays = 0;
+        _planForm.Features = "";
+        _showPlanDialog = true;
+    }
+
+    private async Task SavePlan()
+    {
+        _saving = true;
+        var features = _planForm.Features.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var (ok, errors, _) = await SubscriptionService.CreatePlanAsync(new CreateSubscriptionPlanDto
+        {
+            Name = _planForm.Name,
+            Description = _planForm.Description,
+            PriceCents = (int)Math.Round(_planForm.PriceDollars * 100),
+            Interval = _planForm.Interval,
+            TrialDays = _planForm.TrialDays,
+            Features = features
+        });
+        _saving = false;
+
+        if (ok) { _showPlanDialog = false; Snackbar.Add("Plan created.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task DeletePlan(SubscriptionPlanDto plan)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Plan", $"Delete '{plan.Name}'?", yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        var (ok, errors) = await SubscriptionService.DeletePlanAsync(plan.Id);
+        if (ok) { Snackbar.Add("Plan deleted.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private void OpenCreateSubscription()
+    {
+        _subForm.CustomerId = _customers.FirstOrDefault()?.Id ?? "";
+        _subForm.PlanId = _plans.FirstOrDefault(p => p.IsActive)?.Id ?? "";
+        _showSubDialog = true;
+    }
+
+    private async Task SaveSubscription()
+    {
+        _saving = true;
+        var (ok, errors, _) = await SubscriptionService.SubscribeAsync(new CreateCustomerSubscriptionDto
+        {
+            CustomerId = _subForm.CustomerId,
+            PlanId = _subForm.PlanId
+        });
+        _saving = false;
+
+        if (ok) { _showSubDialog = false; Snackbar.Add("Subscription created.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task Cancel(CustomerSubscriptionDto sub)
+    {
+        var (ok, errors) = await SubscriptionService.CancelSubscriptionAsync(sub.Id);
+        if (ok) { Snackbar.Add("Subscription canceled.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task Reactivate(CustomerSubscriptionDto sub)
+    {
+        var (ok, errors) = await SubscriptionService.ReactivateSubscriptionAsync(sub.Id);
+        if (ok) { Snackbar.Add("Subscription reactivated.", Severity.Success); await Reload(); }
+        else foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private static string FormatPrice(int cents, string currency)
+        => currency == "USD" ? $"${cents / 100.0:F2}" : $"{cents / 100.0:F2} {currency}";
+
+    private static Color StatusColor(SubscriptionStatus status) => status switch
+    {
+        SubscriptionStatus.Active    => Color.Success,
+        SubscriptionStatus.Trialing  => Color.Info,
+        SubscriptionStatus.PastDue   => Color.Warning,
+        SubscriptionStatus.Canceled  => Color.Default,
+        SubscriptionStatus.Expired   => Color.Error,
+        _ => Color.Default
+    };
+
+    private sealed class PlanFormModel
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public decimal PriceDollars { get; set; }
+        public BillingInterval Interval { get; set; } = BillingInterval.Monthly;
+        public int TrialDays { get; set; }
+        public string Features { get; set; } = "";
+    }
+
+    private sealed class SubFormModel
+    {
+        public string CustomerId { get; set; } = "";
+        public string PlanId { get; set; } = "";
+    }
+}

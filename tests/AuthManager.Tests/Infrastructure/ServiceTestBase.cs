@@ -41,7 +41,10 @@ public abstract class ServiceTestBase : IAsyncLifetime
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddDbContext<TestAppDbContext>(o => o.UseSqlite($"Data Source={_dbFile}"));
         builder.Services
-            .AddIdentity<IdentityUser, IdentityRole>()
+            // Version3 schema is what adds passkey support to the EF store — see
+            // https://aka.ms/aspnet/passkeys. A host app must opt into this itself; AuthManager
+            // has no way to force it since the Identity DbContext belongs to the host, not us.
+            .AddIdentity<IdentityUser, IdentityRole>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
             .AddEntityFrameworkStores<TestAppDbContext>()
             .AddDefaultTokenProviders();
 

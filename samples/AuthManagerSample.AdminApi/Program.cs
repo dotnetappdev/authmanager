@@ -13,12 +13,28 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── 1. DbContext — this sample's own Identity store ──────────────────────────
+// Standalone by default (SQLite, zero install), or point it at SQL Server for production —
+// same "Database:Provider" switch AuthManager itself uses for its internal store
+// (InternalDatabaseProvider), so both halves of the app can share one SQL Server if you want.
+var databaseProvider = builder.Configuration["Database:Provider"] ?? "SQLite";
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlite(builder.Configuration.GetConnectionString("Default")!));
+{
+    if (databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+        o.UseSqlServer(builder.Configuration.GetConnectionString("Default")!);
+    else
+        o.UseSqlite(builder.Configuration.GetConnectionString("Default")!);
+});
 
 // ── 2. ASP.NET Identity ───────────────────────────────────────────────────────
+// Stores.SchemaVersion = Version3 is what adds passkey (WebAuthn) support to the EF store —
+// see https://aka.ms/aspnet/passkeys. Required for AuthManager's /authmanager/api/passkeys/*
+// endpoints to work; without it they 500 with "IdentityUserPasskey not in model".
 builder.Services
-    .AddIdentity<ApplicationUser, IdentityRole>(o => o.User.RequireUniqueEmail = true)
+    .AddIdentity<ApplicationUser, IdentityRole>(o =>
+    {
+        o.User.RequireUniqueEmail = true;
+        o.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+    })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
@@ -71,6 +87,15 @@ builder.Services.AddAuthManager<ApplicationUser>(options =>
 
     options.SecurityPolicy.MaxFailedLoginAttempts = 5;
     options.SecurityPolicy.LockoutDuration = TimeSpan.FromMinutes(15);
+
+    // AuthManager's own internal store (audit log, sessions, tokens, licenses, etc.) follows
+    // the same Database:Provider switch as the Identity store above, so one config setting
+    // moves the whole app between "standalone SQLite" and "SQL Server" — set Database:Provider
+    // to "SqlServer" and ConnectionStrings:Default to a SQL Server connection string.
+    options.InternalDatabaseProvider = databaseProvider;
+    options.InternalDatabaseConnectionString = databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase)
+        ? builder.Configuration.GetConnectionString("Default")!
+        : "Data Source=authmanager-internal.db";
 
     // Same key/issuer/audience as the JWT bearer scheme above, so tokens AuthManager issues
     // for OAuth2 clients (client_credentials grant) validate against this app's own APIs too.

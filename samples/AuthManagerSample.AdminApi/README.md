@@ -18,6 +18,21 @@ dotnet run
 
 A SuperAdmin account is seeded on first run: `superadmin@example.com` / `SuperAdmin@123456!`.
 
+## Database: SQLite or SQL Server
+
+Runs standalone on SQLite by default — no install, no server. Point it at SQL Server instead
+by setting `Database:Provider` to `SqlServer` and `ConnectionStrings:Default` to a SQL Server
+connection string (in `appsettings.json`, an environment variable, or `dotnet run` args). Both
+this sample's own Identity store *and* AuthManager's internal store (audit log, sessions,
+tokens, licenses) follow the same switch, so one setting moves the whole app:
+
+```json
+{
+  "Database": { "Provider": "SqlServer" },
+  "ConnectionStrings": { "Default": "Server=.;Database=AdminApi;Trusted_Connection=True;TrustServerCertificate=True" }
+}
+```
+
 ## Try it
 
 ```bash

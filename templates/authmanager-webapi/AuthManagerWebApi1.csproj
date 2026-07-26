@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>AuthManagerSample.AdminApi</RootNamespace>
+    <RootNamespace>AuthManagerWebApi1</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,10 +12,12 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.1" />
-  </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\AuthManager.AspNetCore\AuthManager.AspNetCore.csproj" />
+    <!-- The full AuthManager admin UI + REST API. Swap for DotNetAuthManager.AspNetCore-only
+         if you build your own frontend instead of using the bundled Blazor UI (both packages
+         ship the same MapAuthManagerApi(); this one also brings MapAuthManager() with the
+         Blazor admin panel). -->
+    <PackageReference Include="DotNetAuthManager" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

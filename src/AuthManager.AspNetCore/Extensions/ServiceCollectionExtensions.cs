@@ -143,6 +143,15 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<ITenantService,        TenantService<TUser>>();
         services.TryAddScoped<IOAuthClientService,   OAuthClientService>();
 
+        // Licensing & monetization — customers, license keys, customer-facing API keys, subscriptions
+        services.TryAddScoped<ICustomerService,        CustomerService>();
+        services.TryAddScoped<ILicenseService,         LicenseService>();
+        services.TryAddScoped<ICustomerApiKeyService,  CustomerApiKeyService>();
+        services.TryAddScoped<ISubscriptionService,    SubscriptionService>();
+
+        // Passkeys (WebAuthn) — wraps SignInManager/UserManager's native ceremony methods
+        services.TryAddScoped<IPasskeyService, PasskeyService<TUser>>();
+
         // Optional SuperAdmin seeder — only acts when options.SeedSuperAdmin = true
         services.AddHostedService<SuperAdminSeeder<TUser, TRole>>();
 

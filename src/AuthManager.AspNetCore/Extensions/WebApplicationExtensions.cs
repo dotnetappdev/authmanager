@@ -234,4 +234,5 @@ public static class WebApplicationExtensions
             return Results.Redirect($"/{options.RoutePrefix}");
         }).AllowAnonymous().ExcludeFromDescription();
     }
+
 }

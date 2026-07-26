@@ -40,6 +40,12 @@ public sealed class AuthManagerDbContext : DbContext
     public DbSet<OtpRecord>                   OtpCodes             { get; set; } = default!;
     public DbSet<OAuthClientRecord>           OAuthClients         { get; set; } = default!;
     public DbSet<TenantRecord>                Tenants              { get; set; } = default!;
+    public DbSet<CustomerRecord>              Customers            { get; set; } = default!;
+    public DbSet<LicenseKeyRecord>            LicenseKeys          { get; set; } = default!;
+    public DbSet<LicenseActivationRecord>     LicenseActivations   { get; set; } = default!;
+    public DbSet<CustomerApiKeyRecord>        CustomerApiKeys      { get; set; } = default!;
+    public DbSet<SubscriptionPlanRecord>      SubscriptionPlans    { get; set; } = default!;
+    public DbSet<CustomerSubscriptionRecord>  CustomerSubscriptions { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -181,6 +187,75 @@ public sealed class AuthManagerDbContext : DbContext
             e.Property(x => x.Description).HasMaxLength(512);
             e.Property(x => x.ScopesJson).HasMaxLength(2048);
             e.HasIndex(x => x.ClientId).IsUnique();
+        });
+
+        b.Entity<CustomerRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.Name).HasMaxLength(256);
+            e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.CompanyName).HasMaxLength(256);
+            e.Property(x => x.Notes).HasMaxLength(2048);
+            e.HasIndex(x => x.Email);
+        });
+
+        b.Entity<LicenseKeyRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.Key).HasMaxLength(32);
+            e.Property(x => x.ProductName).HasMaxLength(128);
+            e.Property(x => x.CustomerId).HasMaxLength(64);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.Notes).HasMaxLength(2048);
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => x.CustomerId);
+        });
+
+        b.Entity<LicenseActivationRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.LicenseKeyId).HasMaxLength(64);
+            e.Property(x => x.MachineId).HasMaxLength(256);
+            e.Property(x => x.IpAddress).HasMaxLength(64);
+            e.HasIndex(x => new { x.LicenseKeyId, x.MachineId }).IsUnique();
+        });
+
+        b.Entity<CustomerApiKeyRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.CustomerId).HasMaxLength(64);
+            e.Property(x => x.Name).HasMaxLength(128);
+            e.Property(x => x.Prefix).HasMaxLength(16);
+            e.Property(x => x.KeyHash).HasMaxLength(128);
+            e.Property(x => x.ScopesJson).HasMaxLength(2048);
+            e.HasIndex(x => x.KeyHash).IsUnique();
+            e.HasIndex(x => x.CustomerId);
+        });
+
+        b.Entity<SubscriptionPlanRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.Name).HasMaxLength(128);
+            e.Property(x => x.Description).HasMaxLength(1024);
+            e.Property(x => x.Currency).HasMaxLength(8);
+            e.Property(x => x.Interval).HasMaxLength(16);
+            e.Property(x => x.FeaturesJson).HasMaxLength(2048);
+            e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        b.Entity<CustomerSubscriptionRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.CustomerId).HasMaxLength(64);
+            e.Property(x => x.PlanId).HasMaxLength(64);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.HasIndex(x => x.CustomerId);
         });
     }
 }
@@ -334,6 +409,89 @@ public sealed class ImpersonationTokenRecord
     public string AdminUserId { get; set; } = string.Empty;
     public string TargetUserId { get; set; } = string.Empty;
     public DateTimeOffset ExpiresAt { get; set; }
+}
+
+/// <summary>An external customer/account that licenses, API keys, and subscriptions attach to.</summary>
+public sealed class CustomerRecord
+{
+    public string  Id          { get; set; } = Guid.NewGuid().ToString("N")[..16];
+    public string  Name        { get; set; } = string.Empty;
+    public string  Email       { get; set; } = string.Empty;
+    public string? CompanyName { get; set; }
+    public string? Notes       { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>A software license / product key ("CD key"), stored in plain text — unlike API
+/// tokens/OAuth secrets, a license key must be human-readable and re-displayable (an admin
+/// resending it, an installer prompting for it again), so it isn't hashed.</summary>
+public sealed class LicenseKeyRecord
+{
+    public string  Id              { get; set; } = Guid.NewGuid().ToString("N")[..16];
+    public string  Key             { get; set; } = string.Empty;
+    public string  ProductName     { get; set; } = string.Empty;
+    public string? CustomerId      { get; set; }
+    public int     MaxActivations  { get; set; } = 1;
+    public string  Status          { get; set; } = "Active"; // Active | Revoked | Expired
+    public string? Notes           { get; set; }
+    public DateTimeOffset  IssuedAt   { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ExpiresAt  { get; set; }
+    public DateTimeOffset? RevokedAt  { get; set; }
+}
+
+/// <summary>A single machine/device activation against a license key.</summary>
+public sealed class LicenseActivationRecord
+{
+    public string  Id           { get; set; } = Guid.NewGuid().ToString("N")[..16];
+    public string  LicenseKeyId { get; set; } = string.Empty;
+    public string  MachineId    { get; set; } = string.Empty;
+    public string? IpAddress    { get; set; }
+    public DateTimeOffset ActivatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>A customer-facing API key (bearer key handed to a customer's own application).</summary>
+public sealed class CustomerApiKeyRecord
+{
+    public string  Id          { get; set; } = Guid.NewGuid().ToString("N")[..16];
+    public string  CustomerId  { get; set; } = string.Empty;
+    public string  Name        { get; set; } = string.Empty;
+    public string  Prefix      { get; set; } = string.Empty;
+    public string  KeyHash     { get; set; } = string.Empty;
+    public string  ScopesJson  { get; set; } = "[]";
+    public int?    RateLimitPerMinute { get; set; }
+    public bool    Enabled     { get; set; } = true;
+    public DateTimeOffset  CreatedAt  { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? LastUsedAt { get; set; }
+    public DateTimeOffset? ExpiresAt  { get; set; }
+}
+
+/// <summary>A plan customers can subscribe to.</summary>
+public sealed class SubscriptionPlanRecord
+{
+    public string  Id           { get; set; } = Guid.NewGuid().ToString("N")[..16];
+    public string  Name         { get; set; } = string.Empty;
+    public string? Description  { get; set; }
+    public int     PriceCents   { get; set; }
+    public string  Currency     { get; set; } = "USD";
+    public string  Interval     { get; set; } = "Monthly"; // Monthly | Yearly | Weekly | OneTime
+    public int     TrialDays    { get; set; }
+    public int?    MaxApiKeys   { get; set; }
+    public int?    MaxActivations { get; set; }
+    public string  FeaturesJson { get; set; } = "[]";
+    public bool    IsActive     { get; set; } = true;
+}
+
+/// <summary>A customer's subscription to a plan.</summary>
+public sealed class CustomerSubscriptionRecord
+{
+    public string  Id          { get; set; } = Guid.NewGuid().ToString("N")[..16];
+    public string  CustomerId  { get; set; } = string.Empty;
+    public string  PlanId      { get; set; } = string.Empty;
+    public string  Status      { get; set; } = "Active"; // Trialing | Active | PastDue | Canceled | Expired
+    public DateTimeOffset  StartedAt        { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? TrialEndsAt      { get; set; }
+    public DateTimeOffset  CurrentPeriodEnd { get; set; }
+    public DateTimeOffset? CanceledAt       { get; set; }
 }
 
 /// <summary>
