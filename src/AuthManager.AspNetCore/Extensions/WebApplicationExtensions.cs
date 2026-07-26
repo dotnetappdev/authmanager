@@ -139,13 +139,13 @@ public static class WebApplicationExtensions
             // Standalone (non-Blazor host): AuthManager is the only Blazor app — we own the hub.
             componentBuilder.AddInteractiveServerRenderMode();
         }
-        else
-        {
-            // Blazor host: the hub is already set up by the host's MapRazorComponents endpoint.
-            // We must still declare interactive server render mode for our own endpoint so that
-            // @rendermode InteractiveServer pages render correctly.
-            componentBuilder.AddInteractiveServerRenderMode();
-        }
+        // Blazor host: the hub is already registered by the host's own MapRazorComponents<App>()
+        // .AddInteractiveServerRenderMode() call — interactive server render mode is process-wide,
+        // not per-endpoint, so @rendermode InteractiveServer pages under AuthManagerApp pick it up
+        // automatically. Calling AddInteractiveServerRenderMode() a second time here registers a
+        // second /_blazor hub route and every SignalR negotiate throws AmbiguousMatchException,
+        // which silently breaks every interactive component in the app (buttons stop responding,
+        // dialogs stop opening) without a client-visible error.
         // NOTE: We do NOT call componentBuilder.RequireAuthorization() — that would also
         // protect /_blazor/* hub endpoints and break the Blazor SignalR circuit.
         // Auth is enforced via the middleware above (step 0b).
