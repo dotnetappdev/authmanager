@@ -20,6 +20,7 @@
       DotNetAuthManager
     </a>
     <div class="nav-links">
+      <a href="#screenshots">Screenshots</a>
       <a href="#features">Features</a>
       <a href="#quickstart">Quick Start</a>
       <a href="#nuget">NuGet</a>
@@ -66,6 +67,42 @@
 <span class="kw">var</span> app = <span class="kw">builder</span>.<span class="fn">Build</span>();
 <span class="kw">await</span> app.<span class="fn">CreateDefaultSuperUserAsync</span>&lt;<span class="ty">ApplicationUser</span>&gt;();
 app.<span class="fn">MapAuthManager</span>();   <span class="cmt">// → /authmanager</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCREENSHOTS ===== -->
+<section class="section section-dark" id="screenshots">
+  <div class="section-inner">
+    <h2 class="section-title">See it in action</h2>
+    <p class="section-sub">The full MudBlazor admin UI, in light and dark — every page ships with both.</p>
+
+    <div class="screenshots-hero">
+      <img src="assets/img/dashboard-light.png" alt="AuthManager dashboard — light theme" loading="lazy"/>
+      <img src="assets/img/dashboard-dark.png" alt="AuthManager dashboard — dark theme" loading="lazy"/>
+    </div>
+
+    <div class="screenshots-grid">
+      <div class="screenshot-card">
+        <img src="assets/img/users-light.png" alt="Users page" loading="lazy"/>
+        <p>User Management</p>
+      </div>
+      <div class="screenshot-card">
+        <img src="assets/img/sso-light.png" alt="SSO / Entra ID settings page" loading="lazy"/>
+        <p>SSO / Entra ID</p>
+      </div>
+      <div class="screenshot-card">
+        <img src="assets/img/security-settings-light.png" alt="Security settings page" loading="lazy"/>
+        <p>Security Settings</p>
+      </div>
+      <div class="screenshot-card">
+        <img src="assets/img/log-viewer-light.png" alt="Log viewer page" loading="lazy"/>
+        <p>Log Viewer</p>
+      </div>
+    </div>
+
+    <div class="screenshots-more">
+      <a href="https://github.com/dotnetappdev/authmanager#screenshots" target="_blank">See all 27 admin pages, light &amp; dark →</a>
     </div>
   </div>
 </section>
