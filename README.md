@@ -18,7 +18,12 @@ Docs & Demo
 
 A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET Aspire** embeds its dashboard. Drop in a NuGet package, call two methods, and navigate to `/authmanager`.
 
-![Dashboard screenshot](docs/site/assets/img/screenshot-dashboard.png)
+<p>
+  <img src="docs/screenshots/dashboard-light.png" width="49%" alt="Dashboard — light theme" />
+  <img src="docs/screenshots/dashboard-dark.png" width="49%" alt="Dashboard — dark theme" />
+</p>
+
+Full light/dark screenshots of every admin page are in the [Screenshots](#screenshots) section below.
 
 ---
 
@@ -180,6 +185,84 @@ app.Run();
 ### 5. Open the dashboard
 
 Navigate to **`https://localhost:5001/authmanager`**, sign in, change the password.
+
+---
+
+## Screenshots
+
+Every admin page, captured in both themes. Click a group to expand it.
+
+<details>
+<summary><strong>Overview</strong> — Dashboard, System Health</summary>
+<br>
+
+| Page | Light | Dark |
+|------|-------|------|
+| Dashboard | <img src="docs/screenshots/dashboard-light.png" width="380"> | <img src="docs/screenshots/dashboard-dark.png" width="380"> |
+| System Health | <img src="docs/screenshots/system-health-light.png" width="380"> | <img src="docs/screenshots/system-health-dark.png" width="380"> |
+
+</details>
+
+<details>
+<summary><strong>Identity</strong> — Users, Roles, Groups, Claims, Tenants</summary>
+<br>
+
+| Page | Light | Dark |
+|------|-------|------|
+| Users | <img src="docs/screenshots/users-light.png" width="380"> | <img src="docs/screenshots/users-dark.png" width="380"> |
+| Roles | <img src="docs/screenshots/roles-light.png" width="380"> | <img src="docs/screenshots/roles-dark.png" width="380"> |
+| Groups | <img src="docs/screenshots/groups-light.png" width="380"> | <img src="docs/screenshots/groups-dark.png" width="380"> |
+| Claims | <img src="docs/screenshots/claims-light.png" width="380"> | <img src="docs/screenshots/claims-dark.png" width="380"> |
+| Tenants | <img src="docs/screenshots/tenants-light.png" width="380"> | <img src="docs/screenshots/tenants-dark.png" width="380"> |
+
+</details>
+
+<details>
+<summary><strong>Authentication</strong> — JWT, OAuth, SSO, OTP, Sessions, 2FA, Passkeys, API Tokens, Clients</summary>
+<br>
+
+| Page | Light | Dark |
+|------|-------|------|
+| JWT Settings | <img src="docs/screenshots/jwt-settings-light.png" width="380"> | <img src="docs/screenshots/jwt-settings-dark.png" width="380"> |
+| OAuth Providers | <img src="docs/screenshots/oauth-providers-light.png" width="380"> | <img src="docs/screenshots/oauth-providers-dark.png" width="380"> |
+| SSO / Entra ID | <img src="docs/screenshots/sso-light.png" width="380"> | <img src="docs/screenshots/sso-dark.png" width="380"> |
+| One-Time Passwords | <img src="docs/screenshots/otp-settings-light.png" width="380"> | <img src="docs/screenshots/otp-settings-dark.png" width="380"> |
+| Active Sessions | <img src="docs/screenshots/sessions-light.png" width="380"> | <img src="docs/screenshots/sessions-dark.png" width="380"> |
+| Two-Factor Auth | <img src="docs/screenshots/two-factor-light.png" width="380"> | <img src="docs/screenshots/two-factor-dark.png" width="380"> |
+| Passkeys | <img src="docs/screenshots/passkeys-light.png" width="380"> | <img src="docs/screenshots/passkeys-dark.png" width="380"> |
+| API Tokens | <img src="docs/screenshots/api-tokens-light.png" width="380"> | <img src="docs/screenshots/api-tokens-dark.png" width="380"> |
+| Clients | <img src="docs/screenshots/clients-light.png" width="380"> | <img src="docs/screenshots/clients-dark.png" width="380"> |
+
+</details>
+
+<details>
+<summary><strong>Licensing & Billing</strong> — Customers, License Keys, Customer API Keys, Subscriptions</summary>
+<br>
+
+| Page | Light | Dark |
+|------|-------|------|
+| Customers | <img src="docs/screenshots/customers-light.png" width="380"> | <img src="docs/screenshots/customers-dark.png" width="380"> |
+| License Keys | <img src="docs/screenshots/license-keys-light.png" width="380"> | <img src="docs/screenshots/license-keys-dark.png" width="380"> |
+| Customer API Keys | <img src="docs/screenshots/customer-api-keys-light.png" width="380"> | <img src="docs/screenshots/customer-api-keys-dark.png" width="380"> |
+| Subscriptions | <img src="docs/screenshots/subscriptions-light.png" width="380"> | <img src="docs/screenshots/subscriptions-dark.png" width="380"> |
+
+</details>
+
+<details>
+<summary><strong>Settings & Monitoring</strong> — Email, User Fields, Display, Security, Logs, Audit, Sign-in History</summary>
+<br>
+
+| Page | Light | Dark |
+|------|-------|------|
+| Email Settings | <img src="docs/screenshots/email-settings-light.png" width="380"> | <img src="docs/screenshots/email-settings-dark.png" width="380"> |
+| Custom User Fields | <img src="docs/screenshots/user-fields-light.png" width="380"> | <img src="docs/screenshots/user-fields-dark.png" width="380"> |
+| Display Settings | <img src="docs/screenshots/display-settings-light.png" width="380"> | <img src="docs/screenshots/display-settings-dark.png" width="380"> |
+| Security Settings | <img src="docs/screenshots/security-settings-light.png" width="380"> | <img src="docs/screenshots/security-settings-dark.png" width="380"> |
+| Log Viewer | <img src="docs/screenshots/log-viewer-light.png" width="380"> | <img src="docs/screenshots/log-viewer-dark.png" width="380"> |
+| Audit Log | <img src="docs/screenshots/audit-log-light.png" width="380"> | <img src="docs/screenshots/audit-log-dark.png" width="380"> |
+| Sign-in History | <img src="docs/screenshots/signin-history-light.png" width="380"> | <img src="docs/screenshots/signin-history-dark.png" width="380"> |
+
+</details>
 
 ---
 
