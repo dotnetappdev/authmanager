@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using AuthManagerSample.WebApi.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using AuthManagerSample.WebApi.Models;
@@ -18,16 +19,16 @@ namespace AuthManagerSample.WebApi.Services;
 /// </summary>
 public sealed class TokenService
 {
-    private readonly UserManager<ApplicationUser> _users;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly JwtOptions _opts;
     private readonly SymmetricSecurityKey _signingKey;
 
     // In-memory refresh token store: token → userId
     private readonly ConcurrentDictionary<string, string> _refreshTokens = new();
 
-    public TokenService(UserManager<ApplicationUser> users, IOptions<JwtOptions> opts)
+    public TokenService(IServiceScopeFactory scopeFactory, IOptions<JwtOptions> opts)
     {
-        _users = users;
+        _scopeFactory = scopeFactory;
         _opts  = opts.Value;
         _signingKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(_opts.SecretKey));
@@ -39,12 +40,15 @@ public sealed class TokenService
     /// </summary>
     public async Task<TokenResponse?> IssueTokensAsync(string email, string password)
     {
-        var user = await _users.FindByEmailAsync(email);
+        using var scope = _scopeFactory.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var user = await users.FindByEmailAsync(email);
         if (user is null) return null;
 
-        if (!await _users.CheckPasswordAsync(user, password)) return null;
+        if (!await users.CheckPasswordAsync(user, password)) return null;
 
-        return await BuildTokenPairAsync(user);
+        return await BuildTokenPairAsync(users, user);
     }
 
     /// <summary>Rotate a refresh token for a new access token.</summary>
@@ -53,10 +57,13 @@ public sealed class TokenService
         if (!_refreshTokens.TryRemove(refreshToken, out var userId))
             return null;
 
-        var user = await _users.FindByIdAsync(userId);
+        using var scope = _scopeFactory.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var user = await users.FindByIdAsync(userId);
         if (user is null) return null;
 
-        return await BuildTokenPairAsync(user);
+        return await BuildTokenPairAsync(users, user);
     }
 
     /// <summary>Revoke a refresh token (logout).</summary>
@@ -64,10 +71,10 @@ public sealed class TokenService
 
     // ── internals ─────────────────────────────────────────────────────────────
 
-    private async Task<TokenResponse> BuildTokenPairAsync(ApplicationUser user)
+    private async Task<TokenResponse> BuildTokenPairAsync(UserManager<ApplicationUser> users, ApplicationUser user)
     {
-        var roles  = await _users.GetRolesAsync(user);
-        var claims = await _users.GetClaimsAsync(user);
+        var roles  = await users.GetRolesAsync(user);
+        var claims = await users.GetClaimsAsync(user);
 
         var jwtClaims = new List<Claim>
         {

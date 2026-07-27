@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using AuthManagerSample.WebApi.Identity;
 using AuthManagerSample.WebApi.Models;
 using AuthManagerSample.WebApi.Services;
@@ -82,7 +83,7 @@ public static class AuthEndpoints
     }
 
     private static IResult Logout(
-        RefreshRequest req,
+        [FromBody] RefreshRequest req,
         TokenService tokens)
     {
         tokens.Revoke(req.RefreshToken);
