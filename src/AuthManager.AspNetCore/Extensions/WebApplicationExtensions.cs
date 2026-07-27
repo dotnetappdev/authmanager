@@ -115,6 +115,14 @@ public static class WebApplicationExtensions
         // 1. Serve static web assets from the RCL (_content/DotNetAuthManager.UI/*)
         app.UseStaticFiles();
 
+        // 1b. MapStaticAssets() is what actually serves framework-provided endpoint assets
+        //     like /_framework/blazor.web.js in .NET 9+ — UseStaticFiles() alone does not.
+        //     Without it, the Blazor circuit's bootstrap script 404s and every interactive
+        //     component (buttons, dialogs, the setup wizard, theme toggling) silently does
+        //     nothing. Safe to call even if the host already called it: it dedupes by
+        //     manifest path internally and reuses the existing endpoint data source.
+        app.MapStaticAssets();
+
         // 2. Razor components — AuthManagerApp is the root; discovers all @page routes in the RCL.
         //
         //    IMPORTANT: AddInteractiveServerRenderMode() registers the Blazor SignalR hub at

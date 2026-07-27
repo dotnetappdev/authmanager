@@ -11,7 +11,7 @@
 <MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.Medium" />
 <MudSnackbarProvider />
 
-<MudLayout>
+<MudLayout Class="@(_isDark ? "mud-theme-dark" : null)">
     <NavMenu IsDark="_isDark" OnThemeToggle="ToggleTheme" />
 
     <MudMainContent Class="am-main-content">
@@ -39,6 +39,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Applied synchronously (no JS interop) so the configured default shows up on the
+        // very first paint, including the static SSR pass before any circuit connects —
+        // OnAfterRenderAsync below only runs once a circuit is live, so a JS-only default
+        // would otherwise never apply to prerendered/non-interactive-yet output.
+        if (Options.Value.DefaultTheme == AuthManagerTheme.Dark)
+            _isDark = true;
+
         var authState = await AuthState.GetAuthenticationStateAsync();
         var user      = authState.User;
 
@@ -55,7 +62,19 @@
     {
         if (firstRender)
         {
-            var savedTheme = await JS.InvokeAsync<string?>("authManager.getTheme");
+            // JS interop isn't available during the server-side prerendering pass — this
+            // firstRender call happens twice (once during prerendering, once for real once
+            // the circuit connects), and the first one always throws here. Without this
+            // guard the exception aborts the method before DefaultTheme is ever applied,
+            // so a configured dark/system default silently never takes effect.
+            string? savedTheme = null;
+            try
+            {
+                savedTheme = await JS.InvokeAsync<string?>("authManager.getTheme");
+            }
+            catch (InvalidOperationException)
+            {
+            }
 
             if (savedTheme == "dark")
                 _isDark = true;
@@ -67,7 +86,15 @@
                 if (defaultTheme == AuthManagerTheme.Dark)
                     _isDark = true;
                 else if (defaultTheme == AuthManagerTheme.System)
-                    _isDark = await JS.InvokeAsync<bool>("authManager.prefersDarkMode");
+                {
+                    try
+                    {
+                        _isDark = await JS.InvokeAsync<bool>("authManager.prefersDarkMode");
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+                }
             }
             StateHasChanged();
         }

@@ -55,6 +55,13 @@
   --am-shadow-md:     0 4px 16px rgba(0,0,0,0.5);
 }
 
+/* .mud-theme-dark is applied to MudLayout, not <body> — MudLayout doesn't always
+   fill the viewport height, so without this, body's own background falls back to
+   :root's light --am-bg and shows through below shorter pages. */
+:root:has(.mud-theme-dark) {
+  --am-bg: #0B0F1A;
+}
+
 /* ---- Base ---- */
 * { box-sizing: border-box; }
 
