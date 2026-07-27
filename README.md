@@ -13,7 +13,9 @@ Docs & Demo
 [Property Setup & Build Notes](PROPERTY_SETUP.md) • [Guided Setup](GUIDED_SETUP.md)
 
 [![NuGet](https://img.shields.io/nuget/v/DotNetAuthManager.svg)](https://www.nuget.org/packages/DotNetAuthManager)
+[![Tests](https://github.com/dotnetappdev/authmanager/actions/workflows/ci.yml/badge.svg)](https://github.com/dotnetappdev/authmanager/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4)](https://dotnet.microsoft.com)
+[![Release](https://img.shields.io/github/v/release/dotnetappdev/authmanager?include_prereleases&sort=semver&label=release)](https://github.com/dotnetappdev/authmanager/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET Aspire** embeds its dashboard. Drop in a NuGet package, call two methods, and navigate to `/authmanager`.
