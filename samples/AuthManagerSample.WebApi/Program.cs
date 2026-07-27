@@ -161,6 +161,7 @@ if (app.Environment.IsDevelopment())
 app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 
 // ── AuthManager UI ────────────────────────────────────────────────────────────
 app.MapAuthManager();   // → /authmanager (SuperAdmin only)
