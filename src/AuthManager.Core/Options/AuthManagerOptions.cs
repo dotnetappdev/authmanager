@@ -165,7 +165,13 @@ public enum AuthManagerTheme
 {
     Light,
     Dark,
-    System
+    System,
+
+    /// <summary>
+    /// WCAG-oriented accessibility theme — pure black background with yellow text,
+    /// borders, and interactive elements. Does not follow OS preference.
+    /// </summary>
+    HighContrast
 }
 
 /// <summary>

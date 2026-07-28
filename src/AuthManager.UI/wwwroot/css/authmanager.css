@@ -55,11 +55,36 @@
   --am-shadow-md:     0 4px 16px rgba(0,0,0,0.5);
 }
 
-/* .mud-theme-dark is applied to MudLayout, not <body> — MudLayout doesn't always
-   fill the viewport height, so without this, body's own background falls back to
-   :root's light --am-bg and shows through below shorter pages. */
+/* ---- High Contrast Theme (WCAG accessibility) — pure black + yellow ---- */
+.am-high-contrast {
+  --am-bg:            #000000;
+  --am-surface:       #000000;
+  --am-surface-2:     #0D0D00;
+  --am-border:        #FFFF00;
+  --am-text:          #FFFF00;
+  --am-text-2:        #FFFF00;
+  --am-text-3:        #808000;
+  --am-primary:       #FFFF00;
+  --am-primary-light: #000000;
+  --am-secondary:     #FFFF00;
+  --am-success:       #00FF00;
+  --am-warning:       #FFA500;
+  --am-error:         #FF3333;
+  --am-sidebar-bg:    #000000;
+  --am-sidebar-text:  #FFFF00;
+  --am-shadow:        none;
+  --am-shadow-md:     none;
+}
+
+/* .mud-theme-dark / .am-high-contrast are applied to MudLayout, not <body> —
+   MudLayout doesn't always fill the viewport height, so without this, body's
+   own background falls back to :root's light --am-bg and shows through below
+   shorter pages. */
 :root:has(.mud-theme-dark) {
   --am-bg: #0B0F1A;
+}
+:root:has(.am-high-contrast) {
+  --am-bg: #000000;
 }
 
 /* ---- Base ---- */
@@ -102,6 +127,40 @@ body {
 :not(.mud-theme-dark) .mud-nav-link        { color: #C7D2FE !important; }
 :not(.mud-theme-dark) .mud-nav-link:hover  { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
 :not(.mud-theme-dark) .mud-nav-link.active { color: #fff !important; border-right-color: #fff; }
+
+/* High contrast sidebar link colours — must come after the light-mode block above
+   since .am-high-contrast also matches :not(.mud-theme-dark). */
+.am-high-contrast .mud-nav-link, .am-high-contrast .mud-nav-link .mud-icon-root {
+  color: #FFFF00 !important;
+}
+.am-high-contrast .mud-nav-link:hover {
+  background: rgba(255, 255, 0, 0.15) !important;
+  color: #FFFF00 !important;
+}
+.am-high-contrast .mud-nav-link.active {
+  background-color: rgba(255, 255, 0, 0.25) !important;
+  color: #FFFF00 !important;
+  border-right: 3px solid #FFFF00;
+}
+.am-high-contrast .mud-nav-link.active .mud-icon-root {
+  color: #FFFF00 !important;
+}
+.am-high-contrast .mud-drawer {
+  border-right: 1px solid #FFFF00 !important;
+}
+
+/* MudBlazor's default Typography applies a muted color/opacity to headings that reads
+   fine against light/dark backgrounds but defeats the point of a high-contrast theme
+   against pure black. Scoped to headings only — MudText elements carrying an explicit
+   semantic Color (success/error/warning) must keep their own color for meaning. */
+.am-high-contrast h1, .am-high-contrast h2, .am-high-contrast h3,
+.am-high-contrast h4, .am-high-contrast h5, .am-high-contrast h6,
+.am-high-contrast .mud-typography-h1, .am-high-contrast .mud-typography-h2,
+.am-high-contrast .mud-typography-h3, .am-high-contrast .mud-typography-h4,
+.am-high-contrast .mud-typography-h5, .am-high-contrast .mud-typography-h6 {
+  color: #FFFF00 !important;
+  opacity: 1 !important;
+}
 
 /* ---- Sidebar Brand ---- */
 .am-sidebar-brand {

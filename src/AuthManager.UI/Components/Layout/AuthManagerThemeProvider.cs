@@ -19,6 +19,22 @@ public static class AuthManagerThemeProvider
         }
     };
 
+    /// <summary>
+    /// High-contrast accessibility theme — pure black background, yellow text and
+    /// borders. Uses the same palette for both light/dark slots since this theme
+    /// doesn't have a light/dark variant of its own.
+    /// </summary>
+    public static MudTheme BuildHighContrast() => new()
+    {
+        PaletteLight = BuildHighContrastPalette(),
+        PaletteDark = BuildHighContrastDarkPalette(),
+        LayoutProperties = new LayoutProperties
+        {
+            DrawerWidthLeft = "260px",
+            AppbarHeight = "64px"
+        }
+    };
+
     private static PaletteLight BuildLightPalette() => new()
     {
         Primary = "#6D28D9",           // Violet-700
@@ -98,6 +114,91 @@ public static class AuthManagerThemeProvider
         InfoContrastText = "#0C1A2E",
         OverlayDark = "rgba(11, 15, 26, 0.8)",
         OverlayLight = "rgba(22, 27, 46, 0.6)"
+    };
+
+    // High-contrast accessibility palette — pure black with yellow text/borders.
+    // Success/Warning/Error keep distinct hues (green/orange/red) since collapsing
+    // every status indicator to the same yellow would hurt usability rather than help it.
+    private static PaletteLight BuildHighContrastPalette() => new()
+    {
+        Primary = "#FFFF00",
+        PrimaryContrastText = "#000000",
+        Secondary = "#FFFF00",
+        SecondaryContrastText = "#000000",
+        Tertiary = "#FFFF00",
+        TertiaryContrastText = "#000000",
+        Background = "#000000",
+        BackgroundGray = "#000000",
+        Surface = "#000000",
+        DrawerBackground = "#000000",
+        DrawerText = "#FFFF00",
+        DrawerIcon = "#FFFF00",
+        AppbarBackground = "#000000",
+        AppbarText = "#FFFF00",
+        TextPrimary = "#FFFF00",
+        TextSecondary = "#FFFF00",
+        TextDisabled = "#808000",
+        ActionDefault = "#FFFF00",
+        ActionDisabled = "#808000",
+        ActionDisabledBackground = "#000000",
+        Divider = "#FFFF00",
+        DividerLight = "#FFFF00",
+        TableLines = "#FFFF00",
+        TableStriped = "#0D0D00",
+        TableHover = "#1A1A00",
+        LinesDefault = "#FFFF00",
+        LinesInputs = "#FFFF00",
+        Success = "#00FF00",
+        SuccessContrastText = "#000000",
+        Warning = "#FFA500",
+        WarningContrastText = "#000000",
+        Error = "#FF3333",
+        ErrorContrastText = "#000000",
+        Info = "#00FFFF",
+        InfoContrastText = "#000000",
+        OverlayDark = "rgba(0, 0, 0, 0.9)",
+        OverlayLight = "rgba(0, 0, 0, 0.7)"
+    };
+
+    private static PaletteDark BuildHighContrastDarkPalette() => new()
+    {
+        Primary = "#FFFF00",
+        PrimaryContrastText = "#000000",
+        Secondary = "#FFFF00",
+        SecondaryContrastText = "#000000",
+        Tertiary = "#FFFF00",
+        TertiaryContrastText = "#000000",
+        Background = "#000000",
+        BackgroundGray = "#000000",
+        Surface = "#000000",
+        DrawerBackground = "#000000",
+        DrawerText = "#FFFF00",
+        DrawerIcon = "#FFFF00",
+        AppbarBackground = "#000000",
+        AppbarText = "#FFFF00",
+        TextPrimary = "#FFFF00",
+        TextSecondary = "#FFFF00",
+        TextDisabled = "#808000",
+        ActionDefault = "#FFFF00",
+        ActionDisabled = "#808000",
+        ActionDisabledBackground = "#000000",
+        Divider = "#FFFF00",
+        DividerLight = "#FFFF00",
+        TableLines = "#FFFF00",
+        TableStriped = "#0D0D00",
+        TableHover = "#1A1A00",
+        LinesDefault = "#FFFF00",
+        LinesInputs = "#FFFF00",
+        Success = "#00FF00",
+        SuccessContrastText = "#000000",
+        Warning = "#FFA500",
+        WarningContrastText = "#000000",
+        Error = "#FF3333",
+        ErrorContrastText = "#000000",
+        Info = "#00FFFF",
+        InfoContrastText = "#000000",
+        OverlayDark = "rgba(0, 0, 0, 0.9)",
+        OverlayLight = "rgba(0, 0, 0, 0.7)"
     };
 
 }

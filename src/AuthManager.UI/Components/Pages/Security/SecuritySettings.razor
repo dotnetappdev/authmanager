@@ -234,11 +234,16 @@ else
                                        StartIcon="@Icons.Material.Filled.DarkMode" OnClick='@(() => SetTheme("dark"))'>Dark</MudButton>
                             <MudButton Variant="@(_currentTheme == "light" ? Variant.Filled : Variant.Outlined)"
                                        StartIcon="@Icons.Material.Filled.LightMode" OnClick='@(() => SetTheme("light"))'>Light</MudButton>
+                            <MudButton Variant="@(_currentTheme == "high-contrast" ? Variant.Filled : Variant.Outlined)"
+                                       StartIcon="@Icons.Material.Filled.Contrast" OnClick='@(() => SetTheme("high-contrast"))'>High Contrast</MudButton>
                             <MudButton Variant="@(_currentTheme == "system" ? Variant.Filled : Variant.Outlined)"
                                        StartIcon="@Icons.Material.Filled.Computer" OnClick='@(() => SetTheme("system"))'>System</MudButton>
                         </MudButtonGroup>
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-2">
-                            Current: <strong>@(_currentTheme == "system" ? "System default" : _currentTheme == "dark" ? "Dark mode" : "Light mode")</strong>
+                            Current: <strong>@(_currentTheme switch { "system" => "System default", "dark" => "Dark mode", "high-contrast" => "High Contrast", _ => "Light mode" })</strong>
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-1">
+                            Takes effect on the next page load.
                         </MudText>
                     </MudCardContent>
                 </MudCard>

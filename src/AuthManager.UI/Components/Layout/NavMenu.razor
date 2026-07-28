@@ -122,16 +122,30 @@
     </MudNavMenu>
 
     <div class="am-sidebar-footer">
-        <MudTooltip Text="@(IsDark ? "Switch to Light Mode" : "Switch to Dark Mode")">
-            <MudIconButton Icon="@(IsDark ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
-                           Color="Color.Inherit" OnClick="OnThemeToggle" />
-        </MudTooltip>
+        <MudMenu Icon="@ThemeIcon" Color="Color.Inherit" AnchorOrigin="Origin.TopLeft" TransformOrigin="Origin.BottomLeft">
+            <MudMenuItem OnClick="@(() => OnThemeChange.InvokeAsync(AuthManagerTheme.Light))">
+                <MudIcon Icon="@Icons.Material.Filled.LightMode" Class="mr-2" Size="Size.Small" /> Light
+            </MudMenuItem>
+            <MudMenuItem OnClick="@(() => OnThemeChange.InvokeAsync(AuthManagerTheme.Dark))">
+                <MudIcon Icon="@Icons.Material.Filled.DarkMode" Class="mr-2" Size="Size.Small" /> Dark
+            </MudMenuItem>
+            <MudMenuItem OnClick="@(() => OnThemeChange.InvokeAsync(AuthManagerTheme.HighContrast))">
+                <MudIcon Icon="@Icons.Material.Filled.Contrast" Class="mr-2" Size="Size.Small" /> High Contrast
+            </MudMenuItem>
+        </MudMenu>
     </div>
 </MudDrawer>
 
 @code {
-    [Parameter] public bool IsDark { get; set; }
-    [Parameter] public EventCallback OnThemeToggle { get; set; }
+    [Parameter] public AuthManagerTheme CurrentTheme { get; set; }
+    [Parameter] public EventCallback<AuthManagerTheme> OnThemeChange { get; set; }
+
+    private string ThemeIcon => CurrentTheme switch
+    {
+        AuthManagerTheme.Dark => Icons.Material.Filled.DarkMode,
+        AuthManagerTheme.HighContrast => Icons.Material.Filled.Contrast,
+        _ => Icons.Material.Filled.LightMode
+    };
 
     private string Prefix(string? path = null)
     {

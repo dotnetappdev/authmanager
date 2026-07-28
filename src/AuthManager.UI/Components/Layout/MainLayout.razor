@@ -11,8 +11,8 @@
 <MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.Medium" />
 <MudSnackbarProvider />
 
-<MudLayout Class="@(_isDark ? "mud-theme-dark" : null)">
-    <NavMenu IsDark="_isDark" OnThemeToggle="ToggleTheme" />
+<MudLayout Class="@LayoutCssClass">
+    <NavMenu CurrentTheme="_mode" OnThemeChange="ChangeTheme" />
 
     <MudMainContent Class="am-main-content">
         @if (_isImpersonating)
@@ -31,11 +31,19 @@
 @code {
     private MudThemeProvider _themeProvider = default!;
     private bool   _isDark;
+    private AuthManagerTheme _mode = AuthManagerTheme.Light;
     private MudTheme _theme = AuthManagerThemeProvider.Build();
 
     private bool   _isImpersonating;
     private string _impersonatedUser    = "";
     private string _exitImpersonationUrl = "";
+
+    private string? LayoutCssClass => _mode switch
+    {
+        AuthManagerTheme.Dark => "mud-theme-dark",
+        AuthManagerTheme.HighContrast => "am-high-contrast",
+        _ => null
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -43,8 +51,7 @@
         // very first paint, including the static SSR pass before any circuit connects —
         // OnAfterRenderAsync below only runs once a circuit is live, so a JS-only default
         // would otherwise never apply to prerendered/non-interactive-yet output.
-        if (Options.Value.DefaultTheme == AuthManagerTheme.Dark)
-            _isDark = true;
+        ApplyMode(Options.Value.DefaultTheme == AuthManagerTheme.System ? AuthManagerTheme.Light : Options.Value.DefaultTheme);
 
         var authState = await AuthState.GetAuthenticationStateAsync();
         var user      = authState.User;
@@ -76,34 +83,59 @@
             {
             }
 
-            if (savedTheme == "dark")
-                _isDark = true;
-            else if (savedTheme == "light")
-                _isDark = false;
-            else
+            switch (savedTheme)
             {
-                var defaultTheme = Options.Value.DefaultTheme;
-                if (defaultTheme == AuthManagerTheme.Dark)
-                    _isDark = true;
-                else if (defaultTheme == AuthManagerTheme.System)
-                {
-                    try
+                case "dark":
+                    ApplyMode(AuthManagerTheme.Dark);
+                    break;
+                case "light":
+                    ApplyMode(AuthManagerTheme.Light);
+                    break;
+                case "high-contrast":
+                    ApplyMode(AuthManagerTheme.HighContrast);
+                    break;
+                default:
+                    var defaultTheme = Options.Value.DefaultTheme;
+                    if (defaultTheme == AuthManagerTheme.System)
                     {
-                        _isDark = await JS.InvokeAsync<bool>("authManager.prefersDarkMode");
+                        try
+                        {
+                            var prefersDark = await JS.InvokeAsync<bool>("authManager.prefersDarkMode");
+                            ApplyMode(prefersDark ? AuthManagerTheme.Dark : AuthManagerTheme.Light);
+                        }
+                        catch (InvalidOperationException)
+                        {
+                        }
                     }
-                    catch (InvalidOperationException)
+                    else
                     {
+                        ApplyMode(defaultTheme);
                     }
-                }
+                    break;
             }
             StateHasChanged();
         }
     }
 
-    private async Task ToggleTheme()
+    private void ApplyMode(AuthManagerTheme mode)
     {
-        _isDark = !_isDark;
-        await JS.InvokeVoidAsync("authManager.setTheme", _isDark ? "dark" : "light");
+        _mode   = mode;
+        _isDark = mode == AuthManagerTheme.Dark;
+        _theme  = mode == AuthManagerTheme.HighContrast
+            ? AuthManagerThemeProvider.BuildHighContrast()
+            : AuthManagerThemeProvider.Build();
+    }
+
+    private async Task ChangeTheme(AuthManagerTheme mode)
+    {
+        ApplyMode(mode);
+        var jsValue = mode switch
+        {
+            AuthManagerTheme.Dark => "dark",
+            AuthManagerTheme.HighContrast => "high-contrast",
+            _ => "light"
+        };
+        await JS.InvokeVoidAsync("authManager.setTheme", jsValue);
         StateHasChanged();
     }
 

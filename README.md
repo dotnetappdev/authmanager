@@ -21,11 +21,12 @@ Docs & Demo
 A **drop-in ASP.NET Identity management UI** for .NET — inspired by how **.NET Aspire** embeds its dashboard. Drop in a NuGet package, call two methods, and navigate to `/authmanager`.
 
 <p>
-  <img src="docs/screenshots/dashboard-light.png" width="49%" alt="Dashboard — light theme" />
-  <img src="docs/screenshots/dashboard-dark.png" width="49%" alt="Dashboard — dark theme" />
+  <img src="docs/screenshots/dashboard-light.png" width="32%" alt="Dashboard — light theme" />
+  <img src="docs/screenshots/dashboard-dark.png" width="32%" alt="Dashboard — dark theme" />
+  <img src="docs/screenshots/dashboard-high-contrast.png" width="32%" alt="Dashboard — high contrast theme" />
 </p>
 
-Full light/dark screenshots of every admin page are in the [Screenshots](#screenshots) section below.
+Full light/dark/high-contrast screenshots of every admin page are in the [Screenshots](#screenshots) section below.
 
 ---
 
@@ -62,7 +63,7 @@ Full light/dark screenshots of every admin page are in the [Screenshots](#screen
 | **Audit** | Every change recorded — who, what, when, from where · One-click CSV export |
 | **Import / Export** | Bulk CSV and JSON user import/export |
 | **Webhooks** | Signed HTTP POST events to external endpoints on auth actions |
-| **Themes** | Dark / light / system palette · OS preference auto-detect |
+| **Themes** | Dark / light / system palette · OS preference auto-detect · WCAG-oriented high-contrast (yellow on black) accessibility theme |
 | **Source Gen** | Scaffolds ApplicationUser, DbContext & wiring if Identity is missing |
 
 ---
@@ -192,16 +193,16 @@ Navigate to **`https://localhost:5001/authmanager`**, sign in, change the passwo
 
 ## Screenshots
 
-Every admin page, captured in both themes. Click a group to expand it.
+Every admin page, captured in all three themes — light, dark, and high contrast (WCAG-oriented, yellow on black). Click a group to expand it.
 
 <details>
 <summary><strong>Overview</strong> — Dashboard, System Health</summary>
 <br>
 
-| Page | Light | Dark |
-|------|-------|------|
-| Dashboard | <img src="docs/screenshots/dashboard-light.png" width="380"> | <img src="docs/screenshots/dashboard-dark.png" width="380"> |
-| System Health | <img src="docs/screenshots/system-health-light.png" width="380"> | <img src="docs/screenshots/system-health-dark.png" width="380"> |
+| Page | Light | Dark | High Contrast |
+|------|-------|------|----------------|
+| Dashboard | <img src="docs/screenshots/dashboard-light.png" width="280"> | <img src="docs/screenshots/dashboard-dark.png" width="280"> | <img src="docs/screenshots/dashboard-high-contrast.png" width="280"> |
+| System Health | <img src="docs/screenshots/system-health-light.png" width="280"> | <img src="docs/screenshots/system-health-dark.png" width="280"> | <img src="docs/screenshots/system-health-high-contrast.png" width="280"> |
 
 </details>
 
@@ -209,13 +210,13 @@ Every admin page, captured in both themes. Click a group to expand it.
 <summary><strong>Identity</strong> — Users, Roles, Groups, Claims, Tenants</summary>
 <br>
 
-| Page | Light | Dark |
-|------|-------|------|
-| Users | <img src="docs/screenshots/users-light.png" width="380"> | <img src="docs/screenshots/users-dark.png" width="380"> |
-| Roles | <img src="docs/screenshots/roles-light.png" width="380"> | <img src="docs/screenshots/roles-dark.png" width="380"> |
-| Groups | <img src="docs/screenshots/groups-light.png" width="380"> | <img src="docs/screenshots/groups-dark.png" width="380"> |
-| Claims | <img src="docs/screenshots/claims-light.png" width="380"> | <img src="docs/screenshots/claims-dark.png" width="380"> |
-| Tenants | <img src="docs/screenshots/tenants-light.png" width="380"> | <img src="docs/screenshots/tenants-dark.png" width="380"> |
+| Page | Light | Dark | High Contrast |
+|------|-------|------|----------------|
+| Users | <img src="docs/screenshots/users-light.png" width="280"> | <img src="docs/screenshots/users-dark.png" width="280"> | <img src="docs/screenshots/users-high-contrast.png" width="280"> |
+| Roles | <img src="docs/screenshots/roles-light.png" width="280"> | <img src="docs/screenshots/roles-dark.png" width="280"> | <img src="docs/screenshots/roles-high-contrast.png" width="280"> |
+| Groups | <img src="docs/screenshots/groups-light.png" width="280"> | <img src="docs/screenshots/groups-dark.png" width="280"> | <img src="docs/screenshots/groups-high-contrast.png" width="280"> |
+| Claims | <img src="docs/screenshots/claims-light.png" width="280"> | <img src="docs/screenshots/claims-dark.png" width="280"> | <img src="docs/screenshots/claims-high-contrast.png" width="280"> |
+| Tenants | <img src="docs/screenshots/tenants-light.png" width="280"> | <img src="docs/screenshots/tenants-dark.png" width="280"> | <img src="docs/screenshots/tenants-high-contrast.png" width="280"> |
 
 </details>
 
@@ -223,17 +224,17 @@ Every admin page, captured in both themes. Click a group to expand it.
 <summary><strong>Authentication</strong> — JWT, OAuth, SSO, OTP, Sessions, 2FA, Passkeys, API Tokens, Clients</summary>
 <br>
 
-| Page | Light | Dark |
-|------|-------|------|
-| JWT Settings | <img src="docs/screenshots/jwt-settings-light.png" width="380"> | <img src="docs/screenshots/jwt-settings-dark.png" width="380"> |
-| OAuth Providers | <img src="docs/screenshots/oauth-providers-light.png" width="380"> | <img src="docs/screenshots/oauth-providers-dark.png" width="380"> |
-| SSO / Entra ID | <img src="docs/screenshots/sso-light.png" width="380"> | <img src="docs/screenshots/sso-dark.png" width="380"> |
-| One-Time Passwords | <img src="docs/screenshots/otp-settings-light.png" width="380"> | <img src="docs/screenshots/otp-settings-dark.png" width="380"> |
-| Active Sessions | <img src="docs/screenshots/sessions-light.png" width="380"> | <img src="docs/screenshots/sessions-dark.png" width="380"> |
-| Two-Factor Auth | <img src="docs/screenshots/two-factor-light.png" width="380"> | <img src="docs/screenshots/two-factor-dark.png" width="380"> |
-| Passkeys | <img src="docs/screenshots/passkeys-light.png" width="380"> | <img src="docs/screenshots/passkeys-dark.png" width="380"> |
-| API Tokens | <img src="docs/screenshots/api-tokens-light.png" width="380"> | <img src="docs/screenshots/api-tokens-dark.png" width="380"> |
-| Clients | <img src="docs/screenshots/clients-light.png" width="380"> | <img src="docs/screenshots/clients-dark.png" width="380"> |
+| Page | Light | Dark | High Contrast |
+|------|-------|------|----------------|
+| JWT Settings | <img src="docs/screenshots/jwt-settings-light.png" width="280"> | <img src="docs/screenshots/jwt-settings-dark.png" width="280"> | <img src="docs/screenshots/jwt-settings-high-contrast.png" width="280"> |
+| OAuth Providers | <img src="docs/screenshots/oauth-providers-light.png" width="280"> | <img src="docs/screenshots/oauth-providers-dark.png" width="280"> | <img src="docs/screenshots/oauth-providers-high-contrast.png" width="280"> |
+| SSO / Entra ID | <img src="docs/screenshots/sso-light.png" width="280"> | <img src="docs/screenshots/sso-dark.png" width="280"> | <img src="docs/screenshots/sso-high-contrast.png" width="280"> |
+| One-Time Passwords | <img src="docs/screenshots/otp-settings-light.png" width="280"> | <img src="docs/screenshots/otp-settings-dark.png" width="280"> | <img src="docs/screenshots/otp-settings-high-contrast.png" width="280"> |
+| Active Sessions | <img src="docs/screenshots/sessions-light.png" width="280"> | <img src="docs/screenshots/sessions-dark.png" width="280"> | <img src="docs/screenshots/sessions-high-contrast.png" width="280"> |
+| Two-Factor Auth | <img src="docs/screenshots/two-factor-light.png" width="280"> | <img src="docs/screenshots/two-factor-dark.png" width="280"> | <img src="docs/screenshots/two-factor-high-contrast.png" width="280"> |
+| Passkeys | <img src="docs/screenshots/passkeys-light.png" width="280"> | <img src="docs/screenshots/passkeys-dark.png" width="280"> | <img src="docs/screenshots/passkeys-high-contrast.png" width="280"> |
+| API Tokens | <img src="docs/screenshots/api-tokens-light.png" width="280"> | <img src="docs/screenshots/api-tokens-dark.png" width="280"> | <img src="docs/screenshots/api-tokens-high-contrast.png" width="280"> |
+| Clients | <img src="docs/screenshots/clients-light.png" width="280"> | <img src="docs/screenshots/clients-dark.png" width="280"> | <img src="docs/screenshots/clients-high-contrast.png" width="280"> |
 
 </details>
 
@@ -241,12 +242,12 @@ Every admin page, captured in both themes. Click a group to expand it.
 <summary><strong>Licensing & Billing</strong> — Customers, License Keys, Customer API Keys, Subscriptions</summary>
 <br>
 
-| Page | Light | Dark |
-|------|-------|------|
-| Customers | <img src="docs/screenshots/customers-light.png" width="380"> | <img src="docs/screenshots/customers-dark.png" width="380"> |
-| License Keys | <img src="docs/screenshots/license-keys-light.png" width="380"> | <img src="docs/screenshots/license-keys-dark.png" width="380"> |
-| Customer API Keys | <img src="docs/screenshots/customer-api-keys-light.png" width="380"> | <img src="docs/screenshots/customer-api-keys-dark.png" width="380"> |
-| Subscriptions | <img src="docs/screenshots/subscriptions-light.png" width="380"> | <img src="docs/screenshots/subscriptions-dark.png" width="380"> |
+| Page | Light | Dark | High Contrast |
+|------|-------|------|----------------|
+| Customers | <img src="docs/screenshots/customers-light.png" width="280"> | <img src="docs/screenshots/customers-dark.png" width="280"> | <img src="docs/screenshots/customers-high-contrast.png" width="280"> |
+| License Keys | <img src="docs/screenshots/license-keys-light.png" width="280"> | <img src="docs/screenshots/license-keys-dark.png" width="280"> | <img src="docs/screenshots/license-keys-high-contrast.png" width="280"> |
+| Customer API Keys | <img src="docs/screenshots/customer-api-keys-light.png" width="280"> | <img src="docs/screenshots/customer-api-keys-dark.png" width="280"> | <img src="docs/screenshots/customer-api-keys-high-contrast.png" width="280"> |
+| Subscriptions | <img src="docs/screenshots/subscriptions-light.png" width="280"> | <img src="docs/screenshots/subscriptions-dark.png" width="280"> | <img src="docs/screenshots/subscriptions-high-contrast.png" width="280"> |
 
 </details>
 
@@ -254,20 +255,19 @@ Every admin page, captured in both themes. Click a group to expand it.
 <summary><strong>Settings & Monitoring</strong> — Email, User Fields, Display, Security, Logs, Audit, Sign-in History</summary>
 <br>
 
-| Page | Light | Dark |
-|------|-------|------|
-| Email Settings | <img src="docs/screenshots/email-settings-light.png" width="380"> | <img src="docs/screenshots/email-settings-dark.png" width="380"> |
-| Custom User Fields | <img src="docs/screenshots/user-fields-light.png" width="380"> | <img src="docs/screenshots/user-fields-dark.png" width="380"> |
-| Display Settings | <img src="docs/screenshots/display-settings-light.png" width="380"> | <img src="docs/screenshots/display-settings-dark.png" width="380"> |
-| Security Settings | <img src="docs/screenshots/security-settings-light.png" width="380"> | <img src="docs/screenshots/security-settings-dark.png" width="380"> |
-| Log Viewer | <img src="docs/screenshots/log-viewer-light.png" width="380"> | <img src="docs/screenshots/log-viewer-dark.png" width="380"> |
-| Audit Log | <img src="docs/screenshots/audit-log-light.png" width="380"> | <img src="docs/screenshots/audit-log-dark.png" width="380"> |
-| Sign-in History | <img src="docs/screenshots/signin-history-light.png" width="380"> | <img src="docs/screenshots/signin-history-dark.png" width="380"> |
+| Page | Light | Dark | High Contrast |
+|------|-------|------|----------------|
+| Email Settings | <img src="docs/screenshots/email-settings-light.png" width="280"> | <img src="docs/screenshots/email-settings-dark.png" width="280"> | <img src="docs/screenshots/email-settings-high-contrast.png" width="280"> |
+| Custom User Fields | <img src="docs/screenshots/user-fields-light.png" width="280"> | <img src="docs/screenshots/user-fields-dark.png" width="280"> | <img src="docs/screenshots/user-fields-high-contrast.png" width="280"> |
+| Display Settings | <img src="docs/screenshots/display-settings-light.png" width="280"> | <img src="docs/screenshots/display-settings-dark.png" width="280"> | <img src="docs/screenshots/display-settings-high-contrast.png" width="280"> |
+| Security Settings | <img src="docs/screenshots/security-settings-light.png" width="280"> | <img src="docs/screenshots/security-settings-dark.png" width="280"> | <img src="docs/screenshots/security-settings-high-contrast.png" width="280"> |
+| Log Viewer | <img src="docs/screenshots/log-viewer-light.png" width="280"> | <img src="docs/screenshots/log-viewer-dark.png" width="280"> | <img src="docs/screenshots/log-viewer-high-contrast.png" width="280"> |
+| Audit Log | <img src="docs/screenshots/audit-log-light.png" width="280"> | <img src="docs/screenshots/audit-log-dark.png" width="280"> | <img src="docs/screenshots/audit-log-high-contrast.png" width="280"> |
+| Sign-in History | <img src="docs/screenshots/signin-history-light.png" width="280"> | <img src="docs/screenshots/signin-history-dark.png" width="280"> | <img src="docs/screenshots/signin-history-high-contrast.png" width="280"> |
 
 </details>
 
 ---
-
 ## Deployment Modes: Self-Contained UI or Headless Web API
 
 AuthManager works two ways, and you can use either or both in the same app:
