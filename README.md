@@ -212,10 +212,22 @@ access to additional roles — that's what lets the seeded `admin@example.com` a
 alongside SuperAdmin, while Customer/Reader/Viewer remain API-only (they can still authenticate
 and call `/api/*` endpoints, just not the admin panel itself).
 
-Alongside the accounts, `DemoSeeder` also creates demo licensing data — 3 customers, 3 license
-keys, 2 subscription plans with active subscriptions, 1 customer API key, and 2 OAuth clients —
-so pages like Customers, License Keys, and Clients aren't empty on first run. To clear just
-that demo business data without touching any account or password, call (as SuperAdmin):
+On top of the 5 accounts above, `DemoSeeder` generates 26 further users spread across the same
+four roles (mostly Customer/Reader/Viewer, a couple more Admins) — 31 users total — so the Users
+page, Dashboard stats, and System Health actually have something to page/filter/measure instead
+of a handful of empty-feeling rows. A few are seeded pre-locked-out, unconfirmed, or with 2FA
+enabled for variety; their password is `Passw0rd!2345` (demo data only — not meant for anything
+beyond exploring the UI).
+
+Alongside the accounts, `DemoSeeder` also creates a realistic volume of demo licensing data — 15
+customers (a handful of pop-culture names plus Microsoft's own long-standing set of fictional
+placeholder companies — Contoso, Fabrikam, Northwind, AdventureWorks, etc. — trademark-free and
+exactly what they're designed for), 3 subscription plans (Starter/Pro/Enterprise) with 8
+subscriptions in a mix of Trialing/Active/Canceled statuses, 17 license keys, 7 customer API
+keys, and 8 OAuth clients modelling typical first-party and third-party service integrations —
+so pages like Customers, License Keys, and Clients look like a real, lived-in product instead of
+a fresh install. To clear just that demo business data without touching any account or password,
+call (as SuperAdmin):
 
 ```bash
 curl -s -X POST -H "Authorization: Bearer $TOKEN" https://localhost:5001/api/admin/purge-demo-data
