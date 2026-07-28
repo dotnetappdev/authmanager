@@ -195,29 +195,69 @@ Navigate to **`https://localhost:5001/authmanager`**, sign in, change the passwo
 
 ## Demo Accounts (WebApi Sample)
 
-`samples/AuthManagerSample.WebApi` seeds these accounts on first run (`Data/DemoSeeder.cs`) so
-you have something to sign in with immediately — no manual setup needed:
+`samples/AuthManagerSample.WebApi` seeds these accounts on first run — the 4 documented accounts
+plus the SuperAdmin role itself via `Data/DemoSeeder.cs`, and the `superadmin@example.com` user
+via AuthManager's own `SuperAdminSeeder` (`options.SeedSuperAdmin = true` in `Program.cs`) — so
+you have something to sign in with immediately, no manual setup needed.
 
-| Email | Password | Role | Signs into `/authmanager` UI? |
-|-------|----------|------|-------------------------------|
-| `superadmin@example.com` | `SuperAdmin@123456!` | SuperAdmin | ✅ Yes — full access |
-| `admin@example.com` | `Admin@123456!` | Admin | ✅ Yes — via `AuthManagerOptions.AdminRoles` |
-| `customer@example.com` | `Customer@123456!` | Customer | ❌ API/JWT only |
-| `reader@example.com` | `Reader@123456!` | Reader | ❌ API/JWT only |
-| `viewer@example.com` | `Viewer@123456!` | Viewer | ❌ API/JWT only |
+### Roles
 
-By default, only `AuthManagerOptions.SuperAdminRole` (`"SuperAdmin"`) can sign into the
-`/authmanager` UI. `AuthManagerOptions.AdminRoles` (default `["Admin"]`) grants the same UI
-access to additional roles — that's what lets the seeded `admin@example.com` account sign in
-alongside SuperAdmin, while Customer/Reader/Viewer remain API-only (they can still authenticate
-and call `/api/*` endpoints, just not the admin panel itself).
+| Role | Signs into `/authmanager` UI? | Purpose |
+|------|-------------------------------|---------|
+| `SuperAdmin` | ✅ Yes — full access | The one role AuthManager always trusts (`AuthManagerOptions.SuperAdminRole`). Full read/write access to every admin page and REST endpoint, including tenant branding and feature-flag overrides. |
+| `Admin` | ✅ Yes — via `AuthManagerOptions.AdminRoles` | Same UI access as SuperAdmin by default configuration, minus SuperAdmin-only controls (tenant branding/feature-flag overrides on the Tenants dashboard). `AdminRoles` (default `["Admin"]`) is how you grant additional roles the same panel access without making them SuperAdmin. |
+| `Customer` | ❌ API/JWT only | A regular application user in this sample's own domain — can authenticate and call `/api/*` endpoints, not the admin panel. |
+| `Reader` | ❌ API/JWT only | Same as Customer — a demo role standing in for a read-oriented application user. |
+| `Viewer` | ❌ API/JWT only | Same as Customer — a demo role standing in for a view-only application user. |
+
+### Primary accounts (memorize these)
+
+| Email | Password | Role |
+|-------|----------|------|
+| `superadmin@example.com` | `SuperAdmin@123456!` | SuperAdmin |
+| `admin@example.com` | `Admin@123456!` | Admin |
+| `customer@example.com` | `Customer@123456!` | Customer |
+| `reader@example.com` | `Reader@123456!` | Reader |
+| `viewer@example.com` | `Viewer@123456!` | Viewer |
+
+### All seeded users (31 total)
 
 On top of the 5 accounts above, `DemoSeeder` generates 26 further users spread across the same
-four roles (mostly Customer/Reader/Viewer, a couple more Admins) — 31 users total — so the Users
-page, Dashboard stats, and System Health actually have something to page/filter/measure instead
-of a handful of empty-feeling rows. A few are seeded pre-locked-out, unconfirmed, or with 2FA
-enabled for variety; their password is `Passw0rd!2345` (demo data only — not meant for anything
-beyond exploring the UI).
+four application roles (mostly Customer/Reader/Viewer, a couple more Admins) so the Users page,
+Dashboard stats, and System Health actually have something to page/filter/measure instead of a
+handful of empty-feeling rows. Every one of them shares the password `Passw0rd!2345` (demo data
+only — not meant for anything beyond exploring the UI). Email is `first.last@example.com`
+(lowercase, apostrophes stripped, e.g. `liam.obrien@example.com`). A few are seeded
+pre-locked-out, unconfirmed, or with 2FA enabled for variety, noted below:
+
+| Name | Role | Notes |
+|------|------|-------|
+| Alice Johnson | Customer | |
+| Bob Martinez | Customer | |
+| Carol Chen | Customer | Unconfirmed email |
+| David Kim | Customer | |
+| Emma Wilson | Customer | Locked out |
+| Frank Rodriguez | Customer | |
+| Grace Lee | Customer | 2FA enabled |
+| Henry Patel | Customer | |
+| Isabella Garcia | Customer | Unconfirmed email |
+| Jack Thompson | Customer | |
+| Karen Nguyen | Reader | |
+| Liam O'Brien | Reader | |
+| Maria Santos | Reader | Locked out |
+| Noah Anderson | Reader | |
+| Olivia Brown | Reader | |
+| Peter Zhang | Reader | 2FA enabled |
+| Quinn Sullivan | Reader | |
+| Rachel Davis | Reader | Unconfirmed email |
+| Samuel Okafor | Viewer | |
+| Tina Kowalski | Viewer | |
+| Uma Sharma | Viewer | |
+| Victor Petrov | Viewer | |
+| Wendy Clarke | Viewer | |
+| Xavier Silva | Viewer | |
+| Yara Haddad | Admin | Signs into `/authmanager` UI |
+| Zoe Fischer | Admin | Signs into `/authmanager` UI |
 
 Alongside the accounts, `DemoSeeder` also creates a realistic volume of demo licensing data — 15
 customers (a handful of pop-culture names plus Microsoft's own long-standing set of fictional

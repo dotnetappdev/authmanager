@@ -125,7 +125,11 @@ public static class DemoSeeder
         var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
 
-        foreach (var role in new[] { "Admin", "Customer", "Reader", "Viewer" })
+        // SuperAdmin itself is created by AuthManager's own SuperAdminSeeder hosted service
+        // (options.SeedSuperAdmin = true, below in Program.cs) — that's what actually creates
+        // the superadmin@example.com user. The role is ensured here too so it always exists
+        // the moment Identity is up, regardless of hosted-service startup ordering.
+        foreach (var role in new[] { "SuperAdmin", "Admin", "Customer", "Reader", "Viewer" })
         {
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole(role));
