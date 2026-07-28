@@ -646,6 +646,41 @@ That's it — `AddAuthManager<TUser>()` maps everything else: `GET /authmanager/
 
 ---
 
+## One-Time Passwords (OTP)
+
+Generate and verify short-lived numeric (or alphanumeric) codes for passwordless login and step-up authentication — manage code length, expiry, resend cooldown, and delivery templates at **One-Time Passwords** (`/authmanager/otp`). `IOtpService` only generates/verifies codes; delivering them is up to you (email, SMS, push — whatever fits your app):
+
+```csharp
+var result = await otpService.GenerateAsync(user.Id, "login");
+if (result.Success)
+    await emailService.SendAsync(user.Email, subject, body.Replace("{code}", result.PlainCode));
+
+var verify = await otpService.VerifyAsync(user.Id, "login", userEnteredCode);
+```
+
+### SMS delivery (Twilio, Vonage, MessageBird, Sinch, Textlocal)
+
+For SMS delivery, `ISmsSenderService` calls the provider's REST API directly (no SDK dependency) — configure credentials and pick an active provider on the same OTP Settings page, no code changes needed:
+
+- **Twilio** — the largest global SMS/voice API. Account SID, Auth Token, From number (or Messaging Service SID).
+- **Vonage** (formerly Nexmo) — global coverage, strong UK/EU delivery.
+- **MessageBird** (Bird) — Europe-headquartered.
+- **Sinch** — global CPaaS, absorbed several regional carriers' direct routes.
+- **Textlocal** — UK-founded, one of the most widely used UK-only SMS gateways.
+
+```csharp
+var result = await otpService.GenerateAsync(user.Id, "login");
+if (result.Success)
+{
+    var message = smsBodyTemplate.Replace("{code}", result.PlainCode);
+    await smsSender.SendAsync(user.PhoneNumber, message);
+}
+```
+
+Only one provider is active at a time (`SmsOptions.ActiveProvider`); secrets are never echoed back in full once saved (only the last 4 characters, so the UI can show which key is active without exposing it), and the OTP Settings page has a "Send a Test Message" button to verify credentials against the real provider API before going live.
+
+---
+
 ## Single Sign-On (SSO)
 
 Manage enterprise identity providers — **Microsoft Entra ID**, any standards-compliant **generic OIDC** provider (Okta, Auth0, Keycloak, PingFederate…), and **SAML 2.0** — at **SSO** (`/authmanager/sso`). Same philosophy as JWT/OAuth2: AuthManager manages the *settings* (client IDs, secrets, certificates, group-to-role mappings) and persists them to its internal database so they survive restarts and don't need a redeploy to change; wiring the actual authentication middleware in `Program.cs` is up to you, the same way you'd wire it without AuthManager.
