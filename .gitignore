@@ -13,6 +13,10 @@ obj/
 ## NuGet
 .nuget/
 packages/
+
+## Allure test reports
+allure-results/
+allure-report/
 *.lock.json
 
 ## Rider

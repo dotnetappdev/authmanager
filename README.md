@@ -952,6 +952,34 @@ tests never share state or depend on run order.
 dotnet test tests/AuthManager.Tests/AuthManager.Tests.csproj -c Release
 ```
 
+### Allure test report (visual dashboard)
+
+The suite is instrumented with [Allure](https://allurereport.org/) (`Allure.Xunit`), which
+writes a result file per test to `allure-results/` as part of the normal `dotnet test` run — no
+separate step needed. Turning those results into the actual dashboard (pass/fail rates, suite
+and package breakdowns, per-test timelines and history, trend graphs) needs the Allure
+commandline tool, since report rendering isn't something a .NET test package does on its own:
+
+```bash
+# One-time install (needs Node.js + a JRE)
+npm install -g allure-commandline
+
+# After a test run — generates a static HTML report from the results directory
+allure generate tests/AuthManager.Tests/bin/Release/net10.0/allure-results --clean -o allure-report
+
+# Serve it locally (opens your browser automatically)
+allure open allure-report
+# — or, to generate and open in one step:
+allure serve tests/AuthManager.Tests/bin/Release/net10.0/allure-results
+```
+
+CI generates and uploads the report as a build artifact on every run (`allure-report`, see
+`.github/workflows/ci.yml`) — download it from the workflow run summary to see the same
+dashboard for that commit, including on red runs (`if: always()`, so a report is produced even
+when tests fail — that's when the visual breakdown is most useful).
+
+`allure-results/` and `allure-report/` are gitignored; nothing here is meant to be committed.
+
 CI runs this suite on every push and pull request (see `.github/workflows/ci.yml`).
 
 ---

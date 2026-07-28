@@ -1,0 +1,10 @@
+{
+  "allure": {
+    "directory": "allure-results",
+    "title": "AuthManager Test Report",
+    "links": [
+      "https://github.com/dotnetappdev/authmanager/issues/{issue}",
+      "https://github.com/dotnetappdev/authmanager/pull/{pull}"
+    ]
+  }
+}

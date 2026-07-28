@@ -30,6 +30,20 @@ jobs:
     - name: Test
       run: dotnet test tests/AuthManager.Tests/AuthManager.Tests.csproj --no-build -c Release
 
+    - name: Generate Allure report
+      if: always()
+      run: |
+        npm install -g allure-commandline --silent
+        allure generate tests/AuthManager.Tests/bin/Release/net10.0/allure-results --clean -o allure-report
+
+    - name: Upload Allure report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: allure-report
+        path: allure-report/
+        retention-days: 30
+
     - name: Pack (Release only)
       if: github.ref == 'refs/heads/main'
       run: dotnet pack AuthManager.sln --no-build -c Release -o ./nupkgs
