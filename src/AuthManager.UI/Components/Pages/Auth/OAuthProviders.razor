@@ -99,7 +99,7 @@ else
     </MudGrid>
 }
 
-<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+<MudDialog @bind-Visible="_showDialog" Options="_dialogOpts">
     <TitleContent><MudText Typo="Typo.h6">Configure @_editingProvider?.DisplayName</MudText></TitleContent>
     <DialogContent>
         @if (_editingProvider != null)

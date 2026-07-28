@@ -128,7 +128,7 @@ else
 }
 
 <!-- ── Create Token Dialog ────────────────────────────────────────────────── -->
-<MudDialog @bind-IsVisible="_showCreate" Options="_dialogOpts">
+<MudDialog @bind-Visible="_showCreate" Options="_dialogOpts">
     <TitleContent>
         <MudText Typo="Typo.h6">New API Token</MudText>
     </TitleContent>
@@ -169,7 +169,7 @@ else
 </MudDialog>
 
 <!-- ── Raw Token Reveal Dialog ───────────────────────────────────────────── -->
-<MudDialog @bind-IsVisible="_showReveal" Options="_revealOpts">
+<MudDialog @bind-Visible="_showReveal" Options="_revealOpts">
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />

@@ -156,7 +156,7 @@ else
 }
 
 <!-- ── Create / Manage Dialog ────────────────────────────────────────────── -->
-<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+<MudDialog @bind-Visible="_showDialog" Options="_dialogOpts">
     <TitleContent>
         <MudText Typo="Typo.h6">@(_editingTenant is null ? "New Tenant" : $"Manage — {_editingTenant.DisplayName}")</MudText>
     </TitleContent>
@@ -242,7 +242,7 @@ else
 </MudDialog>
 
 <!-- ── Members Dialog ────────────────────────────────────────────────────── -->
-<MudDialog @bind-IsVisible="_showMembers" Options="_dialogOpts">
+<MudDialog @bind-Visible="_showMembers" Options="_dialogOpts">
     <TitleContent>
         <MudText Typo="Typo.h6">Members — @_membersTenant?.DisplayName</MudText>
     </TitleContent>

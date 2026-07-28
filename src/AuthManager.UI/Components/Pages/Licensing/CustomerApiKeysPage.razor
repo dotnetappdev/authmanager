@@ -109,7 +109,7 @@ else
     </MudCard>
 }
 
-<MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
+<MudDialog @bind-Visible="_showDialog" Options="_dialogOpts">
     <TitleContent><MudText Typo="Typo.h6">New API Key</MudText></TitleContent>
     <DialogContent>
         <MudStack Spacing="3">
@@ -135,7 +135,7 @@ else
     </DialogActions>
 </MudDialog>
 
-<MudDialog @bind-IsVisible="_showReveal" Options="_revealOpts">
+<MudDialog @bind-Visible="_showReveal" Options="_revealOpts">
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
