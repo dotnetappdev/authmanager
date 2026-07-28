@@ -14,6 +14,7 @@ Docs & Demo
 
 [![NuGet](https://img.shields.io/nuget/v/DotNetAuthManager.svg)](https://www.nuget.org/packages/DotNetAuthManager)
 [![Tests](https://github.com/dotnetappdev/authmanager/actions/workflows/ci.yml/badge.svg)](https://github.com/dotnetappdev/authmanager/actions/workflows/ci.yml)
+[![Allure Report](https://img.shields.io/badge/Allure-Test%20Report-orange)](https://dotnetappdev.github.io/authmanager/allure-report/)
 [![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4)](https://dotnet.microsoft.com)
 [![Release](https://img.shields.io/github/v/release/dotnetappdev/authmanager?include_prereleases&sort=semver&label=release)](https://github.com/dotnetappdev/authmanager/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -45,6 +46,7 @@ Full light/dark/high-contrast screenshots of every admin page are in the [Screen
 | **Licensing** | Generate CD-key style product license keys · Per-license activation caps enforced per machine · Anonymous validate/activate/deactivate API for your desktop app or installer |
 | **Customer API Keys** | Issue bearer keys to your own customers (Stripe/SendGrid-style) · Scoped, optionally rate-limited, revocable, regenerable |
 | **Subscriptions** | Define billing plans (price, interval, trial, feature list) · Subscribe customers, change plans, cancel/reactivate |
+| **Payments** | Stripe Checkout Sessions and PayPal Orders v2/Billing Subscriptions v1 · API keys + webhook secrets configured in the UI, no code changes · Webhook-driven subscription activation/cancellation |
 | **SSO** | Microsoft Entra ID, generic OIDC providers (Okta, Auth0, Keycloak…, add/remove at runtime, no restart), and SAML 2.0 with X.509 certificate upload · settings persist to the internal DB · group-to-role sync for Entra ID |
 | **One-Time Passwords** | Email/SMS OTP codes for passwordless login and step-up MFA verification |
 | **Required Actions** | Per-user actions enforced on next sign-in: UpdatePassword, VerifyEmail, ConfigureTOTP, UpdateProfile, AcceptTerms |
@@ -191,6 +193,54 @@ Navigate to **`https://localhost:5001/authmanager`**, sign in, change the passwo
 
 ---
 
+## Demo Accounts (WebApi Sample)
+
+`samples/AuthManagerSample.WebApi` seeds these accounts on first run (`Data/DemoSeeder.cs`) so
+you have something to sign in with immediately — no manual setup needed:
+
+| Email | Password | Role | Signs into `/authmanager` UI? |
+|-------|----------|------|-------------------------------|
+| `superadmin@example.com` | `SuperAdmin@123456!` | SuperAdmin | ✅ Yes — full access |
+| `admin@example.com` | `Admin@123456!` | Admin | ✅ Yes — via `AuthManagerOptions.AdminRoles` |
+| `customer@example.com` | `Customer@123456!` | Customer | ❌ API/JWT only |
+| `reader@example.com` | `Reader@123456!` | Reader | ❌ API/JWT only |
+| `viewer@example.com` | `Viewer@123456!` | Viewer | ❌ API/JWT only |
+
+By default, only `AuthManagerOptions.SuperAdminRole` (`"SuperAdmin"`) can sign into the
+`/authmanager` UI. `AuthManagerOptions.AdminRoles` (default `["Admin"]`) grants the same UI
+access to additional roles — that's what lets the seeded `admin@example.com` account sign in
+alongside SuperAdmin, while Customer/Reader/Viewer remain API-only (they can still authenticate
+and call `/api/*` endpoints, just not the admin panel itself).
+
+Alongside the accounts, `DemoSeeder` also creates demo licensing data — 3 customers, 3 license
+keys, 2 subscription plans with active subscriptions, 1 customer API key, and 2 OAuth clients —
+so pages like Customers, License Keys, and Clients aren't empty on first run. To clear just
+that demo business data without touching any account or password, call (as SuperAdmin):
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $TOKEN" https://localhost:5001/api/admin/purge-demo-data
+```
+
+See `samples/AuthManagerSample.WebApi/README.md` for the full curl walkthrough.
+
+**Seed data in place** — Users (with the demo accounts above), Customers, License Keys,
+Subscriptions, Customer API Keys, and OAuth Clients, plus the Admin-role account signed straight
+into the `/authmanager` dashboard:
+
+| Users | Customers | License Keys |
+|-------|-----------|---------------|
+| <img src="docs/screenshots/users-seed-data.png" width="280"> | <img src="docs/screenshots/customers-seed-data.png" width="280"> | <img src="docs/screenshots/license-keys-seed-data.png" width="280"> |
+
+| Subscriptions | Customer API Keys | OAuth Clients |
+|----------------|--------------------|----------------|
+| <img src="docs/screenshots/subscriptions-seed-data.png" width="280"> | <img src="docs/screenshots/customer-api-keys-seed-data.png" width="280"> | <img src="docs/screenshots/oauth-clients-seed-data.png" width="280"> |
+
+| Admin-role account signed into `/authmanager` | `POST /api/admin/purge-demo-data` in Swagger |
+|---|---|
+| <img src="docs/screenshots/admin-role-signed-in.png" width="420"> | <img src="docs/screenshots/swagger-purge-endpoint.png" width="420"> |
+
+---
+
 ## Screenshots
 
 Every admin page, captured in all three themes — light, dark, and high contrast (WCAG-oriented, yellow on black).
@@ -230,7 +280,7 @@ Every admin page, captured in all three themes — light, dark, and high contras
 | Clients | <img src="docs/screenshots/clients-light.png" width="280"> | <img src="docs/screenshots/clients-dark.png" width="280"> | <img src="docs/screenshots/clients-high-contrast.png" width="280"> |
 
 ### Licensing & Billing
-*Customers, License Keys, Customer API Keys, Subscriptions*
+*Customers, License Keys, Customer API Keys, Subscriptions, Payment Settings (Stripe / PayPal)*
 
 | Page | Light | Dark | High Contrast |
 |------|-------|------|----------------|
@@ -238,6 +288,7 @@ Every admin page, captured in all three themes — light, dark, and high contras
 | License Keys | <img src="docs/screenshots/license-keys-light.png" width="280"> | <img src="docs/screenshots/license-keys-dark.png" width="280"> | <img src="docs/screenshots/license-keys-high-contrast.png" width="280"> |
 | Customer API Keys | <img src="docs/screenshots/customer-api-keys-light.png" width="280"> | <img src="docs/screenshots/customer-api-keys-dark.png" width="280"> | <img src="docs/screenshots/customer-api-keys-high-contrast.png" width="280"> |
 | Subscriptions | <img src="docs/screenshots/subscriptions-light.png" width="280"> | <img src="docs/screenshots/subscriptions-dark.png" width="280"> | <img src="docs/screenshots/subscriptions-high-contrast.png" width="280"> |
+| Payment Settings | <img src="docs/screenshots/payment-settings-light.png" width="280"> | <img src="docs/screenshots/payment-settings-dark.png" width="280"> | <img src="docs/screenshots/payment-settings-high-contrast.png" width="280"> |
 
 ### Settings & Monitoring
 *Email, User Fields, Display, Security, Logs, Audit, Sign-in History*
@@ -668,7 +719,7 @@ Each key is scoped (arbitrary string scopes, checked in your own authorization l
 
 ## Subscriptions & Billing Plans
 
-Define plans (price, billing interval, trial length, feature list) and subscribe customers to them — manage both at **Subscriptions** (`/authmanager/subscriptions`). This models subscription *state*, not payment processing — wire it to Stripe/Paddle/etc. webhooks in your own app if you need to charge cards; AuthManager tracks who's on what plan and whether they're trialing, active, canceled, or past due.
+Define plans (price, billing interval, trial length, feature list) and subscribe customers to them — manage both at **Subscriptions** (`/authmanager/subscriptions`). AuthManager tracks who's on what plan and whether they're trialing, active, canceled, or past due; billing can stay purely internal (manual/`SubscribeAsync`) or be driven by a real payment provider — see below.
 
 ```csharp
 // Look up what a customer is currently entitled to
@@ -678,6 +729,23 @@ if (subscription is { Status: SubscriptionStatus.Active or SubscriptionStatus.Tr
     // grant access per subscription.PlanName / plan.MaxApiKeys / plan.Features
 }
 ```
+
+### Payment Providers (Stripe / PayPal)
+
+Configure API keys and enable/disable each provider at **Payment Settings** (`/authmanager/payments`) — no code changes needed, just the keys from each provider's dashboard:
+
+- **Stripe** — publishable key, secret key, webhook signing secret, currency, success/cancel URLs. Checkout runs through a Stripe-hosted **Checkout Session** (subscription mode for recurring plans, payment mode for `OneTime` plans).
+- **PayPal** — client ID/secret, sandbox/live toggle, webhook ID, return/cancel URLs. `OneTime` plans use the **Orders v2** API; recurring plans use the **Billing Subscriptions v1** API (a Product + Plan are created automatically from your internal plan on first use).
+
+Secret fields are never echoed back in full once saved — only the last 4 characters, so the UI can show which key is active without exposing it.
+
+```csharp
+// Start a checkout — returns a URL to redirect the browser to
+var (ok, errors, checkoutUrl) = await paymentGateway.CreateStripeCheckoutSessionAsync(customerId, planId);
+// or: await paymentGateway.CreatePayPalCheckoutAsync(customerId, planId);
+```
+
+Point each provider's webhook at `/{RoutePrefix}/api/webhooks/stripe` / `/{RoutePrefix}/api/webhooks/paypal` (anonymous endpoints — verified via the provider's own signature scheme, not a bearer token). On a successful checkout/subscription-activation event, AuthManager creates or updates the matching `CustomerSubscriptionRecord` with `PaymentProvider` set to `"Stripe"` / `"PayPal"` and the external subscription ID attached — visible via `CustomerSubscriptionDto.PaymentProvider` / `.ExternalSubscriptionId`.
 
 ---
 
@@ -819,6 +887,7 @@ All routes are prefixed with `options.RoutePrefix` (default `authmanager`).
 | `/authmanager/clients` | Clients | Register OAuth2 clients for service-to-service auth; regenerate secrets, manage scopes |
 | `/authmanager/sessions` | Active Sessions | Live session table — revoke individual, per-user, or all sessions |
 | `/authmanager/security` | Security Settings | Password policy, lockout/brute-force settings, registration policy, theme picker, internal database config |
+| `/authmanager/payments` | Payment Settings | Enable/configure Stripe and PayPal — API keys, webhook secrets, sandbox toggle |
 | `/authmanager/userfields` | User Field Definitions | Add, edit, reorder, and delete typed custom field definitions |
 | `/authmanager/settings` | Display Settings | Rename the user entity (singular/plural), view role list, view current SuperAdmin role |
 | `/authmanager/signin-history` | Sign-in History | All login attempts — success/failure, failure reason, IP, user agent; filterable by result |
@@ -977,6 +1046,10 @@ CI generates and uploads the report as a build artifact on every run (`allure-re
 `.github/workflows/ci.yml`) — download it from the workflow run summary to see the same
 dashboard for that commit, including on red runs (`if: always()`, so a report is produced even
 when tests fail — that's when the visual breakdown is most useful).
+
+The latest report from `main` is also published to GitHub Pages, so there's a stable link that
+doesn't require downloading anything:
+**[dotnetappdev.github.io/authmanager/allure-report](https://dotnetappdev.github.io/authmanager/allure-report/)**
 
 `allure-results/` and `allure-report/` are gitignored; nothing here is meant to be committed.
 

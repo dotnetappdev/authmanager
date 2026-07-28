@@ -25,6 +25,7 @@
       <a href="#quickstart">Quick Start</a>
       <a href="#nuget">NuGet</a>
       <a href="#packages">Packages</a>
+      <a href="allure-report/" target="_blank">Test Report ↗</a>
       <a href="https://github.com/dotnetappdev/authmanager" class="nav-github" target="_blank">GitHub ↗</a>
     </div>
   </div>
@@ -100,10 +101,14 @@ app.<span class="fn">MapAuthManager</span>();   <span class="cmt">// → /authma
         <img src="assets/img/log-viewer-light.png" alt="Log viewer page" loading="lazy"/>
         <p>Log Viewer</p>
       </div>
+      <div class="screenshot-card">
+        <img src="assets/img/payment-settings-light.png" alt="Payment settings page — Stripe and PayPal" loading="lazy"/>
+        <p>Payment Settings</p>
+      </div>
     </div>
 
     <div class="screenshots-more">
-      <a href="https://github.com/dotnetappdev/authmanager#screenshots" target="_blank">See all 27 admin pages in light, dark &amp; high contrast →</a>
+      <a href="https://github.com/dotnetappdev/authmanager#screenshots" target="_blank">See all 28 admin pages in light, dark &amp; high contrast →</a>
     </div>
   </div>
 </section>
@@ -210,6 +215,28 @@ app.<span class="fn">MapAuthManager</span>();   <span class="cmt">// → /authma
         <h3>Source Generator</h3>
         <p>No Identity setup? The Roslyn source generator scaffolds ApplicationUser, DbContext, and wiring hints.</p>
       </div>
+      <div class="feature-card">
+        <div class="feature-icon green">💳</div>
+        <h3>Stripe &amp; PayPal Payments</h3>
+        <p>Enable and configure Stripe Checkout and PayPal (Orders v2 / Billing Subscriptions v1) from the UI — API keys, webhook secrets, sandbox toggle. No code changes.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon indigo">📦</div>
+        <h3>Licensing &amp; Subscriptions</h3>
+        <p>CD-key style license activation, customer-facing API keys, and billing plans with trials — subscribe, change plan, cancel, reactivate.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TESTING ===== -->
+<section class="section section-dark" id="testing">
+  <div class="section-inner">
+    <h2 class="section-title">Tested, with a visual report</h2>
+    <p class="section-sub">The full suite runs on every push, instrumented with Allure for a real pass/fail dashboard — not just a green checkmark.</p>
+    <div class="hero-cta" style="justify-content: center;">
+      <a href="allure-report/" class="btn-primary" target="_blank">View Test Report →</a>
+      <a href="https://github.com/dotnetappdev/authmanager/actions" class="btn-ghost" target="_blank">CI Runs</a>
     </div>
   </div>
 </section>

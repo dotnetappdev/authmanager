@@ -67,6 +67,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Download Allure report artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: allure-report
+        path: ./docs/site/allure-report
+
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
