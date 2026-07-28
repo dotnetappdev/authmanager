@@ -51,6 +51,24 @@ Notes:
 - The sample prefers the `DefaultSQLite` connection string (appsettings.json). If you want to use LocalDB/SQL Server, update `ConnectionStrings:Default` or remove `DefaultSQLite`.
 - If you want the server to listen on specific URLs, pass `--urls` to `dotnet run` or set `ASPNETCORE_URLS`.
 
+Demo seed data
+- On first run, `DemoSeeder` (`Data/DemoSeeder.cs`) creates four Identity accounts beyond the
+  SuperAdmin — one each in the `Admin`, `Customer`, `Reader`, and `Viewer` roles
+  (`admin@example.com` / `Admin@123456!`, `customer@example.com` / `Customer@123456!`,
+  `reader@example.com` / `Reader@123456!`, `viewer@example.com` / `Viewer@123456!`) — plus demo
+  rows in the licensing entities: 3 customers, 3 license keys, 2 subscription plans with active
+  subscriptions, 1 customer API key, and 2 OAuth clients. It's idempotent — safe to leave running
+  on every startup, it only creates what's missing.
+- To clear just the licensing demo rows (customers, license keys, subscriptions, API keys, OAuth
+  clients) without touching any Identity account or password — SuperAdmin included — call:
+
+  ```bash
+  curl -s -X POST -H "Authorization: Bearer $TOKEN" https://localhost:5001/api/admin/purge-demo-data
+  ```
+
+  Restart the app afterwards (or call `DemoSeeder.SeedAsync` yourself) to repopulate the
+  licensing demo rows — the Identity accounts won't be recreated since they still exist.
+
 Quick example calls (Swagger / curl)
 
 1) Obtain JWT (login):

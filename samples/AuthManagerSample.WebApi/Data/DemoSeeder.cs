@@ -34,6 +34,52 @@ public static class DemoSeeder
         await SeedLicensingAsync(sp);
     }
 
+    /// <summary>
+    /// Deletes every demo licensing row (customers, license keys, subscription plans and
+    /// subscriptions, customer API keys, OAuth clients) so the sample starts clean again.
+    /// Does <b>not</b> touch ASP.NET Identity — the SuperAdmin and Admin/Customer/Reader/Viewer
+    /// demo accounts, their roles, and their passwords are left exactly as they are. Call
+    /// <see cref="SeedAsync"/> afterwards to repopulate the licensing demo data if you want it
+    /// back (the Identity accounts won't be recreated — they're skipped because they already exist).
+    /// </summary>
+    public static async Task PurgeLicensingDataAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var sp = scope.ServiceProvider;
+
+        // CustomerSubscriptions have no dedicated delete endpoint — cancelling is a soft-delete
+        // by design, and a cancelled subscription still blocks DeletePlanAsync below (it checks
+        // for any row referencing the plan, not just active ones). Go straight to the DbContext
+        // for this one row type since a full purge is a maintenance operation, not something a
+        // normal admin action needs to do.
+        var dbFactory = sp.GetRequiredService<IDbContextFactory<AuthManagerDbContext>>();
+        await using (var db = await dbFactory.CreateDbContextAsync())
+        {
+            db.CustomerSubscriptions.RemoveRange(db.CustomerSubscriptions);
+            await db.SaveChangesAsync();
+        }
+
+        var subscriptions = sp.GetRequiredService<ISubscriptionService>();
+        foreach (var plan in await subscriptions.GetPlansAsync())
+            await subscriptions.DeletePlanAsync(plan.Id);
+
+        var licenses = sp.GetRequiredService<ILicenseService>();
+        foreach (var license in await licenses.GetLicensesAsync())
+            await licenses.DeleteLicenseAsync(license.Id);
+
+        var apiKeys = sp.GetRequiredService<ICustomerApiKeyService>();
+        foreach (var key in await apiKeys.GetKeysAsync())
+            await apiKeys.DeleteKeyAsync(key.Id);
+
+        var oauthClients = sp.GetRequiredService<IOAuthClientService>();
+        foreach (var client in await oauthClients.GetClientsAsync())
+            await oauthClients.DeleteClientAsync(client.Id);
+
+        var customers = sp.GetRequiredService<ICustomerService>();
+        foreach (var customer in await customers.GetCustomersAsync())
+            await customers.DeleteCustomerAsync(customer.Id);
+    }
+
     // ── ASP.NET Identity: roles + one demo user per role ─────────────────────
     private static async Task SeedIdentityAsync(IServiceProvider sp)
     {

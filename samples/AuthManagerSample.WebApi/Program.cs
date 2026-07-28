@@ -184,6 +184,18 @@ var admin = app.MapGroup("/api/admin")
      .RequireAuthorization(new AuthorizeAttribute { Roles = "SuperAdmin" });
 admin.MapManagementEndpoints();
 
+// Resets the demo licensing data (customers, license keys, subscriptions, API keys, OAuth
+// clients) without touching Identity — SuperAdmin and the Admin/Customer/Reader/Viewer demo
+// accounts and their passwords are left alone. Re-run DemoSeeder.SeedAsync (i.e. restart the
+// app) to repopulate the licensing data afterwards.
+admin.MapPost("/purge-demo-data", async () =>
+{
+    await DemoSeeder.PurgeLicensingDataAsync(app.Services);
+    return Results.Ok(new { message = "Demo licensing data purged. Identity accounts, roles, and passwords were not touched." });
+})
+.WithName("Admin.PurgeDemoData")
+.WithSummary("Deletes demo licensing data (customers, licenses, subscriptions, API keys, OAuth clients) while keeping all Identity accounts and passwords intact.");
+
 app.MapGet("/", () => Results.Redirect("/swagger"))
    .ExcludeFromDescription();
 
