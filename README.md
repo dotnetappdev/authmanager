@@ -726,6 +726,11 @@ options.RequireAuthentication = true;                   // false = open (dev onl
 options.SuperAdminRole        = "SuperAdmin";           // ONLY this role can access the UI
 options.DefaultPageSize       = 25;
 
+// Storage provider — see "Storage: ASP.NET Identity or Self-Contained" below
+options.Storage.Provider          = AuthManagerStorageProvider.AspNetIdentity;  // or SelfContained
+options.Storage.ConnectionString  = "Data Source=authmanager-identity.db";      // SelfContained only
+options.Storage.Pbkdf2Iterations  = 600_000;                                   // SelfContained only
+
 // SuperAdmin seeding (Option B — hosted service)
 options.SeedSuperAdmin         = true;                  // ⚠️  disable after first login
 options.SeedSuperAdminEmail    = "superadmin@example.com";
@@ -868,6 +873,47 @@ See `templates/authmanager-webapi/README.md` for what's generated.
 
 ---
 
+## Storage: ASP.NET Identity or Self-Contained
+
+AuthManager's services and REST API are built entirely on `UserManager<TUser>`/`RoleManager<TRole>`
+— ASP.NET Identity's own storage-agnostic abstraction — never directly on EF Core. That means who
+owns the actual user/role store underneath is a choice, not a hard dependency:
+
+```csharp
+public enum AuthManagerStorageProvider
+{
+    AspNetIdentity,  // default
+    SelfContained
+}
+```
+
+- **`AspNetIdentity`** (default) — you already call `AddIdentity<TUser, TRole>().AddEntityFrameworkStores<TContext>()`
+  yourself, against your own `DbContext`, before `AddAuthManager()`. Password hashing uses
+  Identity's own default hasher — PBKDF2-HMACSHA256, 128-bit salt, 600,000 iterations as of
+  .NET 8+, already the modern OWASP-recommended strength.
+- **`SelfContained`** — for when you don't have ASP.NET Identity set up at all and want
+  AuthManager to be fully self-sufficient. Don't call `AddIdentity()` yourself; AuthManager
+  creates its own database, registers `UserManager`/`RoleManager`/`SignInManager`, and hashes
+  passwords with its own PBKDF2-HMACSHA256 implementation (configurable iteration count, 600,000
+  by default) — the same class of algorithm used by modern password managers, implemented and
+  owned directly by AuthManager rather than delegated to Identity's default.
+
+```csharp
+builder.Services.AddAuthManager<ApplicationUser>(options =>
+{
+    options.Storage.Provider          = AuthManagerStorageProvider.SelfContained;
+    options.Storage.ConnectionString  = "Data Source=authmanager-identity.db"; // or a SQL Server string
+    options.Storage.DatabaseProvider  = "SQLite"; // or "SqlServer"
+    options.Storage.Pbkdf2Iterations  = 600_000;  // raise later — existing hashes rehash transparently on next login
+});
+```
+
+Either way, every AuthManager service, the `/authmanager/api/*` REST surface, and the Blazor
+admin UI behave identically — they're written against `UserManager`/`RoleManager`, not against a
+specific storage engine, so switching providers is a configuration change, not a code change.
+
+---
+
 ## Database: SQLite or SQL Server
 
 Every sample's own Identity store, and AuthManager's internal store (audit log, sessions,
@@ -892,7 +938,9 @@ HTTP API surface:
   tenants, user management, recovery codes, temporary role assignments (including the background
   `RoleExpirySweeperService`), groups, API tokens, OAuth2 clients, sign-in history, audit export,
   JWT config/signing, customers, license keys (including activation caps), customer API keys,
-  subscriptions, and passkeys (everything short of the browser WebAuthn ceremony itself).
+  subscriptions, and passkeys (everything short of the browser WebAuthn ceremony itself), plus
+  the self-contained storage provider (PBKDF2 hasher correctness and a full `UserManager`/
+  `RoleManager`/`IUserManagementService` round trip with no host-provided `AddIdentity()` call).
 - **API tests** (`ApiTests/`) spin up the `AuthManagerSample.AdminApi` sample in-memory via
   `WebApplicationFactory<Program>` and drive it over real HTTP — routing, model binding, JWT
   bearer auth, the full OAuth2 client-credentials flow, and the passkey endpoints, end to end.

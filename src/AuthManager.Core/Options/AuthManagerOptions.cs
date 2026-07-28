@@ -156,6 +156,73 @@ public sealed class AuthManagerOptions
     /// Manage tenants at runtime via /authmanager/tenants.
     /// </summary>
     public MultiTenancyOptions MultiTenancy { get; set; } = new();
+
+    /// <summary>
+    /// Chooses who owns the user/role store: your app's existing ASP.NET Identity setup
+    /// (default), or AuthManager's own self-contained store. Either way, every AuthManager
+    /// service and the REST API surface at /authmanager/api/* work identically — they're
+    /// built on <c>UserManager&lt;TUser&gt;</c>/<c>RoleManager&lt;TRole&gt;</c>, which is
+    /// itself a storage-agnostic abstraction over whichever store is wired up underneath.
+    /// </summary>
+    public AuthManagerStorageOptions Storage { get; set; } = new();
+}
+
+/// <summary>
+/// Which store backs ASP.NET Identity's <c>UserManager</c>/<c>RoleManager</c>.
+/// </summary>
+public enum AuthManagerStorageProvider
+{
+    /// <summary>
+    /// Default. Your app calls <c>AddIdentity&lt;TUser, TRole&gt;().AddEntityFrameworkStores&lt;TContext&gt;()</c>
+    /// yourself, against your own DbContext, before calling <c>AddAuthManager()</c>. Password
+    /// hashing uses ASP.NET Identity's own default hasher — PBKDF2-HMACSHA256 with a 128-bit
+    /// salt and 600,000 iterations as of .NET 8+, which is already the modern OWASP-recommended
+    /// strength.
+    /// </summary>
+    AspNetIdentity,
+
+    /// <summary>
+    /// AuthManager owns the entire user/role store itself — do <b>not</b> call
+    /// <c>AddIdentity()</c> yourself. AuthManager creates its own database (see
+    /// <see cref="AuthManagerStorageOptions.ConnectionString"/>), registers
+    /// <c>UserManager</c>/<c>RoleManager</c>/<c>SignInManager</c>, and hashes passwords with
+    /// its own PBKDF2-HMACSHA256 implementation (<see cref="AuthManagerStorageOptions.Pbkdf2Iterations"/>,
+    /// default 600,000 — configurable if you need to tune for your hardware). Use this when you
+    /// don't already have ASP.NET Identity set up and want AuthManager to be fully self-sufficient.
+    /// </summary>
+    SelfContained
+}
+
+/// <summary>
+/// Storage backend configuration — see <see cref="AuthManagerStorageProvider"/>.
+/// </summary>
+public sealed class AuthManagerStorageOptions
+{
+    /// <summary>Which store backs Identity's UserManager/RoleManager. Defaults to <see cref="AuthManagerStorageProvider.AspNetIdentity"/>.</summary>
+    public AuthManagerStorageProvider Provider { get; set; } = AuthManagerStorageProvider.AspNetIdentity;
+
+    /// <summary>
+    /// Connection string for AuthManager's self-contained identity database.
+    /// Only used when <see cref="Provider"/> is <see cref="AuthManagerStorageProvider.SelfContained"/>.
+    /// Defaults to a local <c>authmanager-identity.db</c> SQLite file.
+    /// </summary>
+    public string ConnectionString { get; set; } = "Data Source=authmanager-identity.db";
+
+    /// <summary>
+    /// Database provider for the self-contained identity store: <c>"SQLite"</c> (default) or
+    /// <c>"SqlServer"</c>. Only used when <see cref="Provider"/> is <see cref="AuthManagerStorageProvider.SelfContained"/>.
+    /// </summary>
+    public string DatabaseProvider { get; set; } = "SQLite";
+
+    /// <summary>
+    /// PBKDF2-HMACSHA256 iteration count used by the self-contained store's password hasher.
+    /// Defaults to 600,000 — matching ASP.NET Identity's own current default strength. Only
+    /// used when <see cref="Provider"/> is <see cref="AuthManagerStorageProvider.SelfContained"/>.
+    /// Existing password hashes are verified against whatever iteration count they were
+    /// created with and transparently re-hashed at the new count on next successful login if
+    /// you raise this value later.
+    /// </summary>
+    public int Pbkdf2Iterations { get; set; } = 600_000;
 }
 
 /// <summary>

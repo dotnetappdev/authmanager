@@ -2,6 +2,7 @@ using AuthManager.AspNetCore.Data;
 using MudBlazor.Services;
 using AuthManager.AspNetCore.Seeding;
 using AuthManager.AspNetCore.Services;
+using AuthManager.AspNetCore.Storage;
 using AuthManager.Core.Options;
 using AuthManager.Core.Services;
 using Microsoft.AspNetCore.Identity;
@@ -47,6 +48,16 @@ public static class ServiceCollectionExtensions
         var optBuilder = services.AddOptions<AuthManagerOptions>();
         if (configure != null)
             optBuilder.Configure(configure);
+
+        // Read the Storage choice synchronously — AddIdentity() (self-contained mode only)
+        // has to happen right now, as part of this call, not lazily behind IOptions.
+        var previewOptions = new AuthManagerOptions();
+        configure?.Invoke(previewOptions);
+
+        if (previewOptions.Storage.Provider == AuthManagerStorageProvider.SelfContained)
+        {
+            AddSelfContainedStorage<TUser, TRole>(services, previewOptions.Storage);
+        }
 
         // ── AuthManager's own internal database (SQLite by default) ──────────
         // Registered with AddDbContextFactory so singleton services can create
@@ -159,5 +170,41 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<RoleExpirySweeperService<TUser>>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Wires up AuthManager's self-contained storage provider: its own database, its own
+    /// <c>AddIdentity&lt;TUser, TRole&gt;()</c> registration (so the host doesn't have to),
+    /// and its own PBKDF2-HMACSHA256 password hasher. Everything downstream — every
+    /// AuthManager service, the REST API, the Blazor UI — keeps using
+    /// <c>UserManager&lt;TUser&gt;</c>/<c>RoleManager&lt;TRole&gt;</c> exactly as it does in
+    /// the default <see cref="AuthManagerStorageProvider.AspNetIdentity"/> mode; only what's
+    /// underneath those managers changes.
+    /// </summary>
+    private static void AddSelfContainedStorage<TUser, TRole>(IServiceCollection services, AuthManagerStorageOptions storage)
+        where TUser : IdentityUser, new()
+        where TRole : IdentityRole, new()
+    {
+        services.AddDbContext<SelfContainedIdentityDbContext<TUser, TRole>>(opts =>
+        {
+            if (storage.DatabaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+                opts.UseSqlServer(storage.ConnectionString);
+            else
+                opts.UseSqlite(storage.ConnectionString);
+        });
+
+        services.AddIdentity<TUser, TRole>()
+                .AddEntityFrameworkStores<SelfContainedIdentityDbContext<TUser, TRole>>()
+                .AddDefaultTokenProviders();
+
+        // AddIdentity() registers Identity's own PasswordHasher<TUser> with TryAdd — Replace
+        // guarantees ours wins regardless of call order.
+        services.Replace(ServiceDescriptor.Singleton<IPasswordHasher<TUser>>(sp =>
+        {
+            var iterations = sp.GetRequiredService<IOptions<AuthManagerOptions>>().Value.Storage.Pbkdf2Iterations;
+            return new SelfContainedPasswordHasher<TUser>(iterations);
+        }));
+
+        services.AddHostedService<SelfContainedIdentityDbInitialiser<TUser, TRole>>();
     }
 }

@@ -147,6 +147,9 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
+// ── Demo data: Admin/Customer/Reader/Viewer Identity users + sample licensing rows ──
+await DemoSeeder.SeedAsync(app.Services);
+
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
