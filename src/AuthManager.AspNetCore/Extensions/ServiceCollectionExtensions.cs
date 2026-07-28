@@ -159,6 +159,10 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<ILicenseService,         LicenseService>();
         services.TryAddScoped<ICustomerApiKeyService,  CustomerApiKeyService>();
         services.TryAddScoped<ISubscriptionService,    SubscriptionService>();
+        services.TryAddSingleton<IPaymentSettingsService, PersistentPaymentSettingsService>();
+        services.TryAddScoped<IPaymentGatewayService,  PaymentGatewayService>();
+        services.AddHttpClient("AuthManager.Stripe", c => c.BaseAddress = new Uri("https://api.stripe.com/"));
+        services.AddHttpClient("AuthManager.PayPal");
 
         // Passkeys (WebAuthn) — wraps SignInManager/UserManager's native ceremony methods
         services.TryAddScoped<IPasskeyService, PasskeyService<TUser>>();

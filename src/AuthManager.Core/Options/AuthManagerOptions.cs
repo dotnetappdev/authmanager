@@ -165,6 +165,12 @@ public sealed class AuthManagerOptions
     /// itself a storage-agnostic abstraction over whichever store is wired up underneath.
     /// </summary>
     public AuthManagerStorageOptions Storage { get; set; } = new();
+
+    /// <summary>
+    /// Stripe / PayPal payment provider integration for subscriptions.
+    /// Manage at runtime via /authmanager/payments.
+    /// </summary>
+    public PaymentOptions Payments { get; set; } = new();
 }
 
 /// <summary>

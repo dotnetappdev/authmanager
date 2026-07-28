@@ -59,6 +59,7 @@ public static class AuthManagerApiExtensions
         MapLicenseEndpoints(api);
         MapCustomerApiKeyEndpoints(api);
         MapSubscriptionEndpoints(api);
+        MapPaymentEndpoints(api);
 
         // OAuth2 client-credentials token endpoint — must stay anonymous (this is how a
         // client obtains its *first* token; it authenticates via client_id/client_secret in
@@ -141,6 +142,12 @@ public static class AuthManagerApiExtensions
         // (not inside the SuperAdmin-gated `api` group above) so headless "Web API mode" apps
         // that only call MapAuthManagerApi() — never MapAuthManager() — still get passkey support.
         MapPasskeyEndpoints(app, options.RoutePrefix.Trim('/'));
+
+        // Stripe/PayPal webhook receivers — these are called by the provider's own servers,
+        // never by an AuthManager-authenticated caller, so they stay anonymous and rely on
+        // each provider's own signature verification (done inside IPaymentGatewayService)
+        // instead of a bearer token.
+        MapPaymentWebhookEndpoints(app, options.RoutePrefix.Trim('/'));
 
         return app;
     }
@@ -653,7 +660,66 @@ public static class AuthManagerApiExtensions
             .WithName("AuthManager.Customers.ActiveSubscription");
     }
 
+    // ── Payments (Stripe / PayPal) ──────────────────────────────────────────────
+
+    private static void MapPaymentEndpoints(RouteGroupBuilder api)
+    {
+        api.MapGet("/payment-settings", async (IPaymentSettingsService svc)
+            => Results.Ok(await svc.GetSettingsAsync())).WithName("AuthManager.Payments.GetSettings");
+
+        api.MapPut("/payment-settings", async (UpdatePaymentSettingsDto dto, IPaymentSettingsService svc) =>
+        {
+            await svc.UpdateSettingsAsync(dto);
+            return Results.NoContent();
+        }).WithName("AuthManager.Payments.UpdateSettings");
+
+        api.MapPost("/payments/stripe/checkout", async (PaymentCheckoutRequest req, IPaymentGatewayService svc) =>
+        {
+            var (ok, errors, url) = await svc.CreateStripeCheckoutSessionAsync(req.CustomerId, req.PlanId);
+            return ok ? Results.Ok(new { checkoutUrl = url }) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Payments.StripeCheckout");
+
+        api.MapPost("/payments/paypal/checkout", async (PaymentCheckoutRequest req, IPaymentGatewayService svc) =>
+        {
+            var (ok, errors, url) = await svc.CreatePayPalCheckoutAsync(req.CustomerId, req.PlanId);
+            return ok ? Results.Ok(new { approvalUrl = url }) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Payments.PayPalCheckout");
+
+        api.MapPost("/payments/paypal/orders/{orderId}/capture", async (string orderId, IPaymentGatewayService svc)
+            => (await svc.HandlePayPalOrderApprovedAsync(orderId)).ToResult())
+            .WithName("AuthManager.Payments.PayPalCaptureOrder");
+
+        api.MapPost("/payments/paypal/subscriptions/{id}/confirm", async (string id, IPaymentGatewayService svc)
+            => (await svc.HandlePayPalSubscriptionApprovedAsync(id)).ToResult())
+            .WithName("AuthManager.Payments.PayPalConfirmSubscription");
+    }
+
+    private sealed record PaymentCheckoutRequest(string CustomerId, string PlanId);
+
     // ── Passkeys ─────────────────────────────────────────────────────────────
+
+    // ── Payment webhooks (anonymous — verified via provider signature, not a bearer token) ──
+
+    private static void MapPaymentWebhookEndpoints(WebApplication app, string prefix)
+    {
+        app.MapPost($"/{prefix}/api/webhooks/stripe", async (HttpRequest request, IPaymentGatewayService svc) =>
+        {
+            using var reader = new StreamReader(request.Body);
+            var payload = await reader.ReadToEndAsync();
+            var signature = request.Headers["Stripe-Signature"].ToString();
+            var (ok, errors) = await svc.HandleStripeWebhookAsync(payload, signature);
+            return ok ? Results.Ok() : Results.BadRequest(new { errors });
+        }).AllowAnonymous().WithName("AuthManager.Payments.StripeWebhook").WithTags("AuthManager");
+
+        app.MapPost($"/{prefix}/api/webhooks/paypal", async (HttpRequest request, IPaymentGatewayService svc) =>
+        {
+            using var reader = new StreamReader(request.Body);
+            var payload = await reader.ReadToEndAsync();
+            var headers = request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
+            var (ok, errors) = await svc.HandlePayPalWebhookAsync(payload, headers);
+            return ok ? Results.Ok() : Results.BadRequest(new { errors });
+        }).AllowAnonymous().WithName("AuthManager.Payments.PayPalWebhook").WithTags("AuthManager");
+    }
 
     private static void MapPasskeyEndpoints(WebApplication app, string prefix)
     {

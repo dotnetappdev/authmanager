@@ -75,6 +75,12 @@ public sealed class CustomerSubscriptionDto
     public DateTimeOffset? TrialEndsAt { get; set; }
     public DateTimeOffset CurrentPeriodEnd { get; set; }
     public DateTimeOffset? CanceledAt { get; set; }
+
+    /// <summary>"None" (internal/manual billing) | "Stripe" | "PayPal".</summary>
+    public string PaymentProvider { get; set; } = "None";
+
+    /// <summary>Stripe Subscription ID or PayPal Order/Subscription ID, when billed through a payment provider.</summary>
+    public string? ExternalSubscriptionId { get; set; }
 }
 
 public sealed class CreateCustomerSubscriptionDto

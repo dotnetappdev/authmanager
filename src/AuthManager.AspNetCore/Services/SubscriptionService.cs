@@ -248,7 +248,9 @@ internal sealed class SubscriptionService : ISubscriptionService
             StartedAt        = s.StartedAt,
             TrialEndsAt      = s.TrialEndsAt,
             CurrentPeriodEnd = s.CurrentPeriodEnd,
-            CanceledAt       = s.CanceledAt
+            CanceledAt       = s.CanceledAt,
+            PaymentProvider  = s.PaymentProvider,
+            ExternalSubscriptionId = s.ExternalSubscriptionId
         };
     }
 }

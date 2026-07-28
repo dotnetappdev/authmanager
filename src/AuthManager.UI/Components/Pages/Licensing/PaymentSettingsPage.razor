@@ -1,0 +1,250 @@
+@page "/authmanager/payments"
+@inject IPaymentSettingsService PaymentSettingsService
+@inject IOptions<AuthManagerOptions> Options
+@inject ISnackbar Snackbar
+
+<PageTitle>Payment Settings — Auth Manager</PageTitle>
+
+<div class="mb-4 am-page-header">
+    <MudText Typo="Typo.h4">Payment Settings</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        Connect Stripe and/or PayPal so subscriptions can be billed through a real payment provider.
+    </MudText>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else
+{
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="8">
+            <MudStack Spacing="3">
+
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <div>
+                                <MudText Typo="Typo.body1">Enable Payments</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Master switch — when off, neither provider below is active regardless of its own toggle.</MudText>
+                            </div>
+                            <MudSwitch T="bool" @bind-Value="_form.EnablePayments" Color="Color.Primary" />
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+
+                <!-- Stripe -->
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Stripe</MudText></CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string" Size="Size.Small" Color="@(_form.StripeEnabled ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+                                @(_form.StripeEnabled ? "Enabled" : "Disabled")
+                            </MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                            <div>
+                                <MudText Typo="Typo.body1">Enable Stripe Checkout</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Subscribe customers via a Stripe-hosted Checkout Session.</MudText>
+                            </div>
+                            <MudSwitch T="bool" @bind-Value="_form.StripeEnabled" Color="Color.Primary" Disabled="!_form.EnablePayments" />
+                        </MudStack>
+                        <MudGrid>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.StripePublishableKey" Label="Publishable Key" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              Placeholder="pk_test_..." Disabled="!_form.StripeEnabled" HelperText="Safe to expose in the browser." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.StripeSecretKey" Label="Secret Key" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              InputType="InputType.Password" Disabled="!_form.StripeEnabled"
+                                              Placeholder="@(_info.StripeSecretKeySet ? _info.StripeSecretKeyMasked : "sk_test_...")"
+                                              HelperText="Server-side only. Leave blank to keep the currently saved key." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.StripeWebhookSigningSecret" Label="Webhook Signing Secret" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              InputType="InputType.Password" Disabled="!_form.StripeEnabled"
+                                              Placeholder="@(_info.StripeWebhookSigningSecretSet ? _info.StripeWebhookSigningSecretMasked : "whsec_...")"
+                                              HelperText="From the Stripe Dashboard webhook you point at the URL below." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.StripeCurrency" Label="Currency" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              Disabled="!_form.StripeEnabled" HelperText="Three-letter ISO code, e.g. usd, eur, gbp." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.StripeSuccessUrl" Label="Success URL" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              Disabled="!_form.StripeEnabled" HelperText="Where Stripe redirects after a successful checkout." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.StripeCancelUrl" Label="Cancel URL" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              Disabled="!_form.StripeEnabled" HelperText="Where Stripe redirects if the customer cancels." />
+                            </MudItem>
+                        </MudGrid>
+                        <MudAlert Severity="Severity.Info" Class="mt-3" Icon="@Icons.Material.Filled.Webhook">
+                            Point a Stripe webhook at <code>@WebhookUrl("stripe")</code> subscribed to
+                            <code>checkout.session.completed</code>, <code>customer.subscription.updated</code>, and
+                            <code>customer.subscription.deleted</code>.
+                        </MudAlert>
+                    </MudCardContent>
+                </MudCard>
+
+                <!-- PayPal -->
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6">PayPal</MudText></CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string" Size="Size.Small" Color="@(_form.PayPalEnabled ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+                                @(_form.PayPalEnabled ? "Enabled" : "Disabled")
+                            </MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                            <div>
+                                <MudText Typo="Typo.body1">Enable PayPal Checkout</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">One-time plans use Orders v2; recurring plans use Billing Subscriptions v1.</MudText>
+                            </div>
+                            <MudSwitch T="bool" @bind-Value="_form.PayPalEnabled" Color="Color.Primary" Disabled="!_form.EnablePayments" />
+                        </MudStack>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                            <div>
+                                <MudText Typo="Typo.body1">Use Sandbox</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Off = live PayPal API. Keep on until you're ready to accept real payments.</MudText>
+                            </div>
+                            <MudSwitch T="bool" @bind-Value="_form.PayPalUseSandbox" Color="Color.Primary" Disabled="!_form.PayPalEnabled" />
+                        </MudStack>
+                        <MudGrid>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.PayPalClientId" Label="Client ID" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              Disabled="!_form.PayPalEnabled" HelperText="REST app Client ID from the PayPal Developer Dashboard." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.PayPalClientSecret" Label="Client Secret" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              InputType="InputType.Password" Disabled="!_form.PayPalEnabled"
+                                              Placeholder="@(_info.PayPalClientSecretSet ? _info.PayPalClientSecretMasked : "")"
+                                              HelperText="Server-side only. Leave blank to keep the currently saved secret." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.PayPalWebhookId" Label="Webhook ID" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              InputType="InputType.Password" Disabled="!_form.PayPalEnabled"
+                                              Placeholder="@(_info.PayPalWebhookIdSet ? _info.PayPalWebhookIdMasked : "")"
+                                              HelperText="From the webhook you configure in the PayPal Dashboard." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6"></MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.PayPalReturnUrl" Label="Return URL" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              Disabled="!_form.PayPalEnabled" HelperText="Where PayPal redirects after the buyer approves." />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_form.PayPalCancelUrl" Label="Cancel URL" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              Disabled="!_form.PayPalEnabled" HelperText="Where PayPal redirects if the buyer cancels approval." />
+                            </MudItem>
+                        </MudGrid>
+                        <MudAlert Severity="Severity.Info" Class="mt-3" Icon="@Icons.Material.Filled.Webhook">
+                            Point a PayPal webhook at <code>@WebhookUrl("paypal")</code> subscribed to
+                            <code>PAYMENT.CAPTURE.COMPLETED</code>, <code>BILLING.SUBSCRIPTION.ACTIVATED</code>, and
+                            <code>BILLING.SUBSCRIPTION.CANCELLED</code>.
+                        </MudAlert>
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudStack Spacing="3">
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">Save Changes</MudText></MudCardHeader>
+                    <MudCardContent>
+                        @if (_saved)
+                        {
+                            <MudAlert Severity="Severity.Success" Class="mb-3">Payment settings saved.</MudAlert>
+                        }
+                        @if (_errors.Length > 0)
+                        {
+                            <MudAlert Severity="Severity.Error" Class="mb-3">@string.Join(", ", _errors)</MudAlert>
+                        }
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveAll" Disabled="_saving">
+                            @(_saving ? "Saving…" : "Save All Settings")
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+
+                <MudCard Elevation="0" Class="am-card-border">
+                    <MudCardHeader><MudText Typo="Typo.h6">About</MudText></MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Secret fields are never shown back in full once saved — only the last 4 characters, so you
+                            can recognize which key is active. Leave a secret field blank to keep it unchanged.
+                        </MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                            Subscriptions billed through a provider are tracked the same as internal ones, with the
+                            provider name and external subscription ID visible on the Subscriptions page.
+                        </MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private PaymentSettingsInfo _info = new();
+    private UpdatePaymentSettingsDto _form = new();
+    private bool _loading = true;
+    private bool _saving;
+    private bool _saved;
+    private string[] _errors = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _info = await PaymentSettingsService.GetSettingsAsync();
+        _form = new UpdatePaymentSettingsDto
+        {
+            EnablePayments = _info.EnablePayments,
+            StripeEnabled = _info.StripeEnabled,
+            StripePublishableKey = _info.StripePublishableKey,
+            StripeCurrency = _info.StripeCurrency,
+            StripeSuccessUrl = _info.StripeSuccessUrl,
+            StripeCancelUrl = _info.StripeCancelUrl,
+            PayPalEnabled = _info.PayPalEnabled,
+            PayPalClientId = _info.PayPalClientId,
+            PayPalUseSandbox = _info.PayPalUseSandbox,
+            PayPalReturnUrl = _info.PayPalReturnUrl,
+            PayPalCancelUrl = _info.PayPalCancelUrl,
+        };
+        _loading = false;
+    }
+
+    private string WebhookUrl(string provider) => $"{Options.Value.RoutePrefix.Trim('/')}/api/webhooks/{provider}";
+
+    private async Task SaveAll()
+    {
+        _saving = true;
+        _saved = false;
+        _errors = [];
+        try
+        {
+            await PaymentSettingsService.UpdateSettingsAsync(_form);
+            _info = await PaymentSettingsService.GetSettingsAsync();
+            // Secrets aren't round-tripped back into the form — clear so the placeholder (mask) shows again.
+            _form.StripeSecretKey = null;
+            _form.StripeWebhookSigningSecret = null;
+            _form.PayPalClientSecret = null;
+            _form.PayPalWebhookId = null;
+
+            Snackbar.Add("Payment settings saved.", Severity.Success);
+            _saved = true;
+        }
+        catch (Exception ex)
+        {
+            _errors = [ex.Message];
+            Snackbar.Add("Failed to save payment settings.", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

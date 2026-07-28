@@ -255,6 +255,10 @@ public sealed class AuthManagerDbContext : DbContext
             e.Property(x => x.CustomerId).HasMaxLength(64);
             e.Property(x => x.PlanId).HasMaxLength(64);
             e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.PaymentProvider).HasMaxLength(16);
+            e.Property(x => x.ExternalCustomerId).HasMaxLength(128);
+            e.Property(x => x.ExternalSubscriptionId).HasMaxLength(128);
+            e.Property(x => x.ExternalCheckoutSessionId).HasMaxLength(128);
             e.HasIndex(x => x.CustomerId);
         });
     }
@@ -492,6 +496,18 @@ public sealed class CustomerSubscriptionRecord
     public DateTimeOffset? TrialEndsAt      { get; set; }
     public DateTimeOffset  CurrentPeriodEnd { get; set; }
     public DateTimeOffset? CanceledAt       { get; set; }
+
+    /// <summary>"None" (internal/manual billing) | "Stripe" | "PayPal". Default: "None".</summary>
+    public string  PaymentProvider          { get; set; } = "None";
+
+    /// <summary>Stripe Customer ID or PayPal Payer ID, once a checkout has been started/completed.</summary>
+    public string? ExternalCustomerId       { get; set; }
+
+    /// <summary>Stripe Subscription ID or PayPal Subscription/Order ID.</summary>
+    public string? ExternalSubscriptionId   { get; set; }
+
+    /// <summary>The Stripe Checkout Session ID or PayPal Order ID that started this subscription, for correlating the return-URL redirect back to a webhook confirmation.</summary>
+    public string? ExternalCheckoutSessionId { get; set; }
 }
 
 /// <summary>
