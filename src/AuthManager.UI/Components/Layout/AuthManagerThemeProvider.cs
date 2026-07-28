@@ -75,45 +75,46 @@ public static class AuthManagerThemeProvider
         OverlayLight = "rgba(248, 250, 252, 0.8)"
     };
 
-    // BookIt dark palette — deep navy/indigo with violet accents
+    // Windows 11 (Fluent) dark palette — neutral charcoal surfaces with the
+    // default Windows accent blue, matching Settings/File Explorer dark mode.
     private static PaletteDark BuildDarkPalette() => new()
     {
-        Primary = "#A78BFA",           // Violet-400 — bright on dark bg
-        PrimaryContrastText = "#0B0F1A",
-        Secondary = "#22D3EE",          // Cyan-400
-        SecondaryContrastText = "#0B0F1A",
-        Tertiary = "#34D399",           // Emerald-400
-        Background = "#0B0F1A",        // BookIt: deepest navy
-        BackgroundGray = "#111827",    // Gray-900
-        Surface = "#161B2E",           // BookIt: card surface
-        DrawerBackground = "#0D1117",  // BookIt: sidebar (darker than surface)
-        DrawerText = "#E2E8F0",
-        DrawerIcon = "#A78BFA",
-        AppbarBackground = "#0D1117",
-        AppbarText = "#F1F5F9",
-        TextPrimary = "#F1F5F9",
-        TextSecondary = "#94A3B8",
-        TextDisabled = "#475569",
-        ActionDefault = "#A78BFA",
-        ActionDisabled = "#334155",
-        ActionDisabledBackground = "#1E293B",
-        Divider = "#1E293B",
-        DividerLight = "#0F172A",
-        TableLines = "#1E293B",
-        TableStriped = "#0F172A",
-        TableHover = "#1E2D4A",
-        LinesDefault = "#1E293B",
-        LinesInputs = "#334155",
-        Success = "#34D399",
-        SuccessContrastText = "#022C22",
-        Warning = "#FBBF24",
-        WarningContrastText = "#1C1917",
-        Error = "#F87171",
-        ErrorContrastText = "#1C1917",
-        Info = "#38BDF8",
-        InfoContrastText = "#0C1A2E",
-        OverlayDark = "rgba(11, 15, 26, 0.8)",
-        OverlayLight = "rgba(22, 27, 46, 0.6)"
+        Primary = "#4CC2FF",           // Windows 11 accent blue (dark-mode tint)
+        PrimaryContrastText = "#0A0A0A",
+        Secondary = "#29B8D8",
+        SecondaryContrastText = "#0A0A0A",
+        Tertiary = "#6CCB5F",
+        Background = "#202020",        // Fluent solid background base
+        BackgroundGray = "#1A1A1A",
+        Surface = "#2C2C2C",           // Fluent card/layer background
+        DrawerBackground = "#1F1F1F",  // Nav pane — subtly darker than content
+        DrawerText = "#E8E8E8",
+        DrawerIcon = "#C5C5C5",
+        AppbarBackground = "#1F1F1F",
+        AppbarText = "#FFFFFF",
+        TextPrimary = "#FFFFFF",
+        TextSecondary = "#C5C5C5",
+        TextDisabled = "#6E6E6E",
+        ActionDefault = "#4CC2FF",
+        ActionDisabled = "#4A4A4A",
+        ActionDisabledBackground = "#2A2A2A",
+        Divider = "#3B3B3B",
+        DividerLight = "#2A2A2A",
+        TableLines = "#3B3B3B",
+        TableStriped = "#262626",
+        TableHover = "#333333",
+        LinesDefault = "#3B3B3B",
+        LinesInputs = "#4A4A4A",
+        Success = "#6CCB5F",
+        SuccessContrastText = "#0A0A0A",
+        Warning = "#FFB900",
+        WarningContrastText = "#0A0A0A",
+        Error = "#FF6961",
+        ErrorContrastText = "#0A0A0A",
+        Info = "#4CC2FF",
+        InfoContrastText = "#0A0A0A",
+        OverlayDark = "rgba(0, 0, 0, 0.7)",
+        OverlayLight = "rgba(44, 44, 44, 0.6)"
     };
 
     // High-contrast accessibility palette — pure black with yellow text/borders.

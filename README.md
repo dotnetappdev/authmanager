@@ -193,22 +193,18 @@ Navigate to **`https://localhost:5001/authmanager`**, sign in, change the passwo
 
 ## Screenshots
 
-Every admin page, captured in all three themes — light, dark, and high contrast (WCAG-oriented, yellow on black). Click a group to expand it.
+Every admin page, captured in all three themes — light, dark, and high contrast (WCAG-oriented, yellow on black).
 
-<details>
-<summary><strong>Overview</strong> — Dashboard, System Health</summary>
-<br>
+### Overview
+*Dashboard, System Health*
 
 | Page | Light | Dark | High Contrast |
 |------|-------|------|----------------|
 | Dashboard | <img src="docs/screenshots/dashboard-light.png" width="280"> | <img src="docs/screenshots/dashboard-dark.png" width="280"> | <img src="docs/screenshots/dashboard-high-contrast.png" width="280"> |
 | System Health | <img src="docs/screenshots/system-health-light.png" width="280"> | <img src="docs/screenshots/system-health-dark.png" width="280"> | <img src="docs/screenshots/system-health-high-contrast.png" width="280"> |
 
-</details>
-
-<details>
-<summary><strong>Identity</strong> — Users, Roles, Groups, Claims, Tenants</summary>
-<br>
+### Identity
+*Users, Roles, Groups, Claims, Tenants*
 
 | Page | Light | Dark | High Contrast |
 |------|-------|------|----------------|
@@ -218,11 +214,8 @@ Every admin page, captured in all three themes — light, dark, and high contras
 | Claims | <img src="docs/screenshots/claims-light.png" width="280"> | <img src="docs/screenshots/claims-dark.png" width="280"> | <img src="docs/screenshots/claims-high-contrast.png" width="280"> |
 | Tenants | <img src="docs/screenshots/tenants-light.png" width="280"> | <img src="docs/screenshots/tenants-dark.png" width="280"> | <img src="docs/screenshots/tenants-high-contrast.png" width="280"> |
 
-</details>
-
-<details>
-<summary><strong>Authentication</strong> — JWT, OAuth, SSO, OTP, Sessions, 2FA, Passkeys, API Tokens, Clients</summary>
-<br>
+### Authentication
+*JWT, OAuth, SSO, OTP, Sessions, 2FA, Passkeys, API Tokens, Clients*
 
 | Page | Light | Dark | High Contrast |
 |------|-------|------|----------------|
@@ -236,11 +229,8 @@ Every admin page, captured in all three themes — light, dark, and high contras
 | API Tokens | <img src="docs/screenshots/api-tokens-light.png" width="280"> | <img src="docs/screenshots/api-tokens-dark.png" width="280"> | <img src="docs/screenshots/api-tokens-high-contrast.png" width="280"> |
 | Clients | <img src="docs/screenshots/clients-light.png" width="280"> | <img src="docs/screenshots/clients-dark.png" width="280"> | <img src="docs/screenshots/clients-high-contrast.png" width="280"> |
 
-</details>
-
-<details>
-<summary><strong>Licensing & Billing</strong> — Customers, License Keys, Customer API Keys, Subscriptions</summary>
-<br>
+### Licensing & Billing
+*Customers, License Keys, Customer API Keys, Subscriptions*
 
 | Page | Light | Dark | High Contrast |
 |------|-------|------|----------------|
@@ -249,11 +239,8 @@ Every admin page, captured in all three themes — light, dark, and high contras
 | Customer API Keys | <img src="docs/screenshots/customer-api-keys-light.png" width="280"> | <img src="docs/screenshots/customer-api-keys-dark.png" width="280"> | <img src="docs/screenshots/customer-api-keys-high-contrast.png" width="280"> |
 | Subscriptions | <img src="docs/screenshots/subscriptions-light.png" width="280"> | <img src="docs/screenshots/subscriptions-dark.png" width="280"> | <img src="docs/screenshots/subscriptions-high-contrast.png" width="280"> |
 
-</details>
-
-<details>
-<summary><strong>Settings & Monitoring</strong> — Email, User Fields, Display, Security, Logs, Audit, Sign-in History</summary>
-<br>
+### Settings & Monitoring
+*Email, User Fields, Display, Security, Logs, Audit, Sign-in History*
 
 | Page | Light | Dark | High Contrast |
 |------|-------|------|----------------|
@@ -265,10 +252,7 @@ Every admin page, captured in all three themes — light, dark, and high contras
 | Audit Log | <img src="docs/screenshots/audit-log-light.png" width="280"> | <img src="docs/screenshots/audit-log-dark.png" width="280"> | <img src="docs/screenshots/audit-log-high-contrast.png" width="280"> |
 | Sign-in History | <img src="docs/screenshots/signin-history-light.png" width="280"> | <img src="docs/screenshots/signin-history-dark.png" width="280"> | <img src="docs/screenshots/signin-history-high-contrast.png" width="280"> |
 
-</details>
-
----
-## Deployment Modes: Self-Contained UI or Headless Web API
+---## Deployment Modes: Self-Contained UI or Headless Web API
 
 AuthManager works two ways, and you can use either or both in the same app:
 

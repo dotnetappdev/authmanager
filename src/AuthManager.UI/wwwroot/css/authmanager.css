@@ -34,25 +34,25 @@
   --am-content-padding: 32px;
 }
 
-/* ---- BookIt Dark Theme ---- */
+/* ---- Windows 11 (Fluent) Dark Theme ---- */
 .mud-theme-dark {
-  --am-bg:            #0B0F1A;
-  --am-surface:       #161B2E;
-  --am-surface-2:     #1E293B;
-  --am-border:        #1E293B;
-  --am-text:          #F1F5F9;
-  --am-text-2:        #94A3B8;
-  --am-text-3:        #475569;
-  --am-primary:       #A78BFA;
-  --am-primary-light: #1E1040;
-  --am-secondary:     #22D3EE;
-  --am-success:       #34D399;
-  --am-warning:       #FBBF24;
-  --am-error:         #F87171;
-  --am-sidebar-bg:    #0D1117;
-  --am-sidebar-text:  #E2E8F0;
-  --am-shadow:        0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
-  --am-shadow-md:     0 4px 16px rgba(0,0,0,0.5);
+  --am-bg:            #202020;
+  --am-surface:       #2C2C2C;
+  --am-surface-2:     #323232;
+  --am-border:        #3B3B3B;
+  --am-text:          #FFFFFF;
+  --am-text-2:        #C5C5C5;
+  --am-text-3:        #8A8A8A;
+  --am-primary:       #4CC2FF;
+  --am-primary-light: #16324A;
+  --am-secondary:     #29B8D8;
+  --am-success:       #6CCB5F;
+  --am-warning:       #FFB900;
+  --am-error:         #FF6961;
+  --am-sidebar-bg:    #1F1F1F;
+  --am-sidebar-text:  #E8E8E8;
+  --am-shadow:        0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+  --am-shadow-md:     0 4px 16px rgba(0,0,0,0.6);
 }
 
 /* ---- High Contrast Theme (WCAG accessibility) — pure black + yellow ---- */
@@ -81,7 +81,7 @@
    own background falls back to :root's light --am-bg and shows through below
    shorter pages. */
 :root:has(.mud-theme-dark) {
-  --am-bg: #0B0F1A;
+  --am-bg: #202020;
 }
 :root:has(.am-high-contrast) {
   --am-bg: #000000;
@@ -90,7 +90,18 @@
 /* ---- Base ---- */
 * { box-sizing: border-box; }
 
+/* body's painted box only extends as tall as its content by default — on pages
+   shorter than the viewport, anything below that box shows the browser's own
+   root canvas color instead of our theme. Setting the background on <html> too
+   (which always covers the full canvas) and giving both elements min-height
+   closes that gap. */
+html {
+  min-height: 100%;
+  background: var(--am-bg);
+}
+
 body {
+  min-height: 100vh;
   font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--am-bg);
   color: var(--am-text);
@@ -109,18 +120,18 @@ body {
 }
 
 .mud-nav-link:hover {
-  background-color: rgba(167, 139, 250, 0.1) !important;
+  background-color: rgba(76, 194, 255, 0.1) !important;
   color: var(--am-sidebar-text) !important;
 }
 
 .mud-nav-link.active {
-  background-color: rgba(167, 139, 250, 0.15) !important;
-  color: #A78BFA !important;
-  border-right: 3px solid #A78BFA;
+  background-color: rgba(76, 194, 255, 0.15) !important;
+  color: #4CC2FF !important;
+  border-right: 3px solid #4CC2FF;
 }
 
 .mud-nav-link.active .mud-icon-root {
-  color: #A78BFA !important;
+  color: #4CC2FF !important;
 }
 
 /* Light mode sidebar link colours */
@@ -291,12 +302,12 @@ body {
 .am-stat-purple { background: rgba(109,40,217,0.12); color: #7C3AED; }
 .am-stat-teal   { background: rgba(8,145,178,0.12);  color: #0891B2; }
 
-.mud-theme-dark .am-stat-blue   { background: rgba(167,139,250,0.12); color: #A78BFA; }
-.mud-theme-dark .am-stat-green  { background: rgba(52,211,153,0.12);  color: #34D399; }
-.mud-theme-dark .am-stat-red    { background: rgba(248,113,113,0.12); color: #F87171; }
-.mud-theme-dark .am-stat-yellow { background: rgba(251,191,36,0.12);  color: #FBBF24; }
-.mud-theme-dark .am-stat-purple { background: rgba(167,139,250,0.12); color: #A78BFA; }
-.mud-theme-dark .am-stat-teal   { background: rgba(34,211,238,0.12);  color: #22D3EE; }
+.mud-theme-dark .am-stat-blue   { background: rgba(76,194,255,0.14);  color: #4CC2FF; }
+.mud-theme-dark .am-stat-green  { background: rgba(108,203,95,0.14);  color: #6CCB5F; }
+.mud-theme-dark .am-stat-red    { background: rgba(255,105,97,0.14);  color: #FF6961; }
+.mud-theme-dark .am-stat-yellow { background: rgba(255,185,0,0.14);   color: #FFB900; }
+.mud-theme-dark .am-stat-purple { background: rgba(76,194,255,0.14);  color: #4CC2FF; }
+.mud-theme-dark .am-stat-teal   { background: rgba(41,184,216,0.14);  color: #29B8D8; }
 
 /* ---- Dialog Tabs ---- */
 .am-dialog-tabs .mud-tabs-toolbar {
