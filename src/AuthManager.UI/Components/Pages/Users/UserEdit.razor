@@ -1,6 +1,5 @@
 @page "/authmanager/users/create"
 @page "/authmanager/users/{UserId}"
-@rendermode InteractiveServer
 @inject IUserManagementService UserService
 @inject IRoleManagementService RoleService
 @inject IUserFieldService FieldService
@@ -9,7 +8,7 @@
 
 <PageTitle>@(IsCreate ? "Create User" : "Edit User") — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudLink Href="/authmanager/users" Underline="Underline.Hover" Class="mb-1 d-block">
             <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" Class="mr-1" Style="vertical-align:middle" />Back to Users

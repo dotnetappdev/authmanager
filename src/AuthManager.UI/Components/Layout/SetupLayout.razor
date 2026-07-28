@@ -1,11 +1,12 @@
 @inherits LayoutComponentBase
+@inject IOptions<AuthManagerOptions> Options
 
-<MudThemeProvider Theme="_theme" IsDarkMode="true" />
+<MudThemeProvider Theme="_theme" @bind-IsDarkMode="_isDark" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div class="am-setup-root">
+<div class="am-setup-root @_cssClass">
     <div class="am-setup-bg"></div>
 
     <header class="am-setup-header">
@@ -37,5 +38,26 @@
 </div>
 
 @code {
-    private readonly MudTheme _theme = AuthManagerThemeProvider.Build();
+    private MudTheme _theme = AuthManagerThemeProvider.Build();
+    private bool _isDark;
+    private string? _cssClass;
+
+    protected override void OnInitialized()
+    {
+        // The wizard runs before any theme has been chosen (no localStorage preference could
+        // exist yet), so it should just honor the host's configured default — same idea as
+        // MainLayout, but without the JS/localStorage lookup since there's nothing to look up yet.
+        var mode = Options.Value.DefaultTheme == AuthManagerTheme.System ? AuthManagerTheme.Light : Options.Value.DefaultTheme;
+
+        _isDark    = mode == AuthManagerTheme.Dark;
+        _cssClass  = mode switch
+        {
+            AuthManagerTheme.Dark => "mud-theme-dark",
+            AuthManagerTheme.HighContrast => "am-high-contrast",
+            _ => null
+        };
+        _theme = mode == AuthManagerTheme.HighContrast
+            ? AuthManagerThemeProvider.BuildHighContrast()
+            : AuthManagerThemeProvider.Build();
+    }
 }

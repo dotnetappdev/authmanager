@@ -1,5 +1,4 @@
 @page "/authmanager/clients"
-@rendermode InteractiveServer
 @inject IOAuthClientService ClientService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -7,7 +6,7 @@
 
 <PageTitle>Clients — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">Clients</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

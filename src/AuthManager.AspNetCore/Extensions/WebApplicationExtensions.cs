@@ -22,14 +22,17 @@ public static class WebApplicationExtensions
     /// Maps the AuthManager UI at the configured route prefix.
     ///
     /// Access is restricted to users who hold the <see cref="AuthManagerOptions.SuperAdminRole"/>
-    /// role (default: "SuperAdmin"). Only SuperAdmins can log in to the management UI.
+    /// role (default: "SuperAdmin") <b>or</b> any role listed in
+    /// <see cref="AuthManagerOptions.AdminRoles"/> (default: <c>["Admin"]</c>). Everyone else is
+    /// redirected to sign in, or denied if already authenticated as an insufficiently-privileged
+    /// user.
     ///
     /// Call this after UseAuthentication() and UseAuthorization().
     /// </summary>
     /// <example>
     /// app.UseAuthentication();
     /// app.UseAuthorization();
-    /// app.MapAuthManager();   // → /authmanager, SuperAdmin only
+    /// app.MapAuthManager();   // → /authmanager, SuperAdmin/AdminRoles only
     /// </example>
     public static WebApplication MapAuthManager(this WebApplication app)
     {
@@ -86,8 +89,10 @@ public static class WebApplicationExtensions
 
                 if (isAdminPage)
                 {
-                    if (!ctx.User.Identity?.IsAuthenticated == true
-                        || !ctx.User.IsInRole(options.SuperAdminRole))
+                    var hasAccess = ctx.User.IsInRole(options.SuperAdminRole)
+                                  || options.AdminRoles.Any(ctx.User.IsInRole);
+
+                    if (!ctx.User.Identity?.IsAuthenticated == true || !hasAccess)
                     {
                         // Challenge: redirect to the app's login page.
                         // GetRequiredService<IAuthenticationService>() handles the scheme-specific

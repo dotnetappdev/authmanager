@@ -1,13 +1,12 @@
 @page "/authmanager/roles/create"
 @page "/authmanager/roles/{RoleId}"
-@rendermode InteractiveServer
 @inject IRoleManagementService RoleService
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
 <PageTitle>@(IsCreate ? "Create Role" : "Edit Role") — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudLink Href="/authmanager/roles" Underline="Underline.Hover" Class="mb-1 d-block">
             <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" Class="mr-1" Style="vertical-align:middle" />Back to Roles

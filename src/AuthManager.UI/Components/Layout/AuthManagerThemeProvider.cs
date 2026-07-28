@@ -42,6 +42,13 @@ public static class AuthManagerThemeProvider
         Secondary = "#0891B2",          // Cyan-600
         SecondaryContrastText = "#FFFFFF",
         Tertiary = "#059669",           // Emerald-600
+        // See BuildDarkPalette's Dark override — MudBlazor's built-in "Dark" swatch backs
+        // .mud-layout (the gaps around the page container) regardless of light/dark theme,
+        // so it needs pinning to match Background here too, or it paints a stray dark patch.
+        Dark = "#F8FAFC",
+        DarkContrastText = "#0F172A",
+        DarkLighten = "#FFFFFF",
+        DarkDarken = "#F1F5F9",
         Background = "#F8FAFC",
         BackgroundGray = "#F1F5F9",
         Surface = "#FFFFFF",
@@ -75,15 +82,29 @@ public static class AuthManagerThemeProvider
         OverlayLight = "rgba(248, 250, 252, 0.8)"
     };
 
-    // Windows 11 (Fluent) dark palette — neutral charcoal surfaces with the
-    // default Windows accent blue, matching Settings/File Explorer dark mode.
+    // Monochrome dark palette — neutral charcoal surfaces, white/gray text and interactive
+    // chrome throughout. No blue (or any other hue) accent anywhere — buttons, nav highlight,
+    // avatars, and icons are all white/gray on dark, matching a genuinely neutral dark theme
+    // (the same idea as this very chat UI's own dark mode). Success/Warning/Error are the only
+    // colors left, since they carry real semantic meaning (status, not brand/chrome).
     private static PaletteDark BuildDarkPalette() => new()
     {
-        Primary = "#4CC2FF",           // Windows 11 accent blue (dark-mode tint)
-        PrimaryContrastText = "#0A0A0A",
-        Secondary = "#29B8D8",
-        SecondaryContrastText = "#0A0A0A",
-        Tertiary = "#6CCB5F",
+        Primary = "#FFFFFF",
+        PrimaryContrastText = "#1A1A1A",
+        // Secondary is used all over the UI for captions/subtitles (MudText Color="Color.Secondary"),
+        // not just as a second brand accent — keep it a neutral gray so those reads as muted helper
+        // text (like a password manager's dark theme), not as a second, competing splash of color.
+        Secondary = "#9A9A9A",
+        SecondaryContrastText = "#1A1A1A",
+        Tertiary = "#C5C5C5",
+        // MudBlazor's own built-in "Dark" swatch (default #27272f, a violet-tinted charcoal)
+        // backs .mud-layout — the full-viewport backdrop behind the page container — and isn't
+        // covered by any of the fields above, so left alone it shows through as a purple cast
+        // behind every grid/table. Pin it to the same neutral charcoal as everything else.
+        Dark = "#202020",
+        DarkContrastText = "#FFFFFF",
+        DarkLighten = "#2C2C2C",
+        DarkDarken = "#1A1A1A",
         Background = "#202020",        // Fluent solid background base
         BackgroundGray = "#1A1A1A",
         Surface = "#2C2C2C",           // Fluent card/layer background
@@ -95,7 +116,7 @@ public static class AuthManagerThemeProvider
         TextPrimary = "#FFFFFF",
         TextSecondary = "#C5C5C5",
         TextDisabled = "#6E6E6E",
-        ActionDefault = "#4CC2FF",
+        ActionDefault = "#E8E8E8",
         ActionDisabled = "#4A4A4A",
         ActionDisabledBackground = "#2A2A2A",
         Divider = "#3B3B3B",
@@ -111,7 +132,7 @@ public static class AuthManagerThemeProvider
         WarningContrastText = "#0A0A0A",
         Error = "#FF6961",
         ErrorContrastText = "#0A0A0A",
-        Info = "#4CC2FF",
+        Info = "#C5C5C5",
         InfoContrastText = "#0A0A0A",
         OverlayDark = "rgba(0, 0, 0, 0.7)",
         OverlayLight = "rgba(44, 44, 44, 0.6)"
@@ -128,6 +149,10 @@ public static class AuthManagerThemeProvider
         SecondaryContrastText = "#000000",
         Tertiary = "#FFFF00",
         TertiaryContrastText = "#000000",
+        Dark = "#000000",
+        DarkContrastText = "#FFFF00",
+        DarkLighten = "#000000",
+        DarkDarken = "#000000",
         Background = "#000000",
         BackgroundGray = "#000000",
         Surface = "#000000",
@@ -169,6 +194,10 @@ public static class AuthManagerThemeProvider
         SecondaryContrastText = "#000000",
         Tertiary = "#FFFF00",
         TertiaryContrastText = "#000000",
+        Dark = "#000000",
+        DarkContrastText = "#FFFF00",
+        DarkLighten = "#000000",
+        DarkDarken = "#000000",
         Background = "#000000",
         BackgroundGray = "#000000",
         Surface = "#000000",

@@ -17,6 +17,9 @@ packages/
 ## Allure test reports
 allure-results/
 allure-report/
+
+## Sample apps' runtime log files
+samples/**/logs/
 *.lock.json
 
 ## Rider

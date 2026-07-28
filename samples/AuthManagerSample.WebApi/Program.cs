@@ -16,11 +16,22 @@ using Serilog.Events;
 using Microsoft.AspNetCore.Authorization;
 
 // ── Bootstrap logger ─────────────────────────────────────────────────────────
+// File sink writes to logs/{yyyy}/{MM}/{dd}/log.txt — the folder itself carries the date,
+// computed once at startup, so a long-running process needs a restart to roll into a new
+// day's folder (acceptable for a sample app; a production host restarts often enough anyway).
+var now = DateTime.UtcNow;
+var logFilePath = Path.Combine(Directory.GetCurrentDirectory(), "logs",
+    now.ToString("yyyy"), now.ToString("MM"), now.ToString("dd"), "log.txt");
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console()
+    .WriteTo.File(
+        logFilePath,
+        rollingInterval: RollingInterval.Infinite,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
     .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);

@@ -1,11 +1,10 @@
 @page "/authmanager/2fa"
-@rendermode InteractiveServer
 @inject IUserManagementService UserService
 @inject ISnackbar Snackbar
 
 <PageTitle>Two-Factor Authentication — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">Two-Factor Authentication</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

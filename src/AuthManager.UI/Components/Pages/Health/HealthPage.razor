@@ -1,11 +1,10 @@
 @page "/authmanager/health"
-@rendermode InteractiveServer
 @inject ISystemHealthService HealthService
 @implements IAsyncDisposable
 
 <PageTitle>System Health — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">System Health</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

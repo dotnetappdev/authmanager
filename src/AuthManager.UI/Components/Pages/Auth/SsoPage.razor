@@ -1,12 +1,11 @@
 @page "/authmanager/sso"
-@rendermode InteractiveServer
 @inject ISsoService SsoService
 @inject ISnackbar Snackbar
 @using Microsoft.AspNetCore.Components.Forms
 
 <PageTitle>SSO Providers — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">Single Sign-On (SSO)</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

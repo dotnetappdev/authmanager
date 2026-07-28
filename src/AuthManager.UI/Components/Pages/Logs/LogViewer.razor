@@ -1,12 +1,11 @@
 @page "/authmanager/logs"
-@rendermode InteractiveServer
 @inject ILogAggregationService LogService
 @inject ISnackbar Snackbar
 @implements IAsyncDisposable
 
 <PageTitle>Log Viewer — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header" Wrap="Wrap.Wrap">
     <div>
         <MudText Typo="Typo.h4">Log Viewer</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">Real-time application log aggregation via Serilog</MudText>

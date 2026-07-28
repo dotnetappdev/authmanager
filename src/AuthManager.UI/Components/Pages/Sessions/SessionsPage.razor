@@ -1,5 +1,4 @@
 @page "/authmanager/sessions"
-@rendermode InteractiveServer
 @inject ISessionService SessionService
 @inject IAuditService AuditService
 @inject IDialogService DialogService
@@ -7,7 +6,7 @@
 
 <PageTitle>Active Sessions — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">Active Sessions</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

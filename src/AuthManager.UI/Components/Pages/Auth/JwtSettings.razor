@@ -1,12 +1,11 @@
 @page "/authmanager/jwt"
-@rendermode InteractiveServer
 @inject IJwtConfigService JwtService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 
 <PageTitle>JWT Settings — Auth Manager</PageTitle>
 
-<div class="mb-4">
+<div class="mb-4 am-page-header">
     <MudText Typo="Typo.h4">JWT Configuration</MudText>
     <MudText Typo="Typo.body2" Color="Color.Secondary">Manage JSON Web Token settings for API authentication</MudText>
 </div>

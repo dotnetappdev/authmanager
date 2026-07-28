@@ -2,7 +2,7 @@
 @inject IOptions<AuthManagerOptions> Options
 @inject IEntityNamingService Naming
 
-<MudDrawer Open="true" Elevation="0" Variant="DrawerVariant.Persistent" ClipMode="DrawerClipMode.Always"
+<MudDrawer Open="true" Elevation="0" Variant="DrawerVariant.Persistent" ClipMode="DrawerClipMode.Never"
            Class="am-sidebar">
     <MudDrawerHeader Class="am-sidebar-brand" LinkToIndex="false">
         <div class="am-brand">
@@ -86,6 +86,9 @@
         </MudNavLink>
         <MudNavLink Href="@Prefix("subscriptions")" Icon="@Icons.Material.Filled.CreditCard">
             Subscriptions
+        </MudNavLink>
+        <MudNavLink Href="@Prefix("payments")" Icon="@Icons.Material.Filled.Payments">
+            Payment Settings
         </MudNavLink>
 
         <MudText Typo="Typo.overline" Class="am-nav-section-label">Messaging</MudText>

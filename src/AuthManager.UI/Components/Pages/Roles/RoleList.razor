@@ -1,12 +1,11 @@
 @page "/authmanager/roles"
-@rendermode InteractiveServer
 @inject IRoleManagementService RoleService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
 <PageTitle>Roles — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">Roles</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">Manage roles and their associated claims</MudText>

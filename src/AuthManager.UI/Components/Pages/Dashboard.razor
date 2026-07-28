@@ -1,5 +1,4 @@
 @page "/authmanager/"
-@rendermode InteractiveServer
 @inject IUserManagementService UserService
 @inject ISessionService SessionService
 @inject IEntityNamingService Naming
@@ -7,10 +6,12 @@
 
 <PageTitle>Dashboard — @Options.Value.Title</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Dashboard</MudText>
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">
-    Overview of your identity system
-</MudText>
+<div class="am-page-header mb-6">
+    <MudText Typo="Typo.h4" Class="mb-1">Dashboard</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        Overview of your identity system
+    </MudText>
+</div>
 
 @if (_loading)
 {
@@ -132,19 +133,19 @@ else if (_stats != null)
                                    StartIcon="@Icons.Material.Filled.People" FullWidth="true" Class="justify-start">
                             Manage @Naming.GetUsersDisplayName()
                         </MudButton>
-                        <MudButton Href="@("/authmanager/roles")" Variant="Variant.Outlined" Color="Color.Secondary"
+                        <MudButton Href="@("/authmanager/roles")" Variant="Variant.Outlined" Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.Stars" FullWidth="true" Class="justify-start">
                             Manage Roles
                         </MudButton>
-                        <MudButton Href="@("/authmanager/sessions")" Variant="Variant.Outlined" Color="Color.Info"
+                        <MudButton Href="@("/authmanager/sessions")" Variant="Variant.Outlined" Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.Devices" FullWidth="true" Class="justify-start">
                             Active Sessions (@_activeSessions)
                         </MudButton>
-                        <MudButton Href="@("/authmanager/security")" Variant="Variant.Outlined" Color="Color.Warning"
+                        <MudButton Href="@("/authmanager/security")" Variant="Variant.Outlined" Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.AdminPanelSettings" FullWidth="true" Class="justify-start">
                             Security Settings
                         </MudButton>
-                        <MudButton Href="@("/authmanager/logs")" Variant="Variant.Outlined"
+                        <MudButton Href="@("/authmanager/logs")" Variant="Variant.Outlined" Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.List" FullWidth="true" Class="justify-start">
                             View Logs
                         </MudButton>

@@ -1,11 +1,10 @@
 @page "/authmanager/audit"
-@rendermode InteractiveServer
 @inject IAuditService AuditService
 @inject IJSRuntime JS
 
 <PageTitle>Audit Log — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">Audit Log</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

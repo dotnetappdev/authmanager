@@ -1,5 +1,4 @@
 @page "/authmanager/passkeys"
-@rendermode InteractiveServer
 @inject IOptions<AuthManagerOptions> Options
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -8,7 +7,7 @@
 
 <PageTitle>Passkeys — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">Passkeys</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

@@ -1,5 +1,4 @@
 @page "/authmanager/groups"
-@rendermode InteractiveServer
 @inject IGroupService GroupService
 @inject IRoleManagementService RoleService
 @inject ISnackbar Snackbar
@@ -7,7 +6,7 @@
 
 <PageTitle>Groups — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">Groups</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

@@ -43,9 +43,9 @@
   --am-text:          #FFFFFF;
   --am-text-2:        #C5C5C5;
   --am-text-3:        #8A8A8A;
-  --am-primary:       #4CC2FF;
-  --am-primary-light: #16324A;
-  --am-secondary:     #29B8D8;
+  --am-primary:       #FFFFFF;
+  --am-primary-light: #3A3A3A;
+  --am-secondary:     #9A9A9A;
   --am-success:       #6CCB5F;
   --am-warning:       #FFB900;
   --am-error:         #FF6961;
@@ -116,31 +116,37 @@ body {
 }
 
 .mud-nav-link, .mud-nav-link .mud-icon-root {
-  color: #94A3B8 !important;
+  color: #9A9A9A !important;
 }
 
 .mud-nav-link:hover {
-  background-color: rgba(76, 194, 255, 0.1) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
   color: var(--am-sidebar-text) !important;
 }
 
 .mud-nav-link.active {
-  background-color: rgba(76, 194, 255, 0.15) !important;
-  color: #4CC2FF !important;
-  border-right: 3px solid #4CC2FF;
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+  border-right: 3px solid #FFFFFF;
 }
 
 .mud-nav-link.active .mud-icon-root {
-  color: #4CC2FF !important;
+  color: #FFFFFF !important;
 }
 
-/* Light mode sidebar link colours */
-:not(.mud-theme-dark) .mud-nav-link        { color: #C7D2FE !important; }
-:not(.mud-theme-dark) .mud-nav-link:hover  { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
-:not(.mud-theme-dark) .mud-nav-link.active { color: #fff !important; border-right-color: #fff; }
+/* Light mode sidebar link colours — the sidebar itself stays dark indigo in light mode
+   (see --am-sidebar-bg in :root), so its links need a light color even though the rest of
+   the page is light. Properly scoped to "no .mud-theme-dark ancestor exists anywhere in the
+   document" via :has() on the root — a plain `:not(.mud-theme-dark) .mud-nav-link` looks
+   similar but is a different (and wrong) selector: it only requires the .mud-nav-link to
+   have *some* ancestor without that class, which is true even in dark mode (e.g. <body>
+   itself never carries the class), so it always won and made dark mode's own nav-link colors
+   below unreachable. */
+:root:not(:has(.mud-theme-dark)):not(:has(.am-high-contrast)) .mud-nav-link        { color: #C7D2FE !important; }
+:root:not(:has(.mud-theme-dark)):not(:has(.am-high-contrast)) .mud-nav-link:hover  { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
+:root:not(:has(.mud-theme-dark)):not(:has(.am-high-contrast)) .mud-nav-link.active { color: #fff !important; border-right-color: #fff; }
 
-/* High contrast sidebar link colours — must come after the light-mode block above
-   since .am-high-contrast also matches :not(.mud-theme-dark). */
+/* High contrast sidebar link colours. */
 .am-high-contrast .mud-nav-link, .am-high-contrast .mud-nav-link .mud-icon-root {
   color: #FFFF00 !important;
 }
@@ -194,7 +200,7 @@ body {
 
 .am-brand-version {
   font-size: 0.7rem;
-  color: #64748B;
+  color: #7A7A7A;
   font-weight: 400;
 }
 
@@ -206,7 +212,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #475569 !important;
+  color: #5C5C5C !important;
 }
 
 /* ---- Sidebar Footer ---- */
@@ -234,6 +240,27 @@ body {
   border: 1px solid var(--am-border) !important;
   background: var(--am-surface) !important;
   border-radius: var(--am-radius-lg) !important;
+}
+
+/* ---- Page header ---- */
+/* Every page starts with a title + subtitle (+ primary action) block. Giving it its own
+   surface/border/shadow reads as a distinct "header" region, with the card(s) below it as
+   the "content" area — instead of the title floating directly on the page background. */
+.am-page-header {
+  background: var(--am-surface);
+  border: 1px solid var(--am-border);
+  border-radius: var(--am-radius-lg);
+  padding: 20px 24px !important;
+  box-shadow: var(--am-shadow);
+}
+
+/* ---- Table footer (pagination bar) ---- */
+/* MudTable's built-in pager renders directly below the rows with no visual separation from
+   the table body — give it a distinct "footer" band so list pages read as a clear
+   header / content / footer structure, matching the page header treatment above. */
+.mud-table-pagination {
+  background: var(--am-surface-2);
+  border-top: 1px solid var(--am-border);
 }
 
 /* ---- Data Grid ---- */
@@ -302,12 +329,20 @@ body {
 .am-stat-purple { background: rgba(109,40,217,0.12); color: #7C3AED; }
 .am-stat-teal   { background: rgba(8,145,178,0.12);  color: #0891B2; }
 
-.mud-theme-dark .am-stat-blue   { background: rgba(76,194,255,0.14);  color: #4CC2FF; }
+.mud-theme-dark .am-stat-blue   { background: rgba(255,255,255,0.10); color: #E8E8E8; }
 .mud-theme-dark .am-stat-green  { background: rgba(108,203,95,0.14);  color: #6CCB5F; }
 .mud-theme-dark .am-stat-red    { background: rgba(255,105,97,0.14);  color: #FF6961; }
 .mud-theme-dark .am-stat-yellow { background: rgba(255,185,0,0.14);   color: #FFB900; }
-.mud-theme-dark .am-stat-purple { background: rgba(76,194,255,0.14);  color: #4CC2FF; }
-.mud-theme-dark .am-stat-teal   { background: rgba(41,184,216,0.14);  color: #29B8D8; }
+.mud-theme-dark .am-stat-purple { background: rgba(255,255,255,0.10); color: #E8E8E8; }
+.mud-theme-dark .am-stat-teal   { background: rgba(255,255,255,0.10); color: #E8E8E8; }
+
+/* High contrast: the same non-semantic neutralization as dark mode above — blue/purple/teal
+   have no status meaning here, so they collapse to the theme's yellow-on-black chrome instead
+   of leaking their light-mode brand hues through. Green/red/yellow stay distinct (Active/Locked
+   Out/Unverified counts), matching Success/Warning/Error staying distinct in the HC palette. */
+.am-high-contrast .am-stat-blue   { background: rgba(255,255,0,0.10); color: #FFFF00; }
+.am-high-contrast .am-stat-purple { background: rgba(255,255,0,0.10); color: #FFFF00; }
+.am-high-contrast .am-stat-teal   { background: rgba(255,255,0,0.10); color: #FFFF00; }
 
 /* ---- Dialog Tabs ---- */
 .am-dialog-tabs .mud-tabs-toolbar {
@@ -353,16 +388,16 @@ body {
 .am-setup-bg {
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at top, #1E1040 0%, #0B0F1A 60%);
+  background: var(--am-bg);
   z-index: -1;
 }
 .am-setup-header { display: flex; justify-content: center; padding: 32px 20px 0; }
 .am-setup-brand { display: flex; align-items: center; gap: 10px; }
 .am-setup-logo { width: 36px; height: 36px; }
-.am-setup-brand-name { color: #fff; font-weight: 700; font-size: 1.1rem; }
+.am-setup-brand-name { color: var(--am-text); font-weight: 700; font-size: 1.1rem; }
 .am-setup-main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 32px 20px; gap: 24px; }
-.am-setup-footer { text-align: center; padding: 20px; font-size: 0.78rem; color: #94A3B8; }
-.am-setup-footer a { color: #C4B5FD; }
+.am-setup-footer { text-align: center; padding: 20px; font-size: 0.78rem; color: var(--am-text-2); }
+.am-setup-footer a { color: var(--am-primary); }
 
 .am-wizard-steps { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
 .am-wizard-step { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -371,13 +406,13 @@ body {
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.08);
-  color: #94A3B8;
+  color: #9A9A9A;
   font-weight: 700;
   font-size: 0.85rem;
 }
 .am-wizard-step-active .am-wizard-step-circle { background: var(--am-primary); color: #fff; }
 .am-wizard-step-done .am-wizard-step-circle { background: var(--am-success); color: #fff; }
-.am-wizard-step-label { font-size: 0.72rem; color: #94A3B8; }
+.am-wizard-step-label { font-size: 0.72rem; color: #9A9A9A; }
 .am-wizard-step-active .am-wizard-step-label, .am-wizard-step-done .am-wizard-step-label { color: #fff; }
 .am-wizard-step-line { width: 48px; height: 2px; background: rgba(255,255,255,0.12); margin: 0 -4px 20px; }
 .am-wizard-step-line-done { background: var(--am-success); }
@@ -398,9 +433,9 @@ body {
   margin-bottom: 8px;
   color: #fff;
 }
-.am-wizard-icon-welcome { background: linear-gradient(135deg, #7C3AED, #2563EB); }
-.am-wizard-icon-admin { background: linear-gradient(135deg, #059669, #0891B2); }
-.am-wizard-icon-security { background: linear-gradient(135deg, #DC2626, #D97706); }
+.am-wizard-icon-welcome { background: var(--am-primary); }
+.am-wizard-icon-admin { background: var(--am-success); }
+.am-wizard-icon-security { background: var(--am-error); }
 .am-wizard-title { font-size: 1.3rem; font-weight: 700; margin: 0; color: var(--am-text); }
 .am-wizard-subtitle { font-size: 0.875rem; color: var(--am-text-2); margin: 0 0 12px; }
 .am-wizard-fields { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
@@ -425,3 +460,27 @@ body {
 .am-wizard-summary { width: 100%; margin: 16px 0; border-top: 1px solid var(--am-border); padding-top: 12px; }
 .am-wizard-summary-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.85rem; }
 .am-wizard-summary-row span { color: var(--am-text-2); }
+
+/* ---- Global error boundary panel ---- */
+.am-error-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 24px;
+}
+.am-error-card {
+  background: var(--am-surface) !important;
+  border: 1px solid var(--am-border);
+  border-radius: var(--am-radius-lg);
+  max-width: 480px;
+  width: 100%;
+}
+.am-error-message { text-align: center; }
+.am-error-details { background: transparent !important; width: 100%; }
+.am-error-technical {
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--am-text-2);
+}

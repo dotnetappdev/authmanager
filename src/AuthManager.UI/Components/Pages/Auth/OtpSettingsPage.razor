@@ -1,11 +1,10 @@
 @page "/authmanager/otp"
-@rendermode InteractiveServer
 @inject IOtpService OtpService
 @inject ISnackbar Snackbar
 
 <PageTitle>OTP Settings — Auth Manager</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 am-page-header">
     <div>
         <MudText Typo="Typo.h4">One-Time Passwords (OTP)</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">

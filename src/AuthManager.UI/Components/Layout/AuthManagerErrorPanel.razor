@@ -1,0 +1,34 @@
+@namespace AuthManager.UI.Components.Layout
+
+<div class="am-error-overlay">
+    <MudPaper Elevation="4" Class="am-error-card pa-6">
+        <MudStack Spacing="4" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" Style="font-size: 3rem;" />
+            <MudText Typo="Typo.h5">Something went wrong</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="am-error-message">
+                An unexpected error occurred while rendering this page. You can try again, or head back to the dashboard.
+            </MudText>
+
+            <MudExpansionPanels Elevation="0" Class="am-error-details">
+                <MudExpansionPanel Text="Technical details">
+                    <MudText Typo="Typo.caption" Class="am-error-technical">
+                        @($"{Exception?.GetType().Name}: {Exception?.Message}")
+                    </MudText>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnDismiss">Try Again</MudButton>
+                <MudButton Variant="Variant.Outlined" Href="/authmanager">Back to Dashboard</MudButton>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+</div>
+
+@code {
+    /// <summary>The exception caught by the enclosing <see cref="Microsoft.AspNetCore.Components.Web.ErrorBoundary"/>.</summary>
+    [Parameter] public Exception? Exception { get; set; }
+
+    /// <summary>Invoked when the user clicks "Try Again" — the caller should call <c>ErrorBoundary.Recover()</c>.</summary>
+    [Parameter] public EventCallback OnDismiss { get; set; }
+}

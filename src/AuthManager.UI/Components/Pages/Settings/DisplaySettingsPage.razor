@@ -1,5 +1,4 @@
 @page "/authmanager/settings"
-@rendermode InteractiveServer
 @inject IEntityNamingService NamingService
 @inject IRoleManagementService RoleService
 @inject IAuditService AuditService
@@ -8,7 +7,7 @@
 
 <PageTitle>Display Settings — Auth Manager</PageTitle>
 
-<div class="mb-4">
+<div class="mb-4 am-page-header">
     <MudText Typo="Typo.h4">Display Settings</MudText>
     <MudText Typo="Typo.body2" Color="Color.Secondary">
         Customise how entities are labelled throughout the admin UI.
