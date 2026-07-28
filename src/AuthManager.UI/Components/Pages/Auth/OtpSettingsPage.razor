@@ -1,5 +1,7 @@
 @page "/authmanager/otp"
 @inject IOtpService OtpService
+@inject ISmsSettingsService SmsSettingsService
+@inject ISmsSenderService SmsSenderService
 @inject ISnackbar Snackbar
 
 <PageTitle>OTP Settings — Auth Manager</PageTitle>
@@ -138,6 +140,139 @@ else if (_settings is not null)
             </MudCard>
         </MudItem>
 
+        <!-- ── SMS delivery ───────────────────────────────────────────── -->
+        <MudItem xs="12">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">SMS Delivery</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Send OTP codes by text message via Twilio or another SMS gateway.
+                        </MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudChip T="string" Size="Size.Small" Color="@(_sms.Enabled ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+                            @(_sms.Enabled ? "Enabled" : "Disabled")
+                        </MudChip>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12" sm="6">
+                            <MudSwitch T="bool" @bind-Value="_sms.Enabled" Color="Color.Primary" Label="Enable SMS delivery" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="SmsProvider" @bind-Value="_sms.ActiveProvider" Label="Active Provider" Variant="Variant.Outlined"
+                                       Margin="Margin.Dense" Disabled="!_sms.Enabled">
+                                <MudSelectItem T="SmsProvider" Value="SmsProvider.None">None</MudSelectItem>
+                                <MudSelectItem T="SmsProvider" Value="SmsProvider.Twilio">Twilio</MudSelectItem>
+                                <MudSelectItem T="SmsProvider" Value="SmsProvider.Vonage">Vonage (Nexmo)</MudSelectItem>
+                                <MudSelectItem T="SmsProvider" Value="SmsProvider.MessageBird">MessageBird</MudSelectItem>
+                                <MudSelectItem T="SmsProvider" Value="SmsProvider.Sinch">Sinch</MudSelectItem>
+                                <MudSelectItem T="SmsProvider" Value="SmsProvider.Textlocal">Textlocal (UK)</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudTextField @bind-Value="_settings!.SmsBodyTemplate" Label="SMS Body Template" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" Class="mt-3" Lines="2" AutoGrow="true"
+                                  HelperText="Supports {code}, {expiry}, and {appName}. Kept short — most providers bill per 160-character segment." />
+
+                    <MudExpansionPanels Class="mt-4" Elevation="0">
+                        <MudExpansionPanel Text="Twilio" Expanded="@(_sms.ActiveProvider == SmsProvider.Twilio)">
+                            <MudGrid>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.TwilioAccountSid" Label="Account SID" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="AC..." />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.TwilioAuthToken" Label="Auth Token" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  InputType="InputType.Password" Placeholder="@(_smsInfo.TwilioAuthTokenSet ? _smsInfo.TwilioAuthTokenMasked : "")"
+                                                  HelperText="Leave blank to keep the saved token." />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.TwilioFromNumber" Label="From Number / Messaging Service SID" Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense" Placeholder="+14155552671 or MG..." />
+                                </MudItem>
+                            </MudGrid>
+                        </MudExpansionPanel>
+
+                        <MudExpansionPanel Text="Vonage (Nexmo)" Expanded="@(_sms.ActiveProvider == SmsProvider.Vonage)">
+                            <MudGrid>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.VonageApiKey" Label="API Key" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.VonageApiSecret" Label="API Secret" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  InputType="InputType.Password" Placeholder="@(_smsInfo.VonageApiSecretSet ? _smsInfo.VonageApiSecretMasked : "")"
+                                                  HelperText="Leave blank to keep the saved secret." />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.VonageFromNumber" Label="From (sender ID or number)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudExpansionPanel>
+
+                        <MudExpansionPanel Text="MessageBird" Expanded="@(_sms.ActiveProvider == SmsProvider.MessageBird)">
+                            <MudGrid>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_sms.MessageBirdApiKey" Label="API Key" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  InputType="InputType.Password" Placeholder="@(_smsInfo.MessageBirdApiKeySet ? _smsInfo.MessageBirdApiKeyMasked : "")"
+                                                  HelperText="Leave blank to keep the saved key." />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_sms.MessageBirdOriginator" Label="Originator (sender ID or number)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudExpansionPanel>
+
+                        <MudExpansionPanel Text="Sinch" Expanded="@(_sms.ActiveProvider == SmsProvider.Sinch)">
+                            <MudGrid>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.SinchServicePlanId" Label="Service Plan ID" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.SinchApiToken" Label="API Token" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  InputType="InputType.Password" Placeholder="@(_smsInfo.SinchApiTokenSet ? _smsInfo.SinchApiTokenMasked : "")"
+                                                  HelperText="Leave blank to keep the saved token." />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_sms.SinchFromNumber" Label="From Number" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudExpansionPanel>
+
+                        <MudExpansionPanel Text="Textlocal (UK)" Expanded="@(_sms.ActiveProvider == SmsProvider.Textlocal)">
+                            <MudGrid>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_sms.TextlocalApiKey" Label="API Key" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  InputType="InputType.Password" Placeholder="@(_smsInfo.TextlocalApiKeySet ? _smsInfo.TextlocalApiKeyMasked : "")"
+                                                  HelperText="Leave blank to keep the saved key." />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_sms.TextlocalSender" Label="Sender" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  HelperText="Up to 11 alphanumeric characters, or a validated UK long number." />
+                                </MudItem>
+                            </MudGrid>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+
+                    <MudDivider Class="my-4" />
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Send a Test Message</MudText>
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End" Wrap="Wrap.Wrap">
+                        <MudTextField @bind-Value="_testPhoneNumber" Label="Phone Number" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Placeholder="+447911123456" Style="max-width:260px" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="SendTestSms" Disabled="@(_sendingTest || string.IsNullOrWhiteSpace(_testPhoneNumber))">
+                            @(_sendingTest ? "Sending…" : "Send Test SMS")
+                        </MudButton>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-1">
+                        Saves your SMS settings first, then sends "Your AuthManager test code is 123456." to the number above.
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
         <!-- ── How-to card ─────────────────────────────────────────────── -->
         <MudItem xs="12">
             <MudCard Elevation="0" Class="am-card-border">
@@ -151,10 +286,18 @@ else if (_settings is not null)
                         Inject <strong>IOtpService</strong> in your login endpoint or Blazor component:
                     </MudText>
                     <pre style="background:var(--mud-palette-background-grey);padding:12px;border-radius:6px;font-size:.8rem;overflow-x:auto">
-// 1. Generate a code and email it to the user
+// 1a. Generate a code and email it to the user
 var result = await otpService.GenerateAsync(user.Id, "login");
 if (result.Success)
     await emailService.SendAsync(user.Email, subject, body.Replace("{code}", result.PlainCode));
+
+// 1b. ...or text it via the SMS provider configured above
+var result = await otpService.GenerateAsync(user.Id, "login");
+if (result.Success)
+{
+    var message = smsBodyTemplate.Replace("{code}", result.PlainCode);
+    await smsSender.SendAsync(user.PhoneNumber, message);
+}
 
 // 2. Verify the code the user entered
 var verify = await otpService.VerifyAsync(user.Id, "login", userEnteredCode);
@@ -174,12 +317,30 @@ else
 
 @code {
     private OtpSettingsInfo? _settings;
+    private SmsSettingsInfo _smsInfo = new();
+    private UpdateSmsSettingsDto _sms = new();
     private bool _loading = true;
     private bool _saving;
+    private bool _sendingTest;
+    private string _testPhoneNumber = "";
 
     protected override async Task OnInitializedAsync()
     {
         _settings = await OtpService.GetSettingsAsync();
+        _smsInfo = await SmsSettingsService.GetSettingsAsync();
+        _sms = new UpdateSmsSettingsDto
+        {
+            Enabled = _smsInfo.Enabled,
+            ActiveProvider = _smsInfo.ActiveProvider,
+            TwilioAccountSid = _smsInfo.TwilioAccountSid,
+            TwilioFromNumber = _smsInfo.TwilioFromNumber,
+            VonageApiKey = _smsInfo.VonageApiKey,
+            VonageFromNumber = _smsInfo.VonageFromNumber,
+            MessageBirdOriginator = _smsInfo.MessageBirdOriginator,
+            SinchServicePlanId = _smsInfo.SinchServicePlanId,
+            SinchFromNumber = _smsInfo.SinchFromNumber,
+            TextlocalSender = _smsInfo.TextlocalSender,
+        };
         _loading = false;
     }
 
@@ -189,11 +350,37 @@ else
         _saving = true;
 
         var (ok, errors) = await OtpService.UpdateSettingsAsync(_settings);
+        await SmsSettingsService.UpdateSettingsAsync(_sms);
+
+        // Secrets aren't round-tripped back into the form — clear so the placeholder (mask) shows again.
+        _sms.TwilioAuthToken = null;
+        _sms.VonageApiSecret = null;
+        _sms.MessageBirdApiKey = null;
+        _sms.SinchApiToken = null;
+        _sms.TextlocalApiKey = null;
+        _smsInfo = await SmsSettingsService.GetSettingsAsync();
 
         _saving = false;
 
         if (ok)
             Snackbar.Add("OTP settings saved.", Severity.Success);
+        else
+            foreach (var e in errors) Snackbar.Add(e, Severity.Error);
+    }
+
+    private async Task SendTestSms()
+    {
+        if (string.IsNullOrWhiteSpace(_testPhoneNumber)) return;
+        _sendingTest = true;
+
+        // Persist current SMS settings first so the test uses exactly what's on screen.
+        await SmsSettingsService.UpdateSettingsAsync(_sms);
+        var (ok, errors) = await SmsSenderService.SendAsync(_testPhoneNumber, "Your AuthManager test code is 123456.");
+
+        _sendingTest = false;
+
+        if (ok)
+            Snackbar.Add($"Test SMS sent to {_testPhoneNumber}.", Severity.Success);
         else
             foreach (var e in errors) Snackbar.Add(e, Severity.Error);
     }

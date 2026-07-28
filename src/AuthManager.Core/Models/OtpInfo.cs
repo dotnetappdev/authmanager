@@ -29,6 +29,9 @@ public sealed class OtpSettingsInfo
     /// <summary>Email body template.</summary>
     public string EmailBodyTemplate { get; set; } = string.Empty;
 
+    /// <summary>SMS body template — used when delivering codes via <c>ISmsSenderService</c>.</summary>
+    public string SmsBodyTemplate { get; set; } = string.Empty;
+
     // ── Statistics (read-only) ──────────────────────────────────────────
     public int TotalIssuedToday { get; set; }
     public int TotalVerifiedToday { get; set; }

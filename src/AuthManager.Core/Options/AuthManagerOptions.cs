@@ -171,6 +171,13 @@ public sealed class AuthManagerOptions
     /// Manage at runtime via /authmanager/payments.
     /// </summary>
     public PaymentOptions Payments { get; set; } = new();
+
+    /// <summary>
+    /// SMS provider integration (Twilio, Vonage, MessageBird, Sinch, Textlocal) for
+    /// delivering OTP codes and other text messages via <c>ISmsSenderService</c>.
+    /// Manage at runtime via /authmanager/otp.
+    /// </summary>
+    public SmsOptions Sms { get; set; } = new();
 }
 
 /// <summary>
@@ -520,4 +527,11 @@ public sealed class OtpOptions
     /// </summary>
     public string EmailBodyTemplate { get; set; } =
         "Your one-time code is: {code}\n\nThis code expires in {expiry}.\n\nIf you did not request this, please ignore this email.";
+
+    /// <summary>
+    /// SMS body template used when delivering OTP codes via <c>ISmsSenderService</c>.
+    /// Supports {code}, {expiry}, and {appName} placeholders. Kept short — most SMS
+    /// providers bill per 160-character segment.
+    /// </summary>
+    public string SmsBodyTemplate { get; set; } = "Your {appName} verification code is {code}. Expires in {expiry}.";
 }

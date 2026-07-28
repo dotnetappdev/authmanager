@@ -152,15 +152,18 @@ internal sealed class OtpService : IOtpService
     public async Task<OtpSettingsInfo> GetSettingsAsync(CancellationToken ct = default)
     {
         var opts    = await GetEffectiveOptionsAsync(ct);
-        var today   = DateTimeOffset.UtcNow.Date;
+        var now     = DateTimeOffset.UtcNow;
+        var today   = now.Date;
         var todayEnd = today.AddDays(1);
 
         await using var db = await _factory.CreateDbContextAsync(ct);
 
+        // `now` is captured into a local first — calling DateTimeOffset.UtcNow directly inside
+        // the predicate fails to translate against the SQLite provider.
         var issuedToday   = await db.OtpCodes.CountAsync(o => o.CreatedAt >= today && o.CreatedAt < todayEnd, ct);
         var verifiedToday = await db.OtpCodes.CountAsync(o => o.IsUsed && o.UsedAt >= today && o.UsedAt < todayEnd, ct);
         var expiredToday  = await db.OtpCodes.CountAsync(o => !o.IsUsed && o.ExpiresAt >= today && o.ExpiresAt < todayEnd, ct);
-        var pending       = await db.OtpCodes.CountAsync(o => !o.IsUsed && o.ExpiresAt > DateTimeOffset.UtcNow, ct);
+        var pending       = await db.OtpCodes.CountAsync(o => !o.IsUsed && o.ExpiresAt > now, ct);
 
         return new OtpSettingsInfo
         {
@@ -172,6 +175,7 @@ internal sealed class OtpService : IOtpService
             UseAlphanumericCodes = opts.UseAlphanumericCodes,
             EmailSubject         = opts.EmailSubject,
             EmailBodyTemplate    = opts.EmailBodyTemplate,
+            SmsBodyTemplate      = opts.SmsBodyTemplate,
             TotalIssuedToday     = issuedToday,
             TotalVerifiedToday   = verifiedToday,
             TotalExpiredToday    = expiredToday,
@@ -200,7 +204,8 @@ internal sealed class OtpService : IOtpService
             settings.ResendCooldownSeconds,
             settings.UseAlphanumericCodes,
             settings.EmailSubject,
-            settings.EmailBodyTemplate
+            settings.EmailBodyTemplate,
+            settings.SmsBodyTemplate
         });
 
         await UpsertSettingAsync(db, OtpSettingsKey, payload, ct);
@@ -256,7 +261,10 @@ internal sealed class OtpService : IOtpService
                                            : fallback.EmailSubject,
                 EmailBodyTemplate    = root.TryGetProperty("EmailBodyTemplate", out var eb)
                                            ? eb.GetString() ?? fallback.EmailBodyTemplate
-                                           : fallback.EmailBodyTemplate
+                                           : fallback.EmailBodyTemplate,
+                SmsBodyTemplate      = root.TryGetProperty("SmsBodyTemplate", out var sb)
+                                           ? sb.GetString() ?? fallback.SmsBodyTemplate
+                                           : fallback.SmsBodyTemplate
             };
         }
         catch

@@ -164,6 +164,11 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient("AuthManager.Stripe", c => c.BaseAddress = new Uri("https://api.stripe.com/"));
         services.AddHttpClient("AuthManager.PayPal");
 
+        // SMS (OTP delivery) — Twilio, Vonage, MessageBird, Sinch, Textlocal
+        services.TryAddSingleton<ISmsSettingsService, PersistentSmsSettingsService>();
+        services.TryAddScoped<ISmsSenderService, SmsSenderService>();
+        services.AddHttpClient("AuthManager.Sms");
+
         // Passkeys (WebAuthn) — wraps SignInManager/UserManager's native ceremony methods
         services.TryAddScoped<IPasskeyService, PasskeyService<TUser>>();
 

@@ -60,6 +60,7 @@ public static class AuthManagerApiExtensions
         MapCustomerApiKeyEndpoints(api);
         MapSubscriptionEndpoints(api);
         MapPaymentEndpoints(api);
+        MapSmsEndpoints(api);
 
         // OAuth2 client-credentials token endpoint — must stay anonymous (this is how a
         // client obtains its *first* token; it authenticates via client_id/client_secret in
@@ -695,6 +696,28 @@ public static class AuthManagerApiExtensions
     }
 
     private sealed record PaymentCheckoutRequest(string CustomerId, string PlanId);
+
+    // ── SMS (OTP delivery — Twilio / Vonage / MessageBird / Sinch / Textlocal) ──────────────
+
+    private static void MapSmsEndpoints(RouteGroupBuilder api)
+    {
+        api.MapGet("/sms-settings", async (ISmsSettingsService svc)
+            => Results.Ok(await svc.GetSettingsAsync())).WithName("AuthManager.Sms.GetSettings");
+
+        api.MapPut("/sms-settings", async (UpdateSmsSettingsDto dto, ISmsSettingsService svc) =>
+        {
+            await svc.UpdateSettingsAsync(dto);
+            return Results.NoContent();
+        }).WithName("AuthManager.Sms.UpdateSettings");
+
+        api.MapPost("/sms/send-test", async (SendTestSmsRequest req, ISmsSenderService svc) =>
+        {
+            var (ok, errors) = await svc.SendAsync(req.PhoneNumber, req.Message);
+            return ok ? Results.Ok(new { message = "Test message sent." }) : Results.BadRequest(new { errors });
+        }).WithName("AuthManager.Sms.SendTest");
+    }
+
+    private sealed record SendTestSmsRequest(string PhoneNumber, string Message);
 
     // ── Passkeys ─────────────────────────────────────────────────────────────
 
