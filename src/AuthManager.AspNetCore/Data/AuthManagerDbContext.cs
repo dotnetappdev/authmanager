@@ -175,6 +175,9 @@ public sealed class AuthManagerDbContext : DbContext
             e.Property(x => x.Id).HasMaxLength(64);
             e.Property(x => x.DisplayName).HasMaxLength(128);
             e.Property(x => x.MetadataJson).HasMaxLength(2048);
+            e.Property(x => x.BrandingCompanyName).HasMaxLength(128);
+            e.Property(x => x.BrandingLogoUrl).HasMaxLength(1024);
+            e.Property(x => x.FeatureFlagsJson).HasMaxLength(1024);
         });
 
         b.Entity<OAuthClientRecord>(e =>
@@ -316,6 +319,15 @@ public sealed class TenantRecord
     public string DisplayName { get; set; } = string.Empty;
     public string MetadataJson { get; set; } = "{}";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Per-tenant white-label override — falls back to the global BrandingOptions.CompanyName when null.</summary>
+    public string? BrandingCompanyName { get; set; }
+
+    /// <summary>Per-tenant logo override — falls back to the global BrandingOptions.LogoUrl when null.</summary>
+    public string? BrandingLogoUrl { get; set; }
+
+    /// <summary>JSON dictionary of TenantFeature name -&gt; bool overrides (see TenantFeature). Unset features inherit the global default.</summary>
+    public string FeatureFlagsJson { get; set; } = "{}";
 }
 
 /// <summary>A registered OAuth2 client application (service-to-service, client-credentials grant).</summary>

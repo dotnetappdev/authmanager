@@ -178,6 +178,13 @@ public sealed class AuthManagerOptions
     /// Manage at runtime via /authmanager/otp.
     /// </summary>
     public SmsOptions Sms { get; set; } = new();
+
+    /// <summary>
+    /// White-label branding (company name, logo) for a full install. Manage at runtime
+    /// via /authmanager/settings; per-tenant overrides live on each tenant, managed at
+    /// /authmanager/tenants.
+    /// </summary>
+    public BrandingOptions Branding { get; set; } = new();
 }
 
 /// <summary>

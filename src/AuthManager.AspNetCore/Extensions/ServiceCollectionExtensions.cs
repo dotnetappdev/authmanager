@@ -152,6 +152,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IApiTokenService,      ApiTokenService<TUser>>();
         services.TryAddScoped<ITotpChallengeService, TotpChallengeService<TUser>>();
         services.TryAddScoped<ITenantService,        TenantService<TUser>>();
+        services.TryAddScoped<ITenantFeatureService, TenantFeatureService>();
         services.TryAddScoped<IOAuthClientService,   OAuthClientService>();
 
         // Licensing & monetization — customers, license keys, customer-facing API keys, subscriptions
@@ -168,6 +169,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ISmsSettingsService, PersistentSmsSettingsService>();
         services.TryAddScoped<ISmsSenderService, SmsSenderService>();
         services.AddHttpClient("AuthManager.Sms");
+
+        // Branding (full-install white-label + per-tenant overrides)
+        services.TryAddSingleton<IBrandingSettingsService, PersistentBrandingSettingsService>();
 
         // Passkeys (WebAuthn) — wraps SignInManager/UserManager's native ceremony methods
         services.TryAddScoped<IPasskeyService, PasskeyService<TUser>>();

@@ -61,6 +61,7 @@ public static class AuthManagerApiExtensions
         MapSubscriptionEndpoints(api);
         MapPaymentEndpoints(api);
         MapSmsEndpoints(api);
+        MapBrandingEndpoints(api);
 
         // OAuth2 client-credentials token endpoint — must stay anonymous (this is how a
         // client obtains its *first* token; it authenticates via client_id/client_secret in
@@ -718,6 +719,23 @@ public static class AuthManagerApiExtensions
     }
 
     private sealed record SendTestSmsRequest(string PhoneNumber, string Message);
+
+    // ── Branding (full-install white-label) ─────────────────────────────────────────────
+
+    private static void MapBrandingEndpoints(RouteGroupBuilder api)
+    {
+        api.MapGet("/branding-settings", async (IBrandingSettingsService svc)
+            => Results.Ok(await svc.GetSettingsAsync())).WithName("AuthManager.Branding.GetSettings");
+
+        api.MapPut("/branding-settings", async (BrandingOptions dto, IBrandingSettingsService svc) =>
+        {
+            await svc.UpdateSettingsAsync(dto);
+            return Results.NoContent();
+        }).WithName("AuthManager.Branding.UpdateSettings");
+
+        api.MapGet("/tenants/{tenantId}/features", async (string tenantId, ITenantFeatureService svc)
+            => Results.Ok(await svc.GetEffectiveFlagsAsync(tenantId))).WithName("AuthManager.Tenants.GetFeatures");
+    }
 
     // ── Passkeys ─────────────────────────────────────────────────────────────
 

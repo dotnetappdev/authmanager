@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @inject IOptions<AuthManagerOptions> Options
+@inject IBrandingSettingsService BrandingService
 
 <MudThemeProvider Theme="_theme" @bind-IsDarkMode="_isDark" />
 <MudPopoverProvider />
@@ -11,20 +12,27 @@
 
     <header class="am-setup-header">
         <div class="am-setup-brand">
-            <svg class="am-setup-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="40" height="40" rx="10" fill="url(#setupGrad)" />
-                <path d="M20 8 L28 14 V22 C28 27 24 31 20 33 C16 31 12 27 12 22 V14 Z"
-                      fill="white" fill-opacity="0.9" />
-                <path d="M17 21 L19 23 L23 19" stroke="#6D28D9" stroke-width="2.5"
-                      stroke-linecap="round" stroke-linejoin="round" />
-                <defs>
-                    <linearGradient id="setupGrad" x1="0" y1="0" x2="40" y2="40">
-                        <stop offset="0%" stop-color="#7C3AED" />
-                        <stop offset="100%" stop-color="#2563EB" />
-                    </linearGradient>
-                </defs>
-            </svg>
-            <span class="am-setup-brand-name">Auth Manager</span>
+            @if (!string.IsNullOrWhiteSpace(_branding.LogoUrl))
+            {
+                <img src="@_branding.LogoUrl" alt="@BrandName" class="am-setup-logo-img" />
+            }
+            else
+            {
+                <svg class="am-setup-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="40" height="40" rx="10" fill="url(#setupGrad)" />
+                    <path d="M20 8 L28 14 V22 C28 27 24 31 20 33 C16 31 12 27 12 22 V14 Z"
+                          fill="white" fill-opacity="0.9" />
+                    <path d="M17 21 L19 23 L23 19" stroke="#6D28D9" stroke-width="2.5"
+                          stroke-linecap="round" stroke-linejoin="round" />
+                    <defs>
+                        <linearGradient id="setupGrad" x1="0" y1="0" x2="40" y2="40">
+                            <stop offset="0%" stop-color="#7C3AED" />
+                            <stop offset="100%" stop-color="#2563EB" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            }
+            <span class="am-setup-brand-name">@BrandName</span>
         </div>
     </header>
 
@@ -32,17 +40,22 @@
         @Body
     </main>
 
-    <footer class="am-setup-footer">
-        <span>DotNetAuthManager · <a href="https://github.com/dotnetappdev/authmanager" target="_blank" rel="noopener">Docs &amp; GitHub</a></span>
-    </footer>
+    @if (!_branding.HidePoweredByFooter)
+    {
+        <footer class="am-setup-footer">
+            <span>DotNetAuthManager · <a href="https://github.com/dotnetappdev/authmanager" target="_blank" rel="noopener">Docs &amp; GitHub</a></span>
+        </footer>
+    }
 </div>
 
 @code {
     private MudTheme _theme = AuthManagerThemeProvider.Build();
     private bool _isDark;
     private string? _cssClass;
+    private BrandingOptions _branding = new();
+    private string BrandName => string.IsNullOrWhiteSpace(_branding.CompanyName) ? Options.Value.Title : _branding.CompanyName;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         // The wizard runs before any theme has been chosen (no localStorage preference could
         // exist yet), so it should just honor the host's configured default — same idea as
@@ -59,5 +72,7 @@
         _theme = mode == AuthManagerTheme.HighContrast
             ? AuthManagerThemeProvider.BuildHighContrast()
             : AuthManagerThemeProvider.Build();
+
+        _branding = await BrandingService.GetSettingsAsync();
     }
 }

@@ -1,6 +1,13 @@
 @page "/authmanager/tenants"
+@using Microsoft.AspNetCore.Components.Authorization
 @inject ITenantService TenantService
+@inject ITenantFeatureService FeatureService
 @inject IUserManagementService UserService
+@inject ICustomerService CustomerService
+@inject ISubscriptionService SubscriptionService
+@inject IBrandingSettingsService BrandingService
+@inject IOptions<AuthManagerOptions> Options
+@inject AuthenticationStateProvider AuthState
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
@@ -10,7 +17,7 @@
     <div>
         <MudText Typo="Typo.h4">Tenants</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">
-            Isolate users into tenants via the <code>tenant_id</code> claim — for multi-tenant SaaS deployments
+            SuperAdmin control center — manage every tenant and customer, and toggle features per tenant.
         </MudText>
     </div>
     <MudButton Variant="Variant.Filled" Color="Color.Primary"
@@ -26,6 +33,57 @@
 }
 else
 {
+    <!-- ── KPI summary strip ─────────────────────────────────────────────── -->
+    <MudGrid Spacing="3" Class="mb-4">
+        <MudItem xs="6" sm="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h4" Color="Color.Primary">@_tenants.Count(t => !t.IsRootTenant)</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">Tenants</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h4" Color="Color.Info">@_totalUsers</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">Users</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h4" Color="Color.Success">@_totalCustomers</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">Customers</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudCard Elevation="0" Class="am-card-border">
+                <MudCardContent Class="pa-4">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h4" Color="Color.Warning">@_activeSubscriptions</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center">Active Subscriptions</MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    @if (!_isSuperAdmin)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
+            Signed in as Admin — tenant branding and feature-flag controls are SuperAdmin-only. You can still create, rename, and manage members.
+        </MudAlert>
+    }
+
     <MudGrid Spacing="3">
         @foreach (var tenant in _tenants)
         {
@@ -33,12 +91,19 @@ else
                 <MudCard Elevation="0" Class="am-card-border">
                     <MudCardHeader>
                         <CardHeaderAvatar>
-                            <MudAvatar Color="@(tenant.IsRootTenant ? Color.Secondary : Color.Primary)" Size="Size.Medium">
-                                <MudIcon Icon="@(tenant.IsRootTenant ? Icons.Material.Filled.Public : Icons.Material.Filled.Business)" />
-                            </MudAvatar>
+                            @if (!string.IsNullOrWhiteSpace(tenant.BrandingLogoUrl))
+                            {
+                                <MudAvatar Size="Size.Medium"><MudImage Src="@tenant.BrandingLogoUrl" ObjectFit="ObjectFit.Cover" /></MudAvatar>
+                            }
+                            else
+                            {
+                                <MudAvatar Color="@(tenant.IsRootTenant ? Color.Secondary : Color.Primary)" Size="Size.Medium">
+                                    <MudIcon Icon="@(tenant.IsRootTenant ? Icons.Material.Filled.Public : Icons.Material.Filled.Business)" />
+                                </MudAvatar>
+                            }
                         </CardHeaderAvatar>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6" Class="font-weight-medium">@tenant.DisplayName</MudText>
+                            <MudText Typo="Typo.h6" Class="font-weight-medium">@(tenant.BrandingCompanyName ?? tenant.DisplayName)</MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">@(tenant.IsRootTenant ? "no tenant claim" : tenant.Id)</MudText>
                         </CardHeaderContent>
                         <CardHeaderActions>
@@ -46,7 +111,7 @@ else
                             {
                                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
                                     <MudMenuItem OnClick="@(() => OpenEdit(tenant))">
-                                        <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-2" />Edit
+                                        <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-2" />Manage
                                     </MudMenuItem>
                                     <MudMenuItem OnClick="@(() => OpenMembers(tenant))">
                                         <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-2" />Members
@@ -71,6 +136,18 @@ else
                                 @tenant.MemberCount member@(tenant.MemberCount == 1 ? "" : "s")
                             </MudText>
                         </MudStack>
+                        @if (!tenant.IsRootTenant && tenant.FeatureOverrides.Count > 0)
+                        {
+                            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mt-2">
+                                @foreach (var (feature, enabled) in tenant.FeatureOverrides)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                             Color="@(enabled ? Color.Success : Color.Error)">
+                                        @feature: @(enabled ? "On" : "Off")
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        }
                     </MudCardContent>
                 </MudCard>
             </MudItem>
@@ -78,22 +155,82 @@ else
     </MudGrid>
 }
 
-<!-- ── Create / Edit Dialog ────────────────────────────────────────────── -->
+<!-- ── Create / Manage Dialog ────────────────────────────────────────────── -->
 <MudDialog @bind-IsVisible="_showDialog" Options="_dialogOpts">
     <TitleContent>
-        <MudText Typo="Typo.h6">@(_editingTenant is null ? "New Tenant" : $"Edit — {_editingTenant.DisplayName}")</MudText>
+        <MudText Typo="Typo.h6">@(_editingTenant is null ? "New Tenant" : $"Manage — {_editingTenant.DisplayName}")</MudText>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3">
-            @if (_editingTenant is null)
-            {
+        @if (_editingTenant is null)
+        {
+            <MudStack Spacing="3">
                 <MudTextField @bind-Value="_form.Id" Label="Tenant ID" Variant="Variant.Outlined"
                               Margin="Margin.Dense" Placeholder="e.g. acme-corp" Required="true"
                               HelperText="Stable identifier stored in the tenant claim — cannot be changed later" />
-            }
-            <MudTextField @bind-Value="_form.DisplayName" Label="Display Name" Variant="Variant.Outlined"
-                          Margin="Margin.Dense" Placeholder="e.g. Acme Corp" Required="true" />
-        </MudStack>
+                <MudTextField @bind-Value="_form.DisplayName" Label="Display Name" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Placeholder="e.g. Acme Corp" Required="true" />
+            </MudStack>
+        }
+        else
+        {
+            <MudTabs Elevation="0" Rounded="true">
+                <MudTabPanel Text="General">
+                    <MudStack Spacing="3" Class="pa-2">
+                        <MudTextField @bind-Value="_form.DisplayName" Label="Display Name" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Required="true" />
+                    </MudStack>
+                </MudTabPanel>
+                <MudTabPanel Text="Branding">
+                    <MudStack Spacing="3" Class="pa-2">
+                        <MudTextField @bind-Value="_form.BrandingCompanyName" Label="Company Name Override" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Placeholder="@(_globalBrandName)"
+                                      HelperText="Leave blank to use the global branding shown on Display Settings." />
+                        <MudTextField @bind-Value="_form.BrandingLogoUrl" Label="Logo URL Override" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Placeholder="https://tenant.example.com/logo.png"
+                                      HelperText="Leave blank to use the global logo." />
+                        @if (!string.IsNullOrWhiteSpace(_form.BrandingLogoUrl))
+                        {
+                            <img src="@_form.BrandingLogoUrl" alt="Logo preview" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:8px;" />
+                        }
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            Branding overrides are exposed via <code>ITenantService</code>/the REST API for your
+                            own tenant-facing pages (e.g. a per-tenant login screen) — they don't change
+                            AuthManager's own admin UI, which stays on the global branding.
+                        </MudAlert>
+                    </MudStack>
+                </MudTabPanel>
+                <MudTabPanel Text="Feature Flags">
+                    @if (!_isSuperAdmin)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="ma-2">SuperAdmin access required to change feature flags.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="2" Class="pa-2">
+                            @foreach (var feature in _allFeatures)
+                            {
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <div>
+                                        <MudText Typo="Typo.body2">@feature</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Effective: @(_effectiveFlags.GetValueOrDefault(feature) ? "Enabled" : "Disabled")
+                                        </MudText>
+                                    </div>
+                                    <MudSelect T="string" Value="@_featureStates.GetValueOrDefault(feature, "inherit")"
+                                               ValueChanged="@(v => _featureStates[feature] = v)"
+                                               Dense="true" Margin="Margin.Dense" Style="max-width:180px">
+                                        <MudSelectItem T="string" Value="@("inherit")">Inherit default</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("enabled")">Force Enabled</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("disabled")">Force Disabled</MudSelectItem>
+                                    </MudSelect>
+                                </MudStack>
+                                <MudDivider />
+                            }
+                        </MudStack>
+                    }
+                </MudTabPanel>
+            </MudTabs>
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="@(() => _showDialog = false)">Cancel</MudButton>
@@ -169,37 +306,73 @@ else
     private bool _showDialog;
     private bool _showMembers;
     private bool _membersLoading;
+    private bool _isSuperAdmin;
     private string _addUserQuery = "";
     private TenantDto? _editingTenant;
     private TenantDto? _membersTenant;
     private readonly TenantFormModel _form = new();
+
+    private int _totalUsers;
+    private int _totalCustomers;
+    private int _activeSubscriptions;
+    private string _globalBrandName = "";
+
+    private static readonly TenantFeature[] _allFeatures = Enum.GetValues<TenantFeature>();
+    private Dictionary<TenantFeature, string> _featureStates = [];
+    private Dictionary<TenantFeature, bool> _effectiveFlags = [];
 
     private static readonly DialogOptions _dialogOpts = new()
         { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        _isSuperAdmin = authState.User.IsInRole(Options.Value.SuperAdminRole);
+
         await Reload();
+
+        var customers = await CustomerService.GetCustomersAsync();
+        _totalCustomers = customers.Count;
+        var subscriptions = await SubscriptionService.GetSubscriptionsAsync();
+        _activeSubscriptions = subscriptions.Count(s => s.Status is SubscriptionStatus.Active or SubscriptionStatus.Trialing);
+
+        var branding = await BrandingService.GetSettingsAsync();
+        _globalBrandName = string.IsNullOrWhiteSpace(branding.CompanyName) ? Options.Value.Title : branding.CompanyName;
+
         _loading = false;
     }
 
     private async Task Reload()
-        => _tenants = await TenantService.GetTenantsAsync();
+    {
+        _tenants = await TenantService.GetTenantsAsync();
+        _totalUsers = _tenants.Sum(t => t.MemberCount);
+    }
 
     private void OpenCreate()
     {
         _editingTenant  = null;
         _form.Id          = "";
         _form.DisplayName = "";
+        _form.BrandingCompanyName = null;
+        _form.BrandingLogoUrl = null;
+        _featureStates = [];
         _showDialog       = true;
     }
 
-    private void OpenEdit(TenantDto tenant)
+    private async Task OpenEdit(TenantDto tenant)
     {
         _editingTenant    = tenant;
         _form.Id          = tenant.Id;
         _form.DisplayName = tenant.DisplayName;
-        _showDialog       = true;
+        _form.BrandingCompanyName = tenant.BrandingCompanyName;
+        _form.BrandingLogoUrl = tenant.BrandingLogoUrl;
+
+        _featureStates = [];
+        foreach (var (feature, enabled) in tenant.FeatureOverrides)
+            _featureStates[feature] = enabled ? "enabled" : "disabled";
+
+        _effectiveFlags = await FeatureService.GetEffectiveFlagsAsync(tenant.Id);
+        _showDialog = true;
     }
 
     private async Task OpenMembers(TenantDto tenant)
@@ -218,11 +391,35 @@ else
         (bool ok, string[] errors) result;
 
         if (_editingTenant is null)
+        {
             result = await TenantService.CreateTenantAsync(new CreateTenantDto
                 { Id = _form.Id, DisplayName = _form.DisplayName });
+        }
         else
+        {
+            var overrides = new Dictionary<TenantFeature, bool>();
+            if (_isSuperAdmin)
+            {
+                foreach (var (feature, state) in _featureStates)
+                {
+                    if (state == "enabled") overrides[feature] = true;
+                    else if (state == "disabled") overrides[feature] = false;
+                }
+            }
+            else
+            {
+                // Not SuperAdmin — leave whatever overrides already existed on the tenant untouched.
+                overrides = _editingTenant.FeatureOverrides;
+            }
+
             result = await TenantService.UpdateTenantAsync(_editingTenant.Id, new UpdateTenantDto
-                { DisplayName = _form.DisplayName });
+            {
+                DisplayName = _form.DisplayName,
+                BrandingCompanyName = _form.BrandingCompanyName,
+                BrandingLogoUrl = _form.BrandingLogoUrl,
+                FeatureOverrides = overrides,
+            });
+        }
 
         _saving = false;
         if (result.ok)
@@ -292,5 +489,7 @@ else
     {
         public string Id          { get; set; } = "";
         public string DisplayName { get; set; } = "";
+        public string? BrandingCompanyName { get; set; }
+        public string? BrandingLogoUrl { get; set; }
     }
 }

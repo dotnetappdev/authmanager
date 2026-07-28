@@ -1,17 +1,28 @@
 @inject NavigationManager Nav
 @inject IOptions<AuthManagerOptions> Options
 @inject IEntityNamingService Naming
+@inject IBrandingSettingsService BrandingService
 
 <MudDrawer Open="true" Elevation="0" Variant="DrawerVariant.Persistent" ClipMode="DrawerClipMode.Never"
            Class="am-sidebar">
     <MudDrawerHeader Class="am-sidebar-brand" LinkToIndex="false">
         <div class="am-brand">
             <div class="am-brand-icon">
-                <MudIcon Icon="@Icons.Material.Filled.Shield" Color="Color.Primary" Size="Size.Large" />
+                @if (!string.IsNullOrWhiteSpace(_branding.LogoUrl))
+                {
+                    <img src="@_branding.LogoUrl" alt="@BrandName" class="am-brand-logo" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Shield" Color="Color.Primary" Size="Size.Large" />
+                }
             </div>
             <div class="am-brand-text">
-                <div class="am-brand-name">@Options.Value.Title</div>
-                <div class="am-brand-version">v1.0.0</div>
+                <div class="am-brand-name">@BrandName</div>
+                @if (!_branding.HidePoweredByFooter)
+                {
+                    <div class="am-brand-version">v1.0.0</div>
+                }
             </div>
         </div>
     </MudDrawerHeader>
@@ -154,5 +165,13 @@
     {
         var p = Options.Value.RoutePrefix.Trim('/');
         return string.IsNullOrEmpty(path) ? $"/{p}" : $"/{p}/{path}";
+    }
+
+    private BrandingOptions _branding = new();
+    private string BrandName => string.IsNullOrWhiteSpace(_branding.CompanyName) ? Options.Value.Title : _branding.CompanyName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branding = await BrandingService.GetSettingsAsync();
     }
 }

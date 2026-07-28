@@ -2,6 +2,7 @@
 @inject IEntityNamingService NamingService
 @inject IRoleManagementService RoleService
 @inject IAuditService AuditService
+@inject IBrandingSettingsService BrandingService
 @inject IOptions<AuthManagerOptions> Options
 @inject ISnackbar Snackbar
 
@@ -60,17 +61,73 @@
                 </MudCardContent>
             </MudCard>
 
-            <!-- Admin UI Branding -->
+            <!-- White-label Branding -->
             <MudCard Elevation="0" Class="am-card-border">
-                <MudCardHeader><MudText Typo="Typo.h6">Admin UI Title</MudText></MudCardHeader>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Branding</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Label this install as your own product — shown in the sidebar and setup wizard.
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
                 <MudCardContent>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                        The title shown in the sidebar header is set in <code>AddAuthManager()</code>
-                        via <code>options.Title</code>. Current value:
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_branding.CompanyName" Label="Company / Product Name" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Placeholder="@Options.Value.Title"
+                                          HelperText="Shown in the sidebar and page titles. Leave blank to use the startup title below." />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_branding.SupportEmail" Label="Support Email" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Placeholder="support@yourcompany.com" />
+                        </MudItem>
+                        <MudItem xs="12" sm="8">
+                            <MudTextField @bind-Value="_branding.LogoUrl" Label="Logo URL" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Placeholder="https://yourcompany.com/logo.png"
+                                          HelperText="Replaces the shield icon in the sidebar and setup wizard. Any size works." />
+                        </MudItem>
+                        <MudItem xs="12" sm="4" Class="d-flex align-center justify-center">
+                            @if (!string.IsNullOrWhiteSpace(_branding.LogoUrl))
+                            {
+                                <img src="@_branding.LogoUrl" alt="Logo preview" style="max-width:64px;max-height:64px;object-fit:contain;border-radius:8px;" />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">No logo set</MudText>
+                            }
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-3">
+                        <div>
+                            <MudText Typo="Typo.body1">Hide "Powered by" footer</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Removes the DotNetAuthManager link from the setup wizard and version tag from the sidebar.</MudText>
+                        </div>
+                        <MudSwitch T="bool" @bind-Value="_branding.HidePoweredByFooter" Color="Color.Primary" />
+                    </MudStack>
+
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">
+                        The startup title (<code>options.Title</code> in <code>Program.cs</code>, currently
+                        <strong>@Options.Value.Title</strong>) is still used as the browser tab title and as the
+                        Company Name fallback when that field above is left blank.
                     </MudText>
-                    <MudTextField Value="@Options.Value.Title" Label="Current Title" Variant="Variant.Outlined"
-                                  Margin="Margin.Dense" ReadOnly="true"
-                                  HelperText="@("Change in Program.cs: options.Title = \"My App Admin\";")" />
+
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveBranding" Disabled="_savingBranding">
+                            @(_savingBranding ? "Saving…" : "Save Branding")
+                        </MudButton>
+                        @if (_brandingSaved)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Success">✓ Saved — reload to see changes in the sidebar</MudText>
+                        }
+                    </MudStack>
+
+                    <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
+                        Multi-tenant deployments can additionally override the company name and logo per
+                        tenant on the <MudLink Href="/authmanager/tenants">Tenants</MudLink> dashboard —
+                        this is the fallback shown when a tenant hasn't set its own.
+                    </MudAlert>
                 </MudCardContent>
             </MudCard>
 
@@ -155,12 +212,41 @@
     private bool _namingSaved;
     private List<RoleDto> _roles = [];
 
+    private BrandingOptions _branding = new();
+    private bool _savingBranding;
+    private bool _brandingSaved;
+
     protected override async Task OnInitializedAsync()
     {
         _singular = NamingService.GetUserDisplayName();
         _plural   = NamingService.GetUsersDisplayName();
 
         _roles = await RoleService.GetRolesAsync();
+        _branding = await BrandingService.GetSettingsAsync();
+    }
+
+    private async Task SaveBranding()
+    {
+        _savingBranding = true;
+        await BrandingService.UpdateSettingsAsync(_branding);
+
+        await AuditService.RecordAsync(new AuditEntry
+        {
+            Action     = "BrandingUpdated",
+            EntityType = "DisplaySettings",
+            EntityId   = "branding",
+            NewValues  = new Dictionary<string, object?>
+            {
+                ["CompanyName"] = _branding.CompanyName,
+                ["LogoUrl"] = _branding.LogoUrl,
+                ["HidePoweredByFooter"] = _branding.HidePoweredByFooter,
+            },
+            Success = true
+        });
+
+        Snackbar.Add("Branding saved.", Severity.Success);
+        _brandingSaved  = true;
+        _savingBranding = false;
     }
 
     private async Task SaveNaming()

@@ -107,8 +107,11 @@ internal sealed class TenantService<TUser> : ITenantService
         if (string.IsNullOrWhiteSpace(dto.DisplayName))
             return (false, ["Display name is required."]);
 
-        tenant.DisplayName  = dto.DisplayName.Trim();
-        tenant.MetadataJson = JsonSerializer.Serialize(dto.Metadata ?? []);
+        tenant.DisplayName          = dto.DisplayName.Trim();
+        tenant.MetadataJson         = JsonSerializer.Serialize(dto.Metadata ?? []);
+        tenant.BrandingCompanyName  = string.IsNullOrWhiteSpace(dto.BrandingCompanyName) ? null : dto.BrandingCompanyName.Trim();
+        tenant.BrandingLogoUrl      = string.IsNullOrWhiteSpace(dto.BrandingLogoUrl) ? null : dto.BrandingLogoUrl.Trim();
+        tenant.FeatureFlagsJson     = JsonSerializer.Serialize(dto.FeatureOverrides ?? []);
         await db.SaveChangesAsync(ct);
         return (true, []);
     }
@@ -213,11 +216,14 @@ internal sealed class TenantService<TUser> : ITenantService
 
     private static TenantDto ToDto(TenantRecord t, int memberCount) => new()
     {
-        Id          = t.Id,
-        DisplayName = t.DisplayName,
-        MemberCount = memberCount,
-        Metadata    = JsonSerializer.Deserialize<Dictionary<string, string>>(t.MetadataJson) ?? [],
-        CreatedAt   = t.CreatedAt
+        Id                  = t.Id,
+        DisplayName         = t.DisplayName,
+        MemberCount         = memberCount,
+        Metadata            = JsonSerializer.Deserialize<Dictionary<string, string>>(t.MetadataJson) ?? [],
+        CreatedAt           = t.CreatedAt,
+        BrandingCompanyName = t.BrandingCompanyName,
+        BrandingLogoUrl     = t.BrandingLogoUrl,
+        FeatureOverrides    = JsonSerializer.Deserialize<Dictionary<TenantFeature, bool>>(t.FeatureFlagsJson) ?? []
     };
 
     private static UserDto ToUserDto(TUser user) => new()
